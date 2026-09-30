@@ -1,6 +1,6 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۳
-// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب‌های PHP، پیام‌های تماس، بکاپ، اتصال دیتابیس و تنظیمات
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۴
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب‌های PHP، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی و تنظیمات
 
 declare(strict_types=1);
 
@@ -472,6 +472,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin('admin.php?page=settings');
                 // no break
 
+            case 'save_update_settings':
+                $repo = trim((string) ($_POST['update_repo'] ?? ''));
+                $branch = trim((string) ($_POST['update_branch'] ?? ''));
+                $zipUrl = trim((string) ($_POST['update_zip_url'] ?? ''));
+                if (!preg_match('#^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$#', $repo)) {
+                    throw new RuntimeException('نام مخزن باید به شکل owner/repo باشد؛ مثل farsmd/soon.');
+                }
+                if (!preg_match('#^[A-Za-z0-9._/-]+$#', $branch) || strpos($branch, '..') !== false) {
+                    throw new RuntimeException('نام شاخه معتبر نیست.');
+                }
+                if ($zipUrl !== '' && !preg_match('#^https?://#i', $zipUrl)) {
+                    throw new RuntimeException('آدرس مستقیم فایل ZIP باید با http یا https شروع شود.');
+                }
+                set_setting('update_repo', $repo);
+                set_setting('update_branch', $branch);
+                set_setting('update_zip_url', $zipUrl);
+                flash('ok', 'تنظیمات آپدیت ذخیره شد.');
+                redirect_admin('admin.php?page=update');
+                // no break
+
+            case 'perform_update':
+                $cfg = update_repo_config();
+                $wantBackup = isset($_POST['backup_db']);
+                $result = perform_update($cfg, $wantBackup);
+                if (!$result['ok']) {
+                    throw new RuntimeException((string) $result['error']);
+                }
+                $msg = 'آپدیت با موفقیت انجام شد. نسخه جدید: ' . (string) $result['new_version'] . '.';
+                if (!empty($result['backup_file'])) {
+                    $msg .= ' بکاپ دیتابیس قبل از آپدیت با نام ' . (string) $result['backup_file'] . ' در فولدر backups ذخیره شد.';
+                } else {
+                    $msg .= ' (بدون گرفتن بکاپ دیتابیس، طبق انتخاب شما.)';
+                }
+                flash('ok', $msg);
+                redirect_admin('admin.php?page=update&done=1');
+                // no break
+
             case 'change_password':
                 $current = (string) ($_POST['current_password'] ?? '');
                 $new     = (string) ($_POST['new_password'] ?? '');
@@ -534,6 +571,12 @@ if ($page === 'database') {
     $dbFiles = db_files();
 }
 
+$updateCfg = update_repo_config();
+$updateInfo = null;
+if ($page === 'update' && (isset($_GET['check']) || isset($_GET['done']))) {
+    $updateInfo = update_check($updateCfg);
+}
+
 $editSection = null;
 if ($page === 'sections' && isset($_GET['edit_id'])) {
     foreach ($sections as $s) {
@@ -581,6 +624,7 @@ if ($page === 'templates' && isset($_GET['edit'])) {
         <a href="admin.php?page=messages" class="<?= $page === 'messages' ? 'active' : '' ?>">پیام‌های تماس<?php if ($messages !== []): ?> (<?= count($messages) ?>)<?php endif; ?></a>
         <a href="admin.php?page=tools" class="<?= $page === 'tools' ? 'active' : '' ?>">ابزار و بکاپ</a>
         <a href="admin.php?page=database" class="<?= $page === 'database' ? 'active' : '' ?>"><?php if ($databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?>اتصال دیتابیس</a>
+        <a href="admin.php?page=update" class="<?= $page === 'update' ? 'active' : '' ?>">آپدیت</a>
         <a href="admin.php?page=settings" class="<?= $page === 'settings' ? 'active' : '' ?>">تنظیمات و پسورد</a>
         <div class="sidebar-version">نسخه برنامه: <span dir="ltr"><?= e(APP_VERSION) ?></span></div>
     </aside>
@@ -900,6 +944,91 @@ if ($page === 'templates' && isset($_GET['edit'])) {
             <section class="card wide">
                 <h2>نکته مهم درباره بکاپ و پسورد</h2>
                 <p class="muted">بکاپی که از «ابزار و بکاپ» دانلود می‌کنید روی دستگاه شما ذخیره می‌شود. نسخه‌های امن قبل از بازیابی یا تعویض دیتابیس، با نام‌های <code>database-backup-before-restore.sqlite</code> و <code>database-backup-before-switch.sqlite</code> در همان فولدر برنامه نگه داشته می‌شوند. همه تنظیمات، صفحه‌ها، بخش‌ها، پیام‌ها و هش پسورد مدیریت داخل فایل <code>database.sqlite</code> است؛ بنابراین بعد از اتصال به یک دیتابیس دیگر، ورود با پسورد ذخیره‌شده در همان دیتابیس جدید انجام می‌شود.</p>
+            </section>
+
+        <?php elseif ($page === 'update'): ?>
+            <h1>آپدیت سیستم</h1>
+            <p class="muted">از این صفحه می‌توانید ببینید نسخه تازه‌ای از سیستم در مخزن گیت‌هاب منتشر شده یا نه و با یک کلیک سایت را آپدیت کنید. آپدیت فقط فایل‌های کد را جایگزین می‌کند؛ فایل <code>database.sqlite</code>، تنظیمات داخل آن، عکس‌های آپلودی شما در <code>uploads</code> و فولدر <code>backups</code> هرگز دست نمی‌خورند و هیچ فایل محلی‌ای پاک نمی‌شود. بعد از آپدیت، مهاجرت دیتابیس در اولین بازدید به‌صورت خودکار اجرا می‌شود و پسورد و تنظیمات فعلی حفظ می‌شوند.</p>
+
+            <section class="card wide">
+                <h2>وضعیت نسخه</h2>
+                <table>
+                    <tbody>
+                        <tr><th>نسخه نصب‌شده فعلی</th><td><span dir="ltr"><?= e(APP_VERSION) ?></span></td></tr>
+                        <tr><th>مخزن گیت‌هاب</th><td><code><?= e($updateCfg['repo']) ?></code></td></tr>
+                        <tr><th>شاخه</th><td><code><?= e($updateCfg['branch']) ?></code></td></tr>
+                        <?php if (!empty($updateCfg['zip_url'])): ?>
+                        <tr><th>آدرس مستقیم فایل آپدیت</th><td><code><?= e($updateCfg['zip_url']) ?></code></td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+                <p><a class="btn" href="admin.php?page=update&check=1">بررسی نسخه تازه در گیت‌هاب</a></p>
+
+                <?php if ($updateInfo !== null): ?>
+                    <?php if (!empty($updateInfo['error'])): ?>
+                        <div class="alert error"><?= e($updateInfo['error']) ?></div>
+                    <?php elseif (!empty($updateInfo['checked'])): ?>
+                        <?php if (!empty($updateInfo['update_available'])): ?>
+                            <p><span class="status-pill ok">آپدیت تازه موجود است</span></p>
+                            <p>آخرین نسخه در مخزن: <strong dir="ltr"><?= e((string) $updateInfo['latest']) ?></strong> — نسخه فعلی شما: <span dir="ltr"><?= e(APP_VERSION) ?></span></p>
+                        <?php else: ?>
+                            <p><span class="status-pill ok">سیستم به‌روز است</span></p>
+                            <p class="muted">آخرین نسخه مخزن (<span dir="ltr"><?= e((string) $updateInfo['latest']) ?></span>) با نسخه فعلی شما یکی است.</p>
+                        <?php endif; ?>
+
+                        <?php if (!empty($updateInfo['commits'])): ?>
+                            <h3>آخرین تغییرات مخزن</h3>
+                            <table>
+                                <thead><tr><th>توضیح تغییر</th><th>تاریخ</th></tr></thead>
+                                <tbody>
+                                <?php foreach ($updateInfo['commits'] as $c): ?>
+                                    <tr><td><?= e($c['message']) ?></td><td><?= e($c['date']) ?></td></tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <p class="muted">برای دیدن آخرین نسخه و فهرست تغییرات، روی «بررسی نسخه تازه در گیت‌هاب» کلیک کنید.</p>
+                <?php endif; ?>
+            </section>
+
+            <section class="card wide">
+                <h2>آپدیت با یک کلیک</h2>
+                <p class="muted">قبل از جایگزینی فایل‌ها، در صورت تیک خوردن گزینه زیر، از دیتابیس فعلی در فولدر <code>backups</code> بکاپ گرفته می‌شود. اگر گرفتن بکاپ ناموفق باشد، آپدیت اصلاً شروع نمی‌شود. اگر بکاپ نمی‌خواهید، تیک را بردارید؛ در این صورت آپدیت بدون بکاپ انجام می‌شود.</p>
+                <form method="post" onsubmit="return confirm('فایل‌های کد سایت با نسخه تازه جایگزین شوند؟ دیتابیس و فایل‌های آپلودی شما دست نمی‌خورند.')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="perform_update">
+                    <label class="check">
+                        <input type="checkbox" name="backup_db" value="1" checked>
+                        گرفتن بکاپ از دیتابیس قبل از آپدیت
+                    </label>
+                    <?php if ($updateInfo !== null && !empty($updateInfo['update_available'])): ?>
+                        <button type="submit" class="btn primary">آپدیت به نسخه <span dir="ltr"><?= e((string) $updateInfo['latest']) ?></span></button>
+                    <?php else: ?>
+                        <button type="submit" class="btn primary" disabled>اول نسخه تازه را بررسی کنید</button>
+                        <p class="muted">دکمه آپدیت فقط وقتی فعال می‌شود که نسخه تازه‌تری در مخزن پیدا شود.</p>
+                    <?php endif; ?>
+                </form>
+            </section>
+
+            <section class="card wide">
+                <h2>تنظیمات مخزن آپدیت</h2>
+                <p class="muted">مخزن و شاخه‌ای که آپدیت‌ها از آن خوانده می‌شوند. به‌صورت پیش‌فرض مخزن رسمی همین سیستم است. «آدرس مستقیم فایل ZIP آپدیت» یک گزینه پیشرفته است و معمولاً باید خالی بماند؛ اگر پر شود، دانلود و بررسی نسخه از همان آدرس انجام می‌شود (مثلاً برای میرور یا تست).</p>
+                <form method="post">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="save_update_settings">
+                    <label>مخزن گیت‌هاب (owner/repo)
+                        <input type="text" name="update_repo" dir="ltr" value="<?= e($updateCfg['repo']) ?>" required>
+                    </label>
+                    <label>شاخه
+                        <input type="text" name="update_branch" dir="ltr" value="<?= e($updateCfg['branch']) ?>" required>
+                    </label>
+                    <label>آدرس مستقیم فایل ZIP آپدیت (پیشرفته — معمولاً خالی)
+                        <input type="text" name="update_zip_url" dir="ltr" value="<?= e($updateCfg['zip_url']) ?>" placeholder="https://example.com/update.zip">
+                    </label>
+                    <button type="submit" class="btn primary">ذخیره تنظیمات آپدیت</button>
+                </form>
             </section>
 
         <?php else: ?>
