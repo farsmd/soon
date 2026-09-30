@@ -1,0 +1,12 @@
+# محافظت از فایل دیتابیس و کانفیگ در آپاچی — این فایل‌ها نباید مستقیم از وب در دسترس باشند
+<FilesMatch "\.(sqlite|sqlite3|db)$">
+    Require all denied
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+<Files "config.php">
+    Require all denied
+    Order Allow,Deny
+    Deny from all
+</Files>
