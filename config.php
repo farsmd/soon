@@ -1,10 +1,10 @@
 <?php
-// config.php — اتصال دیتابیس و توابع کمکی مشترک (نسخه ۳)
+// config.php — اتصال دیتابیس و توابع کمکی مشترک (نسخه ۴)
 // همه فایل‌های این پروژه در یک فولدر کنار هم قرار دارند؛ عکس‌های آپلودی داخل فولدر uploads همان فولدر است.
 
 declare(strict_types=1);
 
-define('APP_VERSION', '3.0.0');
+define('APP_VERSION', '4.0.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -104,6 +104,10 @@ function init_db(PDO $pdo): void
         'admin_password_hash' => '',
         'seo_title'           => '',
         'seo_description'     => '',
+        // تنظیمات آپدیت یک‌کلیکی از گیت‌هاب (نسخه ۴)
+        'update_repo'         => 'farsmd/soon',
+        'update_branch'       => 'main',
+        'update_zip_url'      => '',
     ];
     $stmt = $pdo->prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (:key, :value)');
     foreach ($defaults as $k => $v) {
@@ -580,4 +584,487 @@ function render_template(string $file, array $settings, ?array $section = null):
         '{{menu}}'             => menu_html(),
     ];
     return strtr($output, $replacements);
+}
+
+// =============================================================
+// آپدیت یک‌کلیکی از گیت‌هاب (نسخه ۴)
+// =============================================================
+
+/** فولدر بکاپ‌های قبل از آپدیت (محافظت‌شده از وب)؛ در صورت نیاز ساخته می‌شود */
+function backups_dir(): string
+{
+    return __DIR__ . '/backups';
+}
+
+/** ساخت فولدر backups با .htaccess محافظ؛ خروجی: مسیر یا null در صورت خطا */
+function ensure_backups_dir(): ?string
+{
+    $dir = backups_dir();
+    if (!is_dir($dir)) {
+        if (!@mkdir($dir, 0775, true)) {
+            return null;
+        }
+    }
+    $ht = $dir . '/.htaccess';
+    if (!is_file($ht)) {
+        @file_put_contents($ht, "Require all denied\nDeny from all\n");
+    }
+    $idx = $dir . '/index.html';
+    if (!is_file($idx)) {
+        @file_put_contents($idx, '');
+    }
+    return $dir;
+}
+
+/** تنظیمات مخزن آپدیت (با اعتبارسنجی سبک و مقدار پیش‌فرض امن) */
+function update_repo_config(): array
+{
+    $repo   = trim(get_setting('update_repo', 'farsmd/soon'));
+    $branch = trim(get_setting('update_branch', 'main'));
+    $zipUrl = trim(get_setting('update_zip_url', ''));
+    if (!preg_match('#^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$#', $repo)) {
+        $repo = 'farsmd/soon';
+    }
+    if (!preg_match('#^[A-Za-z0-9._/-]+$#', $branch) || strpos($branch, '..') !== false) {
+        $branch = 'main';
+    }
+    return ['repo' => $repo, 'branch' => $branch, 'zip_url' => $zipUrl];
+}
+
+/** آدرس دانلود ZIP نسخه تازه (از تنظیم مستقیم یا ساخته‌شده از مخزن و شاخه) */
+function update_zip_download_url(array $cfg): string
+{
+    if (($cfg['zip_url'] ?? '') !== '') {
+        return (string) $cfg['zip_url'];
+    }
+    return 'https://codeload.github.com/' . $cfg['repo'] . '/zip/refs/heads/' . $cfg['branch'];
+}
+
+/**
+ * دریافت محتوای یک آدرس اینترنتی با cURL (اگر بود) یا file_get_contents.
+ * خروجی: ['ok' => bool, 'body' => ?string, 'error' => ?string]
+ */
+function http_fetch(string $url, int $timeout = 15): array
+{
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        if ($ch !== false) {
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_USERAGENT      => 'LinerLight-CMS-Updater/' . APP_VERSION,
+            ]);
+            $body = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $err  = (string) curl_error($ch);
+            curl_close($ch);
+            if ($body !== false && $code >= 200 && $code < 300) {
+                return ['ok' => true, 'body' => (string) $body, 'error' => null];
+            }
+            return ['ok' => false, 'body' => null, 'error' => $err !== '' ? $err : ('HTTP ' . $code)];
+        }
+    }
+    $ctx = stream_context_create([
+        'http' => [
+            'method'        => 'GET',
+            'timeout'       => $timeout,
+            'follow_location' => 1,
+            'max_redirects' => 5,
+            'header'        => "User-Agent: LinerLight-CMS-Updater/" . APP_VERSION . "\r\nAccept: */*\r\n",
+        ],
+        'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+    ]);
+    $body = @file_get_contents($url, false, $ctx);
+    if ($body === false) {
+        return ['ok' => false, 'body' => null, 'error' => 'دریافت پاسخ از سرور انجام نشد.'];
+    }
+    return ['ok' => true, 'body' => (string) $body, 'error' => null];
+}
+
+/**
+ * دانلود یک فایل (مثل ZIP آپدیت) روی دیسک با cURL یا stream.
+ * خروجی: ['ok' => bool, 'error' => ?string]
+ */
+function http_download(string $url, string $dest, int $timeout = 120): array
+{
+    if (function_exists('curl_init')) {
+        $fp = @fopen($dest, 'wb');
+        if ($fp === false) {
+            return ['ok' => false, 'error' => 'ساخت فایل موقت برای دانلود انجام نشد.'];
+        }
+        $ch = curl_init($url);
+        if ($ch !== false) {
+            curl_setopt_array($ch, [
+                CURLOPT_FILE           => $fp,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT        => $timeout,
+                CURLOPT_USERAGENT      => 'LinerLight-CMS-Updater/' . APP_VERSION,
+            ]);
+            $ok   = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $err  = (string) curl_error($ch);
+            curl_close($ch);
+            fclose($fp);
+            if ($ok && $code >= 200 && $code < 300 && is_file($dest) && (int) filesize($dest) > 0) {
+                return ['ok' => true, 'error' => null];
+            }
+            @unlink($dest);
+            return ['ok' => false, 'error' => $err !== '' ? $err : ('HTTP ' . $code)];
+        }
+        fclose($fp);
+    }
+    $ctx = stream_context_create([
+        'http' => [
+            'method'        => 'GET',
+            'timeout'       => $timeout,
+            'follow_location' => 1,
+            'max_redirects' => 5,
+            'header'        => "User-Agent: LinerLight-CMS-Updater/" . APP_VERSION . "\r\n",
+        ],
+        'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+    ]);
+    $body = @file_get_contents($url, false, $ctx);
+    if ($body === false || $body === '') {
+        return ['ok' => false, 'error' => 'دانلود فایل آپدیت انجام نشد.'];
+    }
+    if (@file_put_contents($dest, $body) === false) {
+        return ['ok' => false, 'error' => 'ذخیره فایل آپدیت روی سرور انجام نشد.'];
+    }
+    return ['ok' => true, 'error' => null];
+}
+
+/** استخراج مقدار APP_VERSION از متن config.php */
+function parse_app_version(string $configCode): ?string
+{
+    if (preg_match("/define\(\s*'APP_VERSION'\s*,\s*'([^']+)'\s*\)/", $configCode, $m)) {
+        return $m[1];
+    }
+    if (preg_match('/define\(\s*"APP_VERSION"\s*,\s*"([^"]+)"\s*\)/', $configCode, $m)) {
+        return $m[1];
+    }
+    return null;
+}
+
+/** خواندن متن یک فایل از داخل ZIP (با نام نسبی مثل config.php) */
+function zip_read_entry(ZipArchive $zip, string $relative): ?string
+{
+    // ابتدا خود نام و سپس جستجو در زیرفولدر ریشه (مثل soon-main/config.php)
+    $candidates = [$relative];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = (string) $zip->getNameIndex($i);
+        $suffix = '/' . $relative;
+        if (substr($name, -strlen($suffix)) === $suffix) {
+            $candidates[] = $name;
+        }
+    }
+    foreach (array_unique($candidates) as $name) {
+        $data = $zip->getFromName($name);
+        if ($data !== false) {
+            return (string) $data;
+        }
+    }
+    return null;
+}
+
+/** تشخیص پیشوند فولدر ریشه داخل ZIP (مثل soon-main/) یا رشته خالی */
+function zip_root_prefix(ZipArchive $zip): string
+{
+    $roots = [];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = (string) $zip->getNameIndex($i);
+        if ($name === '' ) {
+            continue;
+        }
+        $parts = explode('/', $name);
+        if (count($parts) > 1 && $parts[0] !== '') {
+            $roots[$parts[0]] = true;
+        } else {
+            // فایل در ریشه ZIP است؛ پیشوندی در کار نیست
+            return '';
+        }
+    }
+    if (count($roots) === 1) {
+        return array_key_first($roots) . '/';
+    }
+    return '';
+}
+
+/**
+ * بررسی وجود نسخه تازه‌تر.
+ * خروجی: current, latest (?string), update_available (bool), commits (array), error (?string), checked (bool)
+ */
+function update_check(array $cfg): array
+{
+    $result = [
+        'current'          => APP_VERSION,
+        'latest'           => null,
+        'update_available' => false,
+        'commits'          => [],
+        'error'            => null,
+        'checked'          => false,
+    ];
+
+    if (($cfg['zip_url'] ?? '') !== '') {
+        // حالت آدرس مستقیم ZIP: خود فایل دانلود و نسخه داخلش خوانده می‌شود.
+        $dir = update_temp_dir();
+        if ($dir === null) {
+            $result['error'] = 'ساخت فولدر موقت برای بررسی آپدیت انجام نشد.';
+            return $result;
+        }
+        $zipPath = $dir . '/check.zip';
+        try {
+            $dl = http_download((string) $cfg['zip_url'], $zipPath, 60);
+            if (!$dl['ok']) {
+                $result['error'] = 'دانلود فایل آپدیت برای بررسی انجام نشد: ' . (string) $dl['error'];
+                return $result;
+            }
+            if (!class_exists('ZipArchive')) {
+                $result['error'] = 'افزونه ZipArchive روی این سرور فعال نیست.';
+                return $result;
+            }
+            $zip = new ZipArchive();
+            if ($zip->open($zipPath) !== true) {
+                $result['error'] = 'فایل دانلودشده ZIP معتبر نیست.';
+                return $result;
+            }
+            $code = zip_read_entry($zip, 'config.php');
+            $zip->close();
+            if ($code === null) {
+                $result['error'] = 'فایل config.php داخل فایل آپدیت پیدا نشد.';
+                return $result;
+            }
+            $latest = parse_app_version($code);
+            if ($latest === null) {
+                $result['error'] = 'نسخه برنامه داخل فایل آپدیت پیدا نشد.';
+                return $result;
+            }
+            $result['latest'] = $latest;
+            $result['checked'] = true;
+            $result['update_available'] = version_compare($latest, APP_VERSION, '>');
+            return $result;
+        } finally {
+            update_remove_dir($dir);
+        }
+    }
+
+    // حالت مخزن گیت‌هاب: خواندن config.php خام از شاخه
+    $rawUrl = 'https://raw.githubusercontent.com/' . $cfg['repo'] . '/' . $cfg['branch'] . '/config.php';
+    $res = http_fetch($rawUrl, 15);
+    if (!$res['ok']) {
+        $result['error'] = 'بررسی نسخه تازه انجام نشد (مشکل شبکه یا دسترسی به گیت‌هاب): ' . (string) $res['error'];
+        return $result;
+    }
+    $latest = parse_app_version((string) $res['body']);
+    if ($latest === null) {
+        $result['error'] = 'نسخه برنامه در فایل config.php مخزن پیدا نشد.';
+        return $result;
+    }
+    $result['latest'] = $latest;
+    $result['checked'] = true;
+    $result['update_available'] = version_compare($latest, APP_VERSION, '>');
+
+    // فهرست آخرین کامیت‌ها برای نمایش تغییرات (اختیاری؛ خطایش بی‌صدا نادیده گرفته می‌شود)
+    $apiUrl = 'https://api.github.com/repos/' . $cfg['repo'] . '/commits?per_page=5&sha=' . rawurlencode($cfg['branch']);
+    $commitsRes = http_fetch($apiUrl, 15);
+    if ($commitsRes['ok']) {
+        $decoded = json_decode((string) $commitsRes['body'], true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $c) {
+                if (!is_array($c)) {
+                    continue;
+                }
+                $msg  = trim((string) ($c['commit']['message'] ?? ''));
+                $date = (string) ($c['commit']['author']['date'] ?? ($c['commit']['committer']['date'] ?? ''));
+                $firstLine = $msg === '' ? '' : (string) strtok($msg, "\n");
+                $result['commits'][] = [
+                    'message' => $firstLine,
+                    'date'    => $date !== '' ? date('Y/m/d H:i', (int) strtotime($date)) : '',
+                ];
+            }
+        }
+    }
+    return $result;
+}
+
+/** ساخت یک فولدر موقت محافظت‌شده برای کارهای آپدیت */
+function update_temp_dir(): ?string
+{
+    $base = ensure_backups_dir();
+    if ($base === null) {
+        $base = sys_get_temp_dir();
+    }
+    $dir = $base . '/.tmp-update-' . bin2hex(random_bytes(6));
+    if (!@mkdir($dir, 0775, true)) {
+        return null;
+    }
+    return $dir;
+}
+
+/** حذف بازگشتی یک فولدر (برای پاک‌سازی موقت‌ها) */
+function update_remove_dir(string $dir): void
+{
+    if (!is_dir($dir)) {
+        return;
+    }
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($it as $item) {
+        if ($item->isDir()) {
+            @rmdir($item->getPathname());
+        } else {
+            @unlink($item->getPathname());
+        }
+    }
+    @rmdir($dir);
+}
+
+/** آیا این مسیر نسبی در آپدیت محافظت می‌شود و نباید دست بخورد؟ */
+function update_is_protected(string $rel): bool
+{
+    $rel = ltrim(str_replace('\\', '/', $rel), '/');
+    if ($rel === '') {
+        return true;
+    }
+    // فایل دیتابیس و هر فایل دیتابیس دیگر (.sqlite/.db)
+    if ($rel === 'database.sqlite') {
+        return true;
+    }
+    if (preg_match('/\.(sqlite|sqlite3|db)$/i', $rel)) {
+        return true;
+    }
+    // فولدر بکاپ‌ها و متعلقات گیت
+    if (strpos($rel, 'backups/') === 0 || $rel === 'backups') {
+        return true;
+    }
+    if (strpos($rel, '.git') === 0 || $rel === '.git') {
+        return true;
+    }
+    // فایل‌های کاربر در uploads (فقط فایل‌های سیستمی آن فولدر آپدیت می‌شوند)
+    if (strpos($rel, 'uploads/') === 0) {
+        return !in_array($rel, ['uploads/.htaccess', 'uploads/index.html'], true);
+    }
+    return false;
+}
+
+/**
+ * اجرای آپدیت یک‌کلیکی.
+ * خروجی: ['ok' => bool, 'error' => ?string, 'new_version' => ?string, 'backup_file' => ?string]
+ */
+function perform_update(array $cfg, bool $backupDb): array
+{
+    if (!class_exists('ZipArchive')) {
+        return ['ok' => false, 'error' => 'افزونه ZipArchive روی این سرور فعال نیست؛ آپدیت خودکار ممکن نیست. PHP را با افزونه zip فعال کنید یا آپدیت را دستی انجام دهید.', 'new_version' => null, 'backup_file' => null];
+    }
+
+    $work = update_temp_dir();
+    if ($work === null) {
+        return ['ok' => false, 'error' => 'ساخت فولدر موقت برای آپدیت انجام نشد؛ مجوز نوشتن فولدر برنامه را بررسی کنید.', 'new_version' => null, 'backup_file' => null];
+    }
+
+    $backupFile = null;
+    try {
+        // الف) بکاپ دیتابیس قبل از آپدیت (در صورت تیک خوردن)
+        if ($backupDb) {
+            $bdir = ensure_backups_dir();
+            if ($bdir === null) {
+                return ['ok' => false, 'error' => 'ساخت فولدر بکاپ انجام نشد؛ آپدیت متوقف شد تا دیتابیس بدون بکاپ دست نخورد.', 'new_version' => null, 'backup_file' => null];
+            }
+            if (!is_file(DB_FILE)) {
+                return ['ok' => false, 'error' => 'فایل دیتابیس پیدا نشد؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => null];
+            }
+            $backupFile = 'database-backup-before-update-' . date('Ymd-His') . '.sqlite';
+            if (!@copy(DB_FILE, $bdir . '/' . $backupFile)) {
+                return ['ok' => false, 'error' => 'گرفتن بکاپ از دیتابیس انجام نشد؛ آپدیت متوقف شد. مجوز نوشتن فولدر backups را بررسی کنید.', 'new_version' => null, 'backup_file' => null];
+            }
+        }
+
+        // ب) دانلود ZIP نسخه تازه
+        $zipUrl  = update_zip_download_url($cfg);
+        $zipPath = $work . '/update.zip';
+        $dl = http_download($zipUrl, $zipPath, 120);
+        if (!$dl['ok']) {
+            return ['ok' => false, 'error' => 'دانلود فایل آپدیت از گیت‌هاب انجام نشد: ' . (string) $dl['error'], 'new_version' => null, 'backup_file' => $backupFile];
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath) !== true) {
+            return ['ok' => false, 'error' => 'فایل دانلودشده ZIP معتبر نیست.', 'new_version' => null, 'backup_file' => $backupFile];
+        }
+        $configCode = zip_read_entry($zip, 'config.php');
+        if ($configCode === null) {
+            $zip->close();
+            return ['ok' => false, 'error' => 'فایل config.php داخل فایل آپدیت پیدا نشد؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
+        }
+        $newVersion = parse_app_version($configCode);
+        if ($newVersion === null) {
+            $zip->close();
+            return ['ok' => false, 'error' => 'نسخه برنامه داخل فایل آپدیت پیدا نشد؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
+        }
+        if (!version_compare($newVersion, APP_VERSION, '>')) {
+            $zip->close();
+            return ['ok' => false, 'error' => 'فایل آپدیت نسخه ' . $newVersion . ' را دارد که از نسخه فعلی (' . APP_VERSION . ') تازه‌تر نیست؛ آپدیت انجام نشد.', 'new_version' => null, 'backup_file' => $backupFile];
+        }
+
+        $extractDir = $work . '/extract';
+        if (!@mkdir($extractDir, 0775, true) || !$zip->extractTo($extractDir)) {
+            $zip->close();
+            return ['ok' => false, 'error' => 'باز کردن فایل آپدیت روی سرور انجام نشد.', 'new_version' => null, 'backup_file' => $backupFile];
+        }
+        $zip->close();
+
+        // تشخیص فولدر ریشه داخل ZIP (مثل soon-main/)
+        $srcRoot = $extractDir;
+        $entries = array_values(array_filter(scandir($extractDir) ?: [], static fn($x) => $x !== '.' && $x !== '..'));
+        if (count($entries) === 1 && is_dir($extractDir . '/' . $entries[0])) {
+            $srcRoot = $extractDir . '/' . $entries[0];
+        }
+        if (!is_file($srcRoot . '/config.php')) {
+            return ['ok' => false, 'error' => 'ساختار فایل آپدیت درست نیست (config.php پیدا نشد)؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
+        }
+
+        // ج) کپی فایل‌های تازه روی برنامه — بدون حذف هیچ فایل محلی و بدون دست‌زدن به فایل‌های محافظت‌شده
+        $base = __DIR__;
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($srcRoot, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($it as $item) {
+            $path = $item->getPathname();
+            $rel  = ltrim(str_replace('\\', '/', substr($path, strlen($srcRoot))), '/');
+            if ($rel === '' || update_is_protected($rel)) {
+                continue;
+            }
+            $dest = $base . '/' . $rel;
+            if ($item->isDir()) {
+                if (!is_dir($dest)) {
+                    @mkdir($dest, 0775, true);
+                }
+                continue;
+            }
+            $destDir = dirname($dest);
+            if (!is_dir($destDir)) {
+                @mkdir($destDir, 0775, true);
+            }
+            if (!@copy($path, $dest)) {
+                return ['ok' => false, 'error' => 'کپی فایل «' . $rel . '» انجام نشد؛ مجوز نوشتن فایل‌های برنامه را بررسی کنید.', 'new_version' => null, 'backup_file' => $backupFile];
+            }
+        }
+
+        // د) تازه‌سازی کش آپکد در صورت وجود
+        if (function_exists('opcache_reset')) {
+            @opcache_reset();
+        }
+
+        return ['ok' => true, 'error' => null, 'new_version' => $newVersion, 'backup_file' => $backupFile];
+    } finally {
+        // هـ) پاک‌سازی فایل‌های موقت در همه مسیرها
+        update_remove_dir($work);
+    }
 }
