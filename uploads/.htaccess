@@ -1,0 +1,11 @@
+# فولدر آپلود عکس‌ها — عکس‌ها عمومی دیده می‌شوند ولی اجرای PHP ممنوع است
+Options -ExecCGI
+php_admin_flag engine off
+RemoveHandler .php .phtml .php3 .php4 .php5 .phps .cgi .pl
+RemoveType .php .phtml .php3 .php4 .php5 .phps .cgi .pl
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|phps|cgi|pl|asp|aspx|jsp|shtml)$">
+    Require all denied
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>

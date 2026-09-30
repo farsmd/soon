@@ -1,6 +1,6 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار)
-// مدیریت بخش‌ها، قالب‌های PHP، تنظیمات سایت و تغییر پسورد
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۲
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب‌های PHP، پیام‌های تماس، بکاپ و تنظیمات
 
 declare(strict_types=1);
 
@@ -52,17 +52,22 @@ function flash(string $type, string $message): void
     $_SESSION['flash'] = ['type' => $type, 'message' => $message];
 }
 
-$pdo = db();
-$passwordHash = get_setting('admin_password_hash', '');
-
-// ---------- خروج ----------
-if (isset($_GET['logout'])) {
+function logout_admin(): void
+{
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $p = session_get_cookie_params();
         setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'] ?? '', (bool) ($p['secure'] ?? false), true);
     }
     session_destroy();
+}
+
+$pdo = db();
+$passwordHash = get_setting('admin_password_hash', '');
+
+// ---------- خروج ----------
+if (isset($_GET['logout'])) {
+    logout_admin();
     redirect_admin();
 }
 
@@ -162,12 +167,26 @@ if (!is_logged_in()) {
 
 $page  = (string) ($_GET['page'] ?? 'sections');
 $error = '';
-flash_pull:
 
 // پردازش فرم‌ها (POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $action = (string) ($_POST['action'] ?? '');
+
+    // دانلود بکاپ دیتابیس (فقط ادمین واردشده، با CSRF) — خروجی فایل است و همین‌جا تمام می‌شود
+    if ($action === 'download_backup') {
+        $tmp = __DIR__ . '/backup-' . date('YmdHis') . '.sqlite';
+        if (!@copy(DB_FILE, $tmp)) {
+            $error = 'ساخت نسخه پشتیبان انجام نشد.';
+        } else {
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="site-backup-' . date('Ymd-His') . '.sqlite"');
+            header('Content-Length: ' . filesize($tmp));
+            readfile($tmp);
+            @unlink($tmp);
+            exit;
+        }
+    }
 
     try {
         switch ($action) {
@@ -177,20 +196,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $file  = basename((string) ($_POST['template_file'] ?? ''));
                 $order = (int) ($_POST['sort_order'] ?? 0);
                 $active = isset($_POST['is_active']) ? 1 : 0;
+                $heading  = trim((string) ($_POST['heading'] ?? ''));
+                $body     = (string) ($_POST['body'] ?? '');
+                $linkUrl  = trim((string) ($_POST['link_url'] ?? ''));
+                $linkText = trim((string) ($_POST['link_text'] ?? ''));
                 if ($title === '') {
                     throw new RuntimeException('عنوان بخش را وارد کنید.');
                 }
                 if (!in_array($file, available_templates(), true)) {
                     throw new RuntimeException('فایل قالب انتخاب‌شده معتبر نیست.');
                 }
+                $id = (int) ($_POST['id'] ?? 0);
+                $oldImage = null;
+                if ($action === 'update_section' && $id > 0) {
+                    $st = $pdo->prepare('SELECT image FROM sections WHERE id = :id');
+                    $st->execute([':id' => $id]);
+                    $oldImage = ($r = $st->fetch()) ? ($r['image'] ?? null) : null;
+                }
+                // حذف عکس فعلی؟
+                if (isset($_POST['remove_image']) && $oldImage) {
+                    $oldPath = UPLOADS_DIR . '/' . basename((string) $oldImage);
+                    if (is_file($oldPath)) { @unlink($oldPath); }
+                    $oldImage = null;
+                }
+                $up = handle_section_image_upload($_FILES['image'] ?? null, $oldImage ? (string) $oldImage : null);
+                if (!$up['ok']) {
+                    throw new RuntimeException((string) $up['error']);
+                }
+                $image = $up['filename'];
                 if ($action === 'add_section') {
-                    $stmt = $pdo->prepare('INSERT INTO sections (title, template_file, sort_order, is_active) VALUES (:t,:f,:o,:a)');
-                    $stmt->execute([':t' => $title, ':f' => $file, ':o' => $order, ':a' => $active]);
+                    $stmt = $pdo->prepare('INSERT INTO sections (title, template_file, sort_order, is_active, heading, body, image, link_url, link_text) VALUES (:t,:f,:o,:a,:h,:b,:im,:lu,:lt)');
+                    $stmt->execute([':t' => $title, ':f' => $file, ':o' => $order, ':a' => $active, ':h' => $heading, ':b' => $body, ':im' => $image, ':lu' => $linkUrl, ':lt' => $linkText]);
                     flash('ok', 'بخش جدید ساخته شد.');
                 } else {
-                    $id = (int) ($_POST['id'] ?? 0);
-                    $stmt = $pdo->prepare('UPDATE sections SET title=:t, template_file=:f, sort_order=:o, is_active=:a WHERE id=:id');
-                    $stmt->execute([':t' => $title, ':f' => $file, ':o' => $order, ':a' => $active, ':id' => $id]);
+                    $stmt = $pdo->prepare('UPDATE sections SET title=:t, template_file=:f, sort_order=:o, is_active=:a, heading=:h, body=:b, image=:im, link_url=:lu, link_text=:lt WHERE id=:id');
+                    $stmt->execute([':t' => $title, ':f' => $file, ':o' => $order, ':a' => $active, ':h' => $heading, ':b' => $body, ':im' => $image, ':lu' => $linkUrl, ':lt' => $linkText, ':id' => $id]);
                     flash('ok', 'بخش ویرایش شد.');
                 }
                 redirect_admin('admin.php?page=sections');
@@ -212,8 +252,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'move_section':
                 $id = (int) ($_POST['id'] ?? 0);
                 $dir = (string) ($_POST['direction'] ?? '');
-                move_section($pdo, $id, $dir);
+                move_row($pdo, 'sections', $id, $dir);
                 redirect_admin('admin.php?page=sections');
+                // no break
+
+            case 'add_page':
+            case 'update_page':
+                $ptitle = trim((string) ($_POST['title'] ?? ''));
+                $slug   = trim((string) ($_POST['slug'] ?? ''));
+                $content = (string) ($_POST['content'] ?? '');
+                $seoT   = trim((string) ($_POST['seo_title'] ?? ''));
+                $seoD   = trim((string) ($_POST['seo_description'] ?? ''));
+                $porder = (int) ($_POST['sort_order'] ?? 0);
+                $pactive = isset($_POST['is_active']) ? 1 : 0;
+                $inMenu  = isset($_POST['show_in_menu']) ? 1 : 0;
+                $pid = (int) ($_POST['id'] ?? 0);
+                if ($ptitle === '') {
+                    throw new RuntimeException('عنوان صفحه را وارد کنید.');
+                }
+                if ($slug === '' || !is_valid_slug($slug)) {
+                    throw new RuntimeException('نامک (slug) فقط می‌تواند حروف انگلیسی، عدد، خط تیره و آندرلاین باشد.');
+                }
+                // یکتایی نامک
+                $chk = $pdo->prepare('SELECT id FROM pages WHERE slug = :s AND (:id = 0 OR id != :id)');
+                $chk->execute([':s' => $slug, ':id' => $pid]);
+                if ($chk->fetch()) {
+                    throw new RuntimeException('صفحه‌ای با این نامک از قبل وجود دارد؛ نامک دیگری انتخاب کنید.');
+                }
+                if ($action === 'add_page') {
+                    $stmt = $pdo->prepare('INSERT INTO pages (title, slug, content, seo_title, seo_description, is_active, sort_order, show_in_menu) VALUES (:t,:s,:c,:st,:sd,:a,:o,:m)');
+                    $stmt->execute([':t' => $ptitle, ':s' => $slug, ':c' => $content, ':st' => $seoT, ':sd' => $seoD, ':a' => $pactive, ':o' => $porder, ':m' => $inMenu]);
+                    flash('ok', 'صفحه جدید ساخته شد.');
+                } else {
+                    $stmt = $pdo->prepare('UPDATE pages SET title=:t, slug=:s, content=:c, seo_title=:st, seo_description=:sd, is_active=:a, sort_order=:o, show_in_menu=:m WHERE id=:id');
+                    $stmt->execute([':t' => $ptitle, ':s' => $slug, ':c' => $content, ':st' => $seoT, ':sd' => $seoD, ':a' => $pactive, ':o' => $porder, ':m' => $inMenu, ':id' => $pid]);
+                    flash('ok', 'صفحه ویرایش شد.');
+                }
+                redirect_admin('admin.php?page=pages');
+                // no break
+
+            case 'delete_page':
+                $id = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('DELETE FROM pages WHERE id = :id')->execute([':id' => $id]);
+                flash('ok', 'صفحه حذف شد.');
+                redirect_admin('admin.php?page=pages');
+                // no break
+
+            case 'toggle_page':
+                $id = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('UPDATE pages SET is_active = 1 - is_active WHERE id = :id')->execute([':id' => $id]);
+                redirect_admin('admin.php?page=pages');
+                // no break
+
+            case 'move_page':
+                $id = (int) ($_POST['id'] ?? 0);
+                $dir = (string) ($_POST['direction'] ?? '');
+                move_row($pdo, 'pages', $id, $dir);
+                redirect_admin('admin.php?page=pages');
+                // no break
+
+            case 'delete_message':
+                $id = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('DELETE FROM contact_messages WHERE id = :id')->execute([':id' => $id]);
+                flash('ok', 'پیام حذف شد.');
+                redirect_admin('admin.php?page=messages');
+                // no break
+
+            case 'restore_backup':
+                $f = $_FILES['backup_file'] ?? null;
+                if ($f === null || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException('فایل بکاپ را انتخاب کنید.');
+                }
+                $ext = strtolower(pathinfo((string) ($f['name'] ?? ''), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['sqlite', 'sqlite3', 'db'], true)) {
+                    throw new RuntimeException('فقط فایل بکاپ با پسوند sqlite یا db مجاز است.');
+                }
+                if ((int) ($f['size'] ?? 0) > 20 * 1024 * 1024) {
+                    throw new RuntimeException('حجم فایل بکاپ بیش از حد مجاز است.');
+                }
+                $tmpRestore = __DIR__ . '/restore-' . date('YmdHis') . '.sqlite';
+                if (!move_uploaded_file((string) $f['tmp_name'], $tmpRestore)) {
+                    throw new RuntimeException('ذخیره فایل بکاپ آپلودی انجام نشد.');
+                }
+                // اعتبارسنجی: باید دیتابیس SQLite سالم و دارای جدول settings باشد
+                $valid = false;
+                try {
+                    $test = new PDO('sqlite:' . $tmpRestore, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                    $q = $test->query("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'");
+                    $valid = $q !== false && $q->fetch() !== false;
+                    $test = null;
+                } catch (Throwable $ignored) {
+                    $valid = false;
+                }
+                if (!$valid) {
+                    @unlink($tmpRestore);
+                    throw new RuntimeException('فایل انتخاب‌شده دیتابیس SQLite معتبرِ این سیستم (دارای جدول تنظیمات) نیست؛ بازیابی انجام نشد.');
+                }
+                // نسخه امن از دیتابیس فعلی نگه داشته می‌شود
+                @copy(DB_FILE, __DIR__ . '/database-backup-before-restore.sqlite');
+                if (!@copy($tmpRestore, DB_FILE)) {
+                    @unlink($tmpRestore);
+                    throw new RuntimeException('جایگزینی دیتابیس انجام نشد؛ مجوز نوشتن فایل دیتابیس را بررسی کنید.');
+                }
+                @unlink($tmpRestore);
+                // بعد از بازیابی، خروج اجباری تا با دیتابیس جدید وارد شوید
+                logout_admin();
+                // سشن تازه برای پیام
+                session_start();
+                flash('ok', 'بکاپ بازیابی شد. نسخه قبلی دیتابیس با نام database-backup-before-restore.sqlite نگه داشته شد. دوباره وارد شوید.');
+                redirect_admin();
                 // no break
 
             case 'create_template':
@@ -267,6 +414,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'save_settings':
                 set_setting('site_title', trim((string) ($_POST['site_title'] ?? '')));
                 set_setting('site_description', trim((string) ($_POST['site_description'] ?? '')));
+                set_setting('seo_title', trim((string) ($_POST['seo_title'] ?? '')));
+                set_setting('seo_description', trim((string) ($_POST['seo_description'] ?? '')));
                 flash('ok', 'تنظیمات ذخیره شد.');
                 redirect_admin('admin.php?page=settings');
                 // no break
@@ -294,10 +443,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-/** جابه‌جایی یک بخش به بالا/پایین با همسایه‌اش */
-function move_section(PDO $pdo, int $id, string $direction): void
+/** جابه‌جایی یک ردیف (بخش یا صفحه) به بالا/پایین با همسایه‌اش */
+function move_row(PDO $pdo, string $table, int $id, string $direction): void
 {
-    $rows = $pdo->query('SELECT id, sort_order FROM sections ORDER BY sort_order ASC, id ASC')->fetchAll();
+    $rows = $pdo->query('SELECT id, sort_order FROM ' . $table . ' ORDER BY sort_order ASC, id ASC')->fetchAll();
     $idx = null;
     foreach ($rows as $i => $r) {
         if ((int) $r['id'] === $id) { $idx = $i; break; }
@@ -306,12 +455,14 @@ function move_section(PDO $pdo, int $id, string $direction): void
     $swap = $direction === 'up' ? $idx - 1 : $idx + 1;
     if ($swap < 0 || $swap >= count($rows)) return;
     $a = $rows[$idx]; $b = $rows[$swap];
-    $upd = $pdo->prepare('UPDATE sections SET sort_order = :o WHERE id = :id');
+    $upd = $pdo->prepare('UPDATE ' . $table . ' SET sort_order = :o WHERE id = :id');
     $upd->execute([':o' => $b['sort_order'], ':id' => $a['id']]);
     $upd->execute([':o' => $a['sort_order'], ':id' => $b['id']]);
 }
 
 $sections  = get_sections(false);
+$pages     = get_pages(false);
+$messages  = get_contact_messages();
 $templates = available_templates();
 $settings  = all_settings();
 $flash     = $_SESSION['flash'] ?? null;
@@ -321,6 +472,12 @@ $editSection = null;
 if ($page === 'sections' && isset($_GET['edit_id'])) {
     foreach ($sections as $s) {
         if ((int) $s['id'] === (int) $_GET['edit_id']) { $editSection = $s; break; }
+    }
+}
+$editPage = null;
+if ($page === 'pages' && isset($_GET['edit_id'])) {
+    foreach ($pages as $p) {
+        if ((int) $p['id'] === (int) $_GET['edit_id']) { $editPage = $p; break; }
     }
 }
 $editTemplate = null;
@@ -353,7 +510,10 @@ if ($page === 'templates' && isset($_GET['edit'])) {
 <div class="layout">
     <aside class="sidebar">
         <a href="admin.php?page=sections" class="<?= $page === 'sections' ? 'active' : '' ?>">بخش‌های صفحه اصلی</a>
+        <a href="admin.php?page=pages" class="<?= $page === 'pages' ? 'active' : '' ?>">صفحه‌ها</a>
         <a href="admin.php?page=templates" class="<?= $page === 'templates' ? 'active' : '' ?>">قالب‌ها</a>
+        <a href="admin.php?page=messages" class="<?= $page === 'messages' ? 'active' : '' ?>">پیام‌های تماس<?php if ($messages !== []): ?> (<?= count($messages) ?>)<?php endif; ?></a>
+        <a href="admin.php?page=tools" class="<?= $page === 'tools' ? 'active' : '' ?>">ابزار و بکاپ</a>
         <a href="admin.php?page=settings" class="<?= $page === 'settings' ? 'active' : '' ?>">تنظیمات و پسورد</a>
     </aside>
 
@@ -363,16 +523,17 @@ if ($page === 'templates' && isset($_GET['edit'])) {
 
         <?php if ($page === 'sections'): ?>
             <h1>بخش‌های صفحه اصلی</h1>
-            <p class="muted">صفحه اصلی (index.php) بخش‌های فعال را دقیقاً به همین ترتیب لود می‌کند. برای ساخت یک صفحه تک‌قالبی، همه بخش‌ها را غیرفعال کنید و فقط یک بخش با قالب <code>template_single.php</code> فعال بگذارید.</p>
+            <p class="muted">صفحه اصلی (index.php) بخش‌های فعال را دقیقاً به همین ترتیب لود می‌کند. هر بخش محتوای خودش (تیتر، متن، عکس، لینک) را دارد. برای فرم تماس، یک بخش با قالب <code>template_contact.php</code> بسازید. برای ساخت یک صفحه تک‌قالبی، همه بخش‌ها را غیرفعال کنید و فقط یک بخش با قالب <code>template_single.php</code> فعال بگذارید.</p>
 
             <table>
-                <thead><tr><th>ترتیب</th><th>عنوان</th><th>فایل قالب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <thead><tr><th>ترتیب</th><th>عنوان</th><th>فایل قالب</th><th>عکس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                 <tbody>
                 <?php foreach ($sections as $s): ?>
                     <tr>
                         <td><?= (int) $s['sort_order'] ?></td>
                         <td><?= e($s['title']) ?></td>
                         <td><code><?= e($s['template_file']) ?></code></td>
+                        <td><?= !empty($s['image']) ? 'دارد' : '<span class="muted">—</span>' ?></td>
                         <td><?= (int) $s['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
                             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" title="بالا">▲</button></form>
@@ -383,16 +544,16 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                         </td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if ($sections === []): ?><tr><td colspan="5" class="muted">هنوز بخشی ساخته نشده است.</td></tr><?php endif; ?>
+                <?php if ($sections === []): ?><tr><td colspan="6" class="muted">هنوز بخشی ساخته نشده است.</td></tr><?php endif; ?>
                 </tbody>
             </table>
 
             <h2><?= $editSection ? 'ویرایش بخش' : 'افزودن بخش جدید' ?></h2>
-            <form method="post" class="card">
+            <form method="post" class="card wide" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editSection ? 'update_section' : 'add_section' ?>">
                 <?php if ($editSection): ?><input type="hidden" name="id" value="<?= (int) $editSection['id'] ?>"><?php endif; ?>
-                <label>عنوان بخش
+                <label>عنوان بخش (داخلی، برای مدیریت)
                     <input type="text" name="title" required value="<?= e($editSection['title'] ?? '') ?>" placeholder="مثلاً اسلایدر اصلی">
                 </label>
                 <label>فایل قالب
@@ -405,14 +566,89 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                 <label>ترتیب نمایش
                     <input type="number" name="sort_order" value="<?= e($editSection['sort_order'] ?? '10') ?>">
                 </label>
+                <label>تیتر نمایشی بخش
+                    <input type="text" name="heading" value="<?= e($editSection['heading'] ?? '') ?>" placeholder="اگر خالی باشد، عنوان پیش‌فرض قالب نشان داده می‌شود">
+                </label>
+                <label>متن بخش <span class="muted">(HTML ساده مجاز است؛ فقط مدیر سایت این را می‌نویسد)</span>
+                    <textarea name="body" rows="6"><?= e($editSection['body'] ?? '') ?></textarea>
+                </label>
+                <label>عکس بخش <span class="muted">(jpg/png/webp/gif، حداکثر ۳ مگابایت؛ در اسلایدر پس‌زمینه می‌شود)</span>
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
+                </label>
+                <?php if ($editSection && !empty($editSection['image'])): ?>
+                    <p class="muted">عکس فعلی: <code><?= e($editSection['image']) ?></code></p>
+                    <label class="check"><input type="checkbox" name="remove_image" value="1"> حذف عکس فعلی</label>
+                <?php endif; ?>
+                <label>آدرس لینک دکمه (اختیاری)
+                    <input type="text" name="link_url" value="<?= e($editSection['link_url'] ?? '') ?>" placeholder="https://example.com یا page.php?slug=about" dir="ltr">
+                </label>
+                <label>متن دکمه لینک
+                    <input type="text" name="link_text" value="<?= e($editSection['link_text'] ?? '') ?>" placeholder="مثلاً اطلاعات بیشتر">
+                </label>
                 <label class="check"><input type="checkbox" name="is_active" value="1" <?= (!$editSection || (int) $editSection['is_active'] === 1) ? 'checked' : '' ?>> فعال باشد</label>
                 <button type="submit" class="btn primary"><?= $editSection ? 'ذخیره ویرایش' : 'افزودن بخش' ?></button>
                 <?php if ($editSection): ?><a class="btn" href="admin.php?page=sections">انصراف</a><?php endif; ?>
             </form>
 
+        <?php elseif ($page === 'pages'): ?>
+            <h1>صفحه‌ها</h1>
+            <p class="muted">هر صفحه آدرس جدا دارد: <code>page.php?slug=نامک</code>. اگر «نمایش در منو» فعال باشد، لینکش خودکار به منوی سایت (هدر و قالب تک‌صفحه) اضافه می‌شود. لینک «خانه» همیشه اول منو است.</p>
+
+            <table>
+                <thead><tr><th>ترتیب</th><th>عنوان</th><th>نامک (slug)</th><th>در منو</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                <?php foreach ($pages as $p): ?>
+                    <tr>
+                        <td><?= (int) $p['sort_order'] ?></td>
+                        <td><?= e($p['title']) ?></td>
+                        <td><code><?= e($p['slug']) ?></code><br><a href="page.php?slug=<?= urlencode((string) $p['slug']) ?>" target="_blank">مشاهده</a></td>
+                        <td><?= (int) $p['show_in_menu'] === 1 ? 'بله' : '<span class="muted">خیر</span>' ?></td>
+                        <td><?= (int) $p['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
+                        <td class="actions">
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" title="بالا">▲</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" title="پایین">▼</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit"><?= (int) $p['is_active'] === 1 ? 'غیرفعال' : 'فعال' ?></button></form>
+                            <a class="btn small" href="admin.php?page=pages&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
+                            <form method="post" class="inline" onsubmit="return confirm('این صفحه حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="danger">حذف</button></form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if ($pages === []): ?><tr><td colspan="6" class="muted">هنوز صفحه‌ای ساخته نشده است.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
+
+            <h2><?= $editPage ? 'ویرایش صفحه' : 'ساخت صفحه جدید' ?></h2>
+            <form method="post" class="card wide">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="<?= $editPage ? 'update_page' : 'add_page' ?>">
+                <?php if ($editPage): ?><input type="hidden" name="id" value="<?= (int) $editPage['id'] ?>"><?php endif; ?>
+                <label>عنوان صفحه
+                    <input type="text" name="title" required value="<?= e($editPage['title'] ?? '') ?>" placeholder="مثلاً درباره ما">
+                </label>
+                <label>نامک (slug) — فقط حروف انگلیسی، عدد، خط تیره و آندرلاین
+                    <span class="file-input">page.php?slug=<input type="text" name="slug" required pattern="[A-Za-z0-9\-_]+" value="<?= e($editPage['slug'] ?? '') ?>" placeholder="about"></span>
+                </label>
+                <label>محتوای صفحه <span class="muted">(HTML ساده مجاز است)</span>
+                    <textarea name="content" rows="10"><?= e($editPage['content'] ?? '') ?></textarea>
+                </label>
+                <label>عنوان سئو (SEO) — اگر خالی باشد عنوان صفحه استفاده می‌شود
+                    <input type="text" name="seo_title" value="<?= e($editPage['seo_title'] ?? '') ?>">
+                </label>
+                <label>توضیح سئو (meta description)
+                    <textarea name="seo_description" rows="2"><?= e($editPage['seo_description'] ?? '') ?></textarea>
+                </label>
+                <label>ترتیب در منو/لیست
+                    <input type="number" name="sort_order" value="<?= e($editPage['sort_order'] ?? '10') ?>">
+                </label>
+                <label class="check"><input type="checkbox" name="show_in_menu" value="1" <?= ($editPage && (int) $editPage['show_in_menu'] === 1) ? 'checked' : '' ?>> نمایش در منوی سایت</label>
+                <label class="check"><input type="checkbox" name="is_active" value="1" <?= (!$editPage || (int) $editPage['is_active'] === 1) ? 'checked' : '' ?>> فعال باشد</label>
+                <button type="submit" class="btn primary"><?= $editPage ? 'ذخیره ویرایش' : 'ساخت صفحه' ?></button>
+                <?php if ($editPage): ?><a class="btn" href="admin.php?page=pages">انصراف</a><?php endif; ?>
+            </form>
+
         <?php elseif ($page === 'templates'): ?>
             <h1>قالب‌ها</h1>
-            <p class="muted">قالب‌ها فایل‌های PHP کنار همین پنل هستند (با پیشوند <code>template_</code>). داخل قالب می‌توانید از کد PHP، متغیرهای <code>$site_title</code> و <code>$site_description</code> و پلیس‌هولدرهای <code>{{site_title}}</code> ، <code>{{site_description}}</code> و <code>{{current_year}}</code> استفاده کنید. ویرایش کد قالب یعنی اجرای آن روی سایت؛ فقط وقتی وارد پنل هستید این کار را بکنید.</p>
+            <p class="muted">قالب‌ها فایل‌های PHP کنار همین پنل هستند (با پیشوند <code>template_</code>). داخل قالب می‌توانید از کد PHP، متغیرهای <code>$site_title</code> و <code>$site_description</code> و <code>$section</code> (محتوای بخش جاری) و پلیس‌هولدرهای <code>{{site_title}}</code> ، <code>{{site_description}}</code> ، <code>{{current_year}}</code> ، <code>{{menu}}</code> ، <code>{{seo_title}}</code> و <code>{{seo_description}}</code> استفاده کنید. ویرایش کد قالب یعنی اجرای آن روی سایت؛ فقط وقتی وارد پنل هستید این کار را بکنید.</p>
 
             <table>
                 <thead><tr><th>فایل قالب</th><th>در بخش‌ها استفاده شده؟</th><th>عملیات</th></tr></thead>
@@ -447,7 +683,7 @@ if ($page === 'templates' && isset($_GET['edit'])) {
 
             <?php if ($editTemplate): ?>
                 <h2>ویرایش کد: <code><?= e($editTemplate) ?></code></h2>
-                <form method="post" class="card">
+                <form method="post" class="card wide">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="save_template">
                     <input type="hidden" name="template_file" value="<?= e($editTemplate) ?>">
@@ -457,9 +693,50 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                 </form>
             <?php endif; ?>
 
+        <?php elseif ($page === 'messages'): ?>
+            <h1>پیام‌های تماس</h1>
+            <p class="muted">پیام‌هایی که از فرم تماس سایت (بخش با قالب <code>template_contact.php</code>) فرستاده شده‌اند.</p>
+            <table>
+                <thead><tr><th>تاریخ</th><th>نام</th><th>راه تماس</th><th>پیام</th><th>عملیات</th></tr></thead>
+                <tbody>
+                <?php foreach ($messages as $m): ?>
+                    <tr>
+                        <td><?= e($m['created_at']) ?></td>
+                        <td><?= e($m['name']) ?></td>
+                        <td><?= e($m['contact']) ?></td>
+                        <td><?= nl2br(e($m['message'])) ?></td>
+                        <td><form method="post" class="inline" onsubmit="return confirm('این پیام حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_message"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><button type="submit" class="danger">حذف</button></form></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if ($messages === []): ?><tr><td colspan="5" class="muted">هنوز پیامی ثبت نشده است.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
+
+        <?php elseif ($page === 'tools'): ?>
+            <h1>ابزار و بکاپ</h1>
+
+            <h2>دانلود بکاپ دیتابیس</h2>
+            <p class="muted">یک کپی از فایل <code>database.sqlite</code> (شامل تنظیمات، بخش‌ها، صفحه‌ها و پیام‌ها) دانلود می‌شود. آن را جای امن نگه دارید.</p>
+            <form method="post" class="card">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="download_backup">
+                <button type="submit" class="btn primary">دانلود بکاپ دیتابیس</button>
+            </form>
+
+            <h2>بازیابی بکاپ</h2>
+            <p class="muted">فایل بکاپ (sqlite/db) را آپلود کنید. قبل از جایگزینی، از دیتابیس فعلی یک نسخه امن با نام <code>database-backup-before-restore.sqlite</code> نگه داشته می‌شود و بعد از بازیابی باید دوباره وارد شوید. فایل باید دیتابیس همین سیستم (دارای جدول تنظیمات) باشد.</p>
+            <form method="post" class="card" enctype="multipart/form-data" onsubmit="return confirm('دیتابیس فعلی با این بکاپ جایگزین شود؟')">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="restore_backup">
+                <label>فایل بکاپ
+                    <input type="file" name="backup_file" required accept=".sqlite,.sqlite3,.db">
+                </label>
+                <button type="submit" class="btn danger-btn">بازیابی بکاپ</button>
+            </form>
+
         <?php else: ?>
             <h1>تنظیمات سایت</h1>
-            <form method="post" class="card">
+            <form method="post" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="save_settings">
                 <label>عنوان سایت
@@ -467,6 +744,12 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                 </label>
                 <label>توضیح سایت
                     <textarea name="site_description" rows="3"><?= e($settings['site_description'] ?? '') ?></textarea>
+                </label>
+                <label>عنوان سئوی صفحه اصلی (اگر خالی باشد عنوان سایت استفاده می‌شود)
+                    <input type="text" name="seo_title" value="<?= e($settings['seo_title'] ?? '') ?>">
+                </label>
+                <label>توضیح سئوی صفحه اصلی (meta description)
+                    <textarea name="seo_description" rows="2"><?= e($settings['seo_description'] ?? '') ?></textarea>
                 </label>
                 <button type="submit" class="btn primary">ذخیره تنظیمات</button>
             </form>
@@ -499,23 +782,25 @@ function admin_css(): string
 *{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;background:#f3f4f6;color:#111827;margin:0}
 a{color:#2563eb;text-decoration:none}.muted{color:#6b7280;font-size:13px}.center{text-align:center}
 .auth-box{max-width:380px;margin:10vh auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-label{display:block;margin:12px 0;font-size:14px}input[type=text],input[type=password],input[type=number],select,textarea{width:100%;padding:9px;margin-top:6px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit}
+label{display:block;margin:12px 0;font-size:14px}input[type=text],input[type=password],input[type=number],select,textarea,input[type=file]{width:100%;padding:9px;margin-top:6px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit}
 textarea[dir=ltr]{font-family:Consolas,monospace;font-size:13px}
 .btn{display:inline-block;padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;cursor:pointer;font-family:inherit}
 .btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}.btn.small{padding:4px 10px;font-size:13px}.btn.block{width:100%}
+.btn.danger-btn{background:#dc2626;border-color:#dc2626;color:#fff}
 button{padding:6px 10px;border:1px solid #d1d5db;border-radius:7px;background:#fff;cursor:pointer;font-family:inherit}
 button.danger{color:#dc2626;border-color:#fecaca}
 .alert{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:14px}.alert.ok{background:#dcfce7}.alert.error{background:#fee2e2}
 .topbar{display:flex;justify-content:space-between;align-items:center;background:#111827;color:#fff;padding:12px 18px}
 .topbar a{color:#93c5fd;margin-inline-start:14px}
 .layout{display:flex;min-height:calc(100vh - 49px)}
-.sidebar{width:200px;background:#fff;border-inline-end:1px solid #e5e7eb;padding:14px;display:flex;flex-direction:column;gap:6px}
+.sidebar{width:210px;background:#fff;border-inline-end:1px solid #e5e7eb;padding:14px;display:flex;flex-direction:column;gap:6px}
 .sidebar a{padding:9px 12px;border-radius:8px;color:#111827}.sidebar a.active{background:#eff6ff;color:#2563eb;font-weight:bold}
-.content{flex:1;padding:20px;max-width:1000px}
+.content{flex:1;padding:20px;max-width:1050px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;margin:14px 0}
 th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:14px;vertical-align:top}
 th{background:#f9fafb}.actions{white-space:nowrap}.inline{display:inline}
 .card{background:#fff;padding:16px;border-radius:10px;margin:14px 0;max-width:640px}
+.card.wide{max-width:820px}
 .badge{padding:2px 8px;border-radius:99px;font-size:12px}.badge.ok{background:#dcfce7}.badge.off{background:#e5e7eb}
 .check{display:flex;gap:8px;align-items:center}.file-input{direction:ltr;display:flex;align-items:center;gap:4px}
 code{background:#f3f4f6;padding:1px 5px;border-radius:5px;direction:ltr;display:inline-block}
