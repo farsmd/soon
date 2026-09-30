@@ -1,6 +1,6 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۲
-// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب‌های PHP، پیام‌های تماس، بکاپ و تنظیمات
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۳
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب‌های PHP، پیام‌های تماس، بکاپ، اتصال دیتابیس و تنظیمات
 
 declare(strict_types=1);
 
@@ -363,6 +363,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin();
                 // no break
 
+            case 'switch_database_file':
+                $selected = basename((string) ($_POST['database_file'] ?? ''));
+                if (!preg_match('/^[A-Za-z0-9._-]+\.(sqlite|sqlite3|db)$/i', $selected)) {
+                    throw new RuntimeException('نام فایل دیتابیس معتبر نیست.');
+                }
+                $selectedPath = __DIR__ . '/' . $selected;
+                if (!is_file($selectedPath)) {
+                    throw new RuntimeException('فایل دیتابیس انتخاب‌شده پیدا نشد.');
+                }
+                if (is_file(DB_FILE) && realpath($selectedPath) === realpath(DB_FILE)) {
+                    throw new RuntimeException('این فایل همین حالا دیتابیس فعال است.');
+                }
+                $switch = activate_database_file($selectedPath);
+                if (!$switch['ok']) {
+                    throw new RuntimeException((string) $switch['error']);
+                }
+                logout_admin();
+                session_start();
+                flash('ok', 'دیتابیس تغییر کرد. نسخه قبلی با نام database-backup-before-switch.sqlite نگه داشته شد. با پسورد دیتابیس جدید دوباره وارد شوید.');
+                redirect_admin();
+                // no break
+
+            case 'upload_database_file':
+                $f = $_FILES['database_file'] ?? null;
+                if ($f === null || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException('فایل دیتابیس را انتخاب کنید.');
+                }
+                $ext = strtolower(pathinfo((string) ($f['name'] ?? ''), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['sqlite', 'db'], true)) {
+                    throw new RuntimeException('فقط فایل دیتابیس با پسوند sqlite یا db مجاز است.');
+                }
+                if ((int) ($f['size'] ?? 0) <= 0) {
+                    throw new RuntimeException('فایل دیتابیس خالی است.');
+                }
+                if ((int) ($f['size'] ?? 0) > 20 * 1024 * 1024) {
+                    throw new RuntimeException('حجم فایل دیتابیس بیش از ۲۰ مگابایت است.');
+                }
+                $tmpUpload = __DIR__ . '/database-upload-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.sqlite';
+                if (!move_uploaded_file((string) $f['tmp_name'], $tmpUpload)) {
+                    throw new RuntimeException('ذخیره فایل دیتابیس آپلودی انجام نشد.');
+                }
+                $switch = activate_database_file($tmpUpload);
+                @unlink($tmpUpload);
+                if (!$switch['ok']) {
+                    throw new RuntimeException((string) $switch['error']);
+                }
+                logout_admin();
+                session_start();
+                flash('ok', 'دیتابیس آپلودی فعال شد. نسخه قبلی با نام database-backup-before-switch.sqlite نگه داشته شد. با پسورد دیتابیس جدید دوباره وارد شوید.');
+                redirect_admin();
+                // no break
+
             case 'create_template':
                 $slug = trim((string) ($_POST['slug'] ?? ''));
                 if (!preg_match('/^[A-Za-z0-9_]+$/', $slug)) {
@@ -468,6 +520,20 @@ $settings  = all_settings();
 $flash     = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 
+$databaseConnected = false;
+try {
+    $databaseConnected = ((string) $pdo->query('PRAGMA integrity_check')->fetchColumn() === 'ok');
+} catch (Throwable $ignored) {
+    $databaseConnected = false;
+}
+$dbStats = null;
+$dbFiles = [];
+if ($page === 'database') {
+    $dbStats = db_stats($pdo);
+    $databaseConnected = (bool) ($dbStats['connected'] ?? false);
+    $dbFiles = db_files();
+}
+
 $editSection = null;
 if ($page === 'sections' && isset($_GET['edit_id'])) {
     foreach ($sections as $s) {
@@ -514,7 +580,9 @@ if ($page === 'templates' && isset($_GET['edit'])) {
         <a href="admin.php?page=templates" class="<?= $page === 'templates' ? 'active' : '' ?>">قالب‌ها</a>
         <a href="admin.php?page=messages" class="<?= $page === 'messages' ? 'active' : '' ?>">پیام‌های تماس<?php if ($messages !== []): ?> (<?= count($messages) ?>)<?php endif; ?></a>
         <a href="admin.php?page=tools" class="<?= $page === 'tools' ? 'active' : '' ?>">ابزار و بکاپ</a>
+        <a href="admin.php?page=database" class="<?= $page === 'database' ? 'active' : '' ?>"><?php if ($databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?>اتصال دیتابیس</a>
         <a href="admin.php?page=settings" class="<?= $page === 'settings' ? 'active' : '' ?>">تنظیمات و پسورد</a>
+        <div class="sidebar-version">نسخه برنامه: <span dir="ltr"><?= e(APP_VERSION) ?></span></div>
     </aside>
 
     <main class="content">
@@ -734,6 +802,106 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                 <button type="submit" class="btn danger-btn">بازیابی بکاپ</button>
             </form>
 
+        <?php elseif ($page === 'database'): ?>
+            <h1>اتصال دیتابیس</h1>
+            <p class="muted">از این صفحه می‌توانید وضعیت اتصال دیتابیس SQLite فعال را ببینید، بین فایل‌های دیتابیس موجود جابه‌جا شوید یا یک فایل دیتابیس دیگر آپلود کنید. قبل از هر تعویض، فایل تازه کامل اعتبارسنجی می‌شود و از دیتابیس فعلی نسخه امن نگه داشته می‌شود.</p>
+
+            <?php if ($dbStats): ?>
+            <section class="card wide">
+                <h2>وضعیت اتصال</h2>
+                <p>
+                    <?php if ($dbStats['connected']): ?>
+                        <span class="status-pill ok"><span class="status-dot"></span>متصل است</span>
+                    <?php else: ?>
+                        <span class="status-pill error">خطا در اتصال</span>
+                    <?php endif; ?>
+                </p>
+                <?php if (!empty($dbStats['error'])): ?><div class="alert error"><?= e($dbStats['error']) ?></div><?php endif; ?>
+                <table>
+                    <tbody>
+                        <tr><th>فایل فعال</th><td><code><?= e($dbStats['name']) ?></code></td></tr>
+                        <tr><th>نسخه برنامه</th><td><span dir="ltr"><?= e(APP_VERSION) ?></span></td></tr>
+                        <tr><th>مسیر فایل</th><td><code><?= e($dbStats['path']) ?></code></td></tr>
+                        <tr><th>حجم فایل</th><td><?= e($dbStats['size_formatted']) ?></td></tr>
+                        <tr><th>آخرین تغییر</th><td><?= e($dbStats['modified_formatted']) ?></td></tr>
+                    </tbody>
+                </table>
+                <div class="stat-grid">
+                    <div class="stat-card"><span>تعداد جدول‌ها</span><strong><?= (int) $dbStats['table_count'] ?></strong></div>
+                    <div class="stat-card"><span>مجموع ردیف‌ها</span><strong><?= (int) $dbStats['total_rows'] ?></strong></div>
+                </div>
+            </section>
+
+            <section class="card wide">
+                <h2>جدول‌های دیتابیس</h2>
+                <p class="muted">فهرست جدول‌های کاربر و تعداد ردیف فعلی هرکدام. جدول‌های داخلی SQLite در این فهرست نشان داده نمی‌شوند.</p>
+                <table>
+                    <thead><tr><th>نام جدول</th><th>تعداد ردیف</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($dbStats['tables'] as $table): ?>
+                        <tr>
+                            <td><code><?= e($table['name']) ?></code></td>
+                            <td><?= $table['rows'] === null ? 'خطا در شمارش' : (int) $table['rows'] ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($dbStats['tables'] === []): ?><tr><td colspan="2" class="muted">جدولی پیدا نشد.</td></tr><?php endif; ?>
+                    <tr><th>جمع کل</th><th><?= (int) $dbStats['total_rows'] ?> ردیف در <?= (int) $dbStats['table_count'] ?> جدول</th></tr>
+                    </tbody>
+                </table>
+            </section>
+            <?php else: ?>
+                <div class="alert error">دریافت وضعیت دیتابیس انجام نشد.</div>
+            <?php endif; ?>
+
+            <section class="card wide">
+                <h2>انتخاب فایل دیتابیس موجود</h2>
+                <p class="muted">فایل‌های <code>sqlite</code>، <code>sqlite3</code> و <code>db</code> موجود در فولدر برنامه فهرست شده‌اند. برای فعال‌کردن یک فایل دیگر، روی «اتصال به این فایل» کلیک کنید. قبل از تعویض، از دیتابیس فعلی فایل <code>database-backup-before-switch.sqlite</code> ساخته می‌شود و بعد از تعویض باید با پسورد دیتابیس جدید دوباره وارد شوید.</p>
+                <table>
+                    <thead><tr><th>نام فایل</th><th>وضعیت</th><th>حجم</th><th>آخرین تغییر</th><th>عملیات</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($dbFiles as $file): ?>
+                        <tr>
+                            <td><code><?= e($file['name']) ?></code></td>
+                            <td><?php if ($file['is_active']): ?><span class="badge ok">فعال</span><?php else: ?><span class="badge off">غیرفعال</span><?php endif; ?></td>
+                            <td><?= e($file['size_formatted']) ?></td>
+                            <td><?= e($file['modified_formatted']) ?></td>
+                            <td>
+                                <?php if ($file['is_active']): ?>
+                                    <button type="button" disabled>فایل فعال فعلی</button>
+                                <?php else: ?>
+                                    <form method="post" class="inline" onsubmit="return confirm('دیتابیس فعال با این فایل جایگزین شود؟ قبل از تعویض نسخه امن ساخته می‌شود و باید دوباره وارد شوید.')">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="switch_database_file">
+                                        <input type="hidden" name="database_file" value="<?= e($file['name']) ?>">
+                                        <button type="submit" class="btn primary small">اتصال به این فایل</button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($dbFiles === []): ?><tr><td colspan="5" class="muted">فایل دیتابیسی در فولدر برنامه پیدا نشد.</td></tr><?php endif; ?>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="card wide">
+                <h2>آپلود فایل دیتابیس</h2>
+                <p class="muted">یک فایل <code>sqlite</code> یا <code>db</code> (حداکثر ۲۰ مگابایت) انتخاب کنید. فایل باید دیتابیس سالم همین سیستم و دارای جدول <code>settings</code> باشد. اگر اعتبارسنجی موفق نباشد، دیتابیس فعلی دست‌نخورده باقی می‌ماند.</p>
+                <form method="post" enctype="multipart/form-data" onsubmit="return confirm('این فایل به‌عنوان دیتابیس فعال جایگزین شود؟ قبل از تعویض نسخه امن ساخته می‌شود و باید دوباره وارد شوید.')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="upload_database_file">
+                    <label>فایل دیتابیس
+                        <input type="file" name="database_file" required accept=".sqlite,.db">
+                    </label>
+                    <button type="submit" class="btn danger-btn">آپلود و اتصال به دیتابیس</button>
+                </form>
+            </section>
+
+            <section class="card wide">
+                <h2>نکته مهم درباره بکاپ و پسورد</h2>
+                <p class="muted">بکاپی که از «ابزار و بکاپ» دانلود می‌کنید روی دستگاه شما ذخیره می‌شود. نسخه‌های امن قبل از بازیابی یا تعویض دیتابیس، با نام‌های <code>database-backup-before-restore.sqlite</code> و <code>database-backup-before-switch.sqlite</code> در همان فولدر برنامه نگه داشته می‌شوند. همه تنظیمات، صفحه‌ها، بخش‌ها، پیام‌ها و هش پسورد مدیریت داخل فایل <code>database.sqlite</code> است؛ بنابراین بعد از اتصال به یک دیتابیس دیگر، ورود با پسورد ذخیره‌شده در همان دیتابیس جدید انجام می‌شود.</p>
+            </section>
+
         <?php else: ?>
             <h1>تنظیمات سایت</h1>
             <form method="post" class="card wide">
@@ -795,6 +963,10 @@ button.danger{color:#dc2626;border-color:#fecaca}
 .layout{display:flex;min-height:calc(100vh - 49px)}
 .sidebar{width:210px;background:#fff;border-inline-end:1px solid #e5e7eb;padding:14px;display:flex;flex-direction:column;gap:6px}
 .sidebar a{padding:9px 12px;border-radius:8px;color:#111827}.sidebar a.active{background:#eff6ff;color:#2563eb;font-weight:bold}
+.sidebar-version{margin-top:auto;padding:10px 12px 4px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px}
+.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px #dcfce7;margin-inline-end:7px;vertical-align:middle}
+.status-pill{display:inline-flex;align-items:center;padding:5px 11px;border-radius:99px;font-size:13px;font-weight:bold}.status-pill.ok{background:#dcfce7;color:#166534}.status-pill.error{background:#fee2e2;color:#991b1b}.status-pill .status-dot{box-shadow:none;margin-inline-end:6px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:14px}.stat-card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px}.stat-card span{display:block;color:#6b7280;font-size:13px;margin-bottom:6px}.stat-card strong{font-size:24px;color:#111827}
 .content{flex:1;padding:20px;max-width:1050px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;margin:14px 0}
 th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:14px;vertical-align:top}

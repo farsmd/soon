@@ -1,9 +1,10 @@
 <?php
-// config.php — اتصال دیتابیس و توابع کمکی مشترک (نسخه ۲)
+// config.php — اتصال دیتابیس و توابع کمکی مشترک (نسخه ۳)
 // همه فایل‌های این پروژه در یک فولدر کنار هم قرار دارند؛ عکس‌های آپلودی داخل فولدر uploads همان فولدر است.
 
 declare(strict_types=1);
 
+define('APP_VERSION', '3.0.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -137,6 +138,212 @@ function init_db(PDO $pdo): void
             ':sd' => 'صفحه درباره ما',
         ]);
     }
+}
+
+/** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
+function format_bytes(int $bytes): string
+{
+    if ($bytes < 1024) {
+        return $bytes . ' B';
+    }
+    $units = ['KB', 'MB', 'GB', 'TB'];
+    $value = (float) $bytes;
+    $unit = 'B';
+    foreach ($units as $unit) {
+        $value /= 1024;
+        if ($value < 1024) {
+            break;
+        }
+    }
+    return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.') . ' ' . $unit;
+}
+
+/** Quote امن نام جدول/ستون SQLite برای استفاده در کوئری‌های پویا */
+function sqlite_identifier(string $name): string
+{
+    return '"' . str_replace('"', '""', $name) . '"';
+}
+
+/**
+ * آمار دیتابیس فعال: وضعیت اتصال و سلامت، حجم و زمان تغییر فایل،
+ * فهرست جدول‌های کاربر و تعداد ردیف هر جدول.
+ */
+function db_stats(?PDO $pdo = null): array
+{
+    $pdo = $pdo ?: db();
+    $exists = is_file(DB_FILE);
+    $size = $exists ? (int) filesize(DB_FILE) : 0;
+    $modified = $exists ? (int) filemtime(DB_FILE) : null;
+    $stats = [
+        'connected'        => false,
+        'integrity'        => '',
+        'error'            => null,
+        'path'             => DB_FILE,
+        'name'             => basename(DB_FILE),
+        'exists'           => $exists,
+        'size'             => $size,
+        'size_formatted'   => format_bytes($size),
+        'modified'         => $modified,
+        'modified_formatted' => $modified ? date('Y/m/d H:i:s', $modified) : '—',
+        'tables'           => [],
+        'table_count'      => 0,
+        'total_rows'       => 0,
+    ];
+
+    try {
+        $integrity = (string) $pdo->query('PRAGMA integrity_check')->fetchColumn();
+        $stats['integrity'] = $integrity;
+        $stats['connected'] = ($integrity === 'ok');
+        if (!$stats['connected']) {
+            $stats['error'] = 'بررسی سلامت دیتابیس نتیجه ok نداد: ' . $integrity;
+        }
+
+        $names = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($names as $name) {
+            $table = (string) $name;
+            $rows = null;
+            try {
+                $rows = (int) $pdo->query('SELECT COUNT(*) FROM ' . sqlite_identifier($table))->fetchColumn();
+                $stats['total_rows'] += $rows;
+            } catch (Throwable $ignored) {
+                $rows = null;
+            }
+            $stats['tables'][] = ['name' => $table, 'rows' => $rows];
+        }
+        $stats['table_count'] = count($stats['tables']);
+    } catch (Throwable $ex) {
+        $stats['connected'] = false;
+        $stats['error'] = $ex->getMessage();
+    }
+
+    return $stats;
+}
+
+/** مشخصات یک فایل برای نمایش در صفحه اتصال دیتابیس */
+function database_file_info(string $path): array
+{
+    $size = is_file($path) ? (int) filesize($path) : 0;
+    $modified = is_file($path) ? (int) filemtime($path) : null;
+    $activePath = is_file(DB_FILE) ? realpath(DB_FILE) : false;
+    $thisPath = is_file($path) ? realpath($path) : false;
+
+    return [
+        'name' => basename($path),
+        'path' => $path,
+        'size' => $size,
+        'size_formatted' => format_bytes($size),
+        'modified' => $modified,
+        'modified_formatted' => $modified ? date('Y/m/d H:i:s', $modified) : '—',
+        'is_active' => ($activePath !== false && $thisPath !== false && $activePath === $thisPath),
+    ];
+}
+
+/** فایل‌های دیتابیس موجود در فولدر برنامه؛ فایل فعال اول فهرست می‌آید */
+function db_files(): array
+{
+    $paths = [];
+    foreach (['*.sqlite', '*.sqlite3', '*.db'] as $pattern) {
+        foreach (glob(__DIR__ . '/' . $pattern) ?: [] as $path) {
+            if (is_file($path)) {
+                $paths[$path] = true;
+            }
+        }
+    }
+
+    $files = [];
+    foreach (array_keys($paths) as $path) {
+        // فایل‌های موقت ساخت بکاپ/بازیابی که در پایان درخواست پاک می‌شوند نمایش داده نمی‌شوند.
+        if (preg_match('/^(backup-|restore-|database-switch-|database-upload-)/', basename($path))) {
+            continue;
+        }
+        $files[] = database_file_info($path);
+    }
+    usort($files, static function (array $a, array $b): int {
+        if ($a['is_active'] !== $b['is_active']) {
+            return $a['is_active'] ? -1 : 1;
+        }
+        return strcmp((string) $a['name'], (string) $b['name']);
+    });
+    return $files;
+}
+
+/**
+ * اعتبارسنجی فایل دیتابیس این سیستم قبل از هر جایگزینی:
+ * هدر SQLite، سلامت کامل فایل و وجود جدول settings باید تأیید شود.
+ */
+function validate_database_file(string $path): array
+{
+    if (!is_file($path)) {
+        return ['ok' => false, 'error' => 'فایل دیتابیس پیدا نشد.'];
+    }
+    if ((int) filesize($path) <= 0) {
+        return ['ok' => false, 'error' => 'فایل دیتابیس خالی است.'];
+    }
+    $header = @file_get_contents($path, false, null, 0, 16);
+    if ($header !== "SQLite format 3\0") {
+        return ['ok' => false, 'error' => 'فایل انتخاب‌شده فرمت SQLite ندارد.'];
+    }
+
+    try {
+        $test = new PDO('sqlite:' . $path, null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        $integrity = $test->query('PRAGMA integrity_check')->fetchAll(PDO::FETCH_COLUMN);
+        if ($integrity === [] || (string) $integrity[0] !== 'ok') {
+            $test = null;
+            return ['ok' => false, 'error' => 'بررسی سلامت فایل دیتابیس موفق نبود؛ فایل آسیب‌دیده است.'];
+        }
+        $stmt = $test->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'settings'");
+        $hasSettings = $stmt !== false && $stmt->fetch() !== false;
+        $test = null;
+        if (!$hasSettings) {
+            return ['ok' => false, 'error' => 'این فایل دیتابیس این سیستم نیست؛ جدول settings در آن پیدا نشد.'];
+        }
+    } catch (Throwable $ex) {
+        return ['ok' => false, 'error' => 'باز کردن یا اعتبارسنجی فایل دیتابیس انجام نشد: ' . $ex->getMessage()];
+    }
+
+    return ['ok' => true, 'error' => null];
+}
+
+/**
+ * فعال‌کردن امن یک فایل دیتابیس دیگر به‌عنوان database.sqlite.
+ * ابتدا فایل مقصد روی یک نسخه موقت اعتبارسنجی می‌شود، سپس از دیتابیس فعلی
+ * نسخه امن database-backup-before-switch.sqlite ساخته و نسخه موقت جایگزین می‌شود.
+ */
+function activate_database_file(string $source): array
+{
+    if (!is_file($source)) {
+        return ['ok' => false, 'error' => 'فایل دیتابیس انتخاب‌شده پیدا نشد.', 'safety_copy' => null];
+    }
+    if (is_file(DB_FILE) && realpath($source) === realpath(DB_FILE)) {
+        return ['ok' => false, 'error' => 'این فایل همین حالا دیتابیس فعال است.', 'safety_copy' => null];
+    }
+
+    $stage = __DIR__ . '/database-switch-' . bin2hex(random_bytes(6)) . '.sqlite';
+    if (!@copy($source, $stage)) {
+        return ['ok' => false, 'error' => 'کپی‌کردن فایل دیتابیس برای بررسی انجام نشد.', 'safety_copy' => null];
+    }
+
+    $validation = validate_database_file($stage);
+    if (!$validation['ok']) {
+        @unlink($stage);
+        return ['ok' => false, 'error' => (string) $validation['error'], 'safety_copy' => null];
+    }
+
+    $safety = __DIR__ . '/database-backup-before-switch.sqlite';
+    if (is_file(DB_FILE) && !@copy(DB_FILE, $safety)) {
+        @unlink($stage);
+        return ['ok' => false, 'error' => 'ساخت نسخه امن از دیتابیس فعلی انجام نشد؛ تعویض متوقف شد.', 'safety_copy' => null];
+    }
+
+    if (!@rename($stage, DB_FILE)) {
+        @unlink($stage);
+        return ['ok' => false, 'error' => 'جایگزینی فایل دیتابیس انجام نشد؛ مجوز نوشتن فولدر برنامه را بررسی کنید.', 'safety_copy' => basename($safety)];
+    }
+
+    return ['ok' => true, 'error' => null, 'safety_copy' => basename($safety)];
 }
 
 /** خروجی امن برای HTML */
