@@ -1,1 +1,135 @@
-PD9waHAKLy8gcHJvZHVjdHMucGhwIOKAlCDaqdin2KrYp9mE2YjaryDYudmF2YjZhduMINmF2K3YtdmI2YTYp9iqICjZgdin2LIg27IgLyDZhtiz2K7ZhyDbtikKLy8g2YHZh9ix2LPYqiDZhdit2LXZiNmE2KfYqiDZiCDYtdmB2K3ZhyDZh9ixINmF2K3YtdmI2YQg2KjYpyDZgtin2YTYqOKAjNmH2KfbjCDYr9uM2KrYp9io24zYs9uMIMKrY2F0YWxvZ8K7INmIIMKrcHJvZHVjdMK7INiz2KfYrtiq2Ycg2YXbjOKAjNi02YjYry4KLy8g2YLbjNmF2KrigIzZh9inINmF2KrYsduMINmH2LPYqtmG2K/YmyDYqNix2KLZiNix2K/ar9ixINi12YHYrdmHINmF2K3YtdmI2YQg2KjYpyDZh9mF2KfZhiDZhdmI2KrZiNixINmC24zZhdiqIGNvbmZpZy5waHAg2qnYp9ixINmF24zigIzaqdmG2K8uCi8vINir2KjYqiDYs9mB2KfYsdi0INiv2LEg2YHYp9iyINuzINin2LbYp9mB2Ycg2YXbjOKAjNi02YjYr9ibINmB2LnZhNin2YsgQ1RBINio2Ycg2YHYsdmFINiq2YXYp9izINi12YHYrdmHINin2LXZhNuMINin2LPYqi4KCmRlY2xhcmUoc3RyaWN0X3R5cGVzPTEpOwoKcmVxdWlyZSBfX0RJUl9fIC4gJy9jb25maWcucGhwJzsKCi8vINiz2LTZhiDYudmF2YjZhduMICjYqNix2KfbjCBDU1JGINmB2LHZhSDYq9io2Kog2LPZgdin2LHYtCkg4oCUINio2KfbjNivINmC2KjZhCDYp9iyINmH2LEg2K7YsdmI2KzbjCDYtNix2YjYuSDYtNmI2K8KaWYgKHNlc3Npb25fc3RhdHVzKCkgIT09IFBIUF9TRVNTSU9OX0FDVElWRSkgewogICAgc2Vzc2lvbl9zZXRfY29va2llX3BhcmFtcyhbJ2xpZmV0aW1lJyA9PiAwLCAncGF0aCcgPT4gJy8nLCAnaHR0cG9ubHknID0+IHRydWUsICdzYW1lc2l0ZScgPT4gJ0xheCddKTsKICAgIHNlc3Npb25fc3RhcnQoKTsKfQoKLy8g2b7Ysdiv2KfYsti0INir2KjYqiDYs9mB2KfYsdi0INin2LIg2LXZgdit2Ycg2YXYrdi12YjZhCDZgtio2YQg2KfYsiDZh9ixINiu2LHZiNis24wKcHJvY2Vzc19zaXRlX29yZGVyKCk7Cgokc2V0dGluZ3MgPSBhbGxfc2V0dGluZ3MoKTsKJHNpdGVUaXRsZSA9IChzdHJpbmcpICgkc2V0dGluZ3NbJ3NpdGVfdGl0bGUnXSA/PyAn2YjYqOKAjNiz2KfbjNiqINmF2YYnKTsKJGNhdGFsb2dUaXRsZSA9IChzdHJpbmcpICgkc2V0dGluZ3NbJ2NhdGFsb2dfdGl0bGUnXSA/PyAn2qnYp9iq2KfZhNmI2q8g2YXYrdi12YjZhNin2KonKTsKJGNhdGFsb2dQdWJsaWMgPSAoJHNldHRpbmdzWydjYXRhbG9nX3B1YmxpYyddID8/ICcxJykgPT09ICcxJzsKCi8vIC0tLS0tLS0tLS0g2qnYp9iq2KfZhNmI2q8g2LrbjNix2YHYudin2YQg2KfYs9iqIC0tLS0tLS0tLS0KaWYgKCEkY2F0YWxvZ1B1YmxpYykgewogICAgaHR0cF9yZXNwb25zZV9jb2RlKDQwNCk7CiAgICAkdGl0bGUgPSAn2LXZgdit2Ycg2b7bjNiv2Kcg2YbYtNivIOKAlCAnIC4gJHNpdGVUaXRsZTsKICAgICRkZXNjID0gKHN0cmluZykgKCRzZXR0aW5nc1snc2l0ZV9kZXNjcmlwdGlvbiddID8/ICcnKTsKICAgICRib2R5ID0gJzxzZWN0aW9uIGNsYXNzPSJjb250ZW50LXNlY3Rpb24iPjxkaXYgY2xhc3M9ImNvbnRhaW5lciI+JwogICAgICAgIC4gJzxoMT7Yp9uM2YYg2KjYrti0INiv2LEg2K/Ys9iq2LHYsyDZhtuM2LPYqjwvaDE+JwogICAgICAgIC4gJzxwPtqp2KfYqtin2YTZiNqvINmF2K3YtdmI2YTYp9iqINiv2LEg2K3Yp9mEINit2KfYttixINmG2YXYp9uM2LQg2LnZhdmI2YXbjCDZhtiv2KfYsdivLiDYqNix2KfbjCDYr9ix24zYp9mB2Kog2KfYt9mE2KfYudin2Kog2YXYrdi12YjZhNin2Kog2KjYpyDZhdinINiv2LEg2KrZhdin2LMg2KjYp9i024zYry48L3A+JwogICAgICAgIC4gJzxwPjxhIGNsYXNzPSJidG4iIGhyZWY9ImluZGV4LnBocCI+2KjYp9iy2q/YtNiqINio2Ycg2LXZgdit2Ycg2KfYtdmE24w8L2E+PC9wPicKICAgICAgICAuICc8L2Rpdj48L3NlY3Rpb24+JzsKICAgIGVjaG8gc2tlbGV0b25faGVhZCgkc2V0dGluZ3MsICR0aXRsZSwgJGRlc2MpOwogICAgZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ2hlYWRlcicsICRzZXR0aW5ncykgLiAiXG4iOwogICAgZWNobyAnPG1haW4gaWQ9Im1haW4iPicgLiAiXG4iIC4gJGJvZHkgLiAiXG4iIC4gJzwvbWFpbj4nIC4gIlxuIjsKICAgIGVjaG8gcmVuZGVyX2RiX3RlbXBsYXRlKCdmb290ZXInLCAkc2V0dGluZ3MpIC4gIlxuIjsKICAgIGVjaG8gc2tlbGV0b25fZm9vdCgpOwogICAgZXhpdDsKfQoKJHByb2R1Y3RJZCA9IChpbnQpICgkX0dFVFsnaWQnXSA/PyAwKTsKCi8vIC0tLS0tLS0tLS0g2LXZgdit2Ycg24zaqSDZhdit2LXZiNmEIC0tLS0tLS0tLS0KaWYgKCRwcm9kdWN0SWQgPiAwKSB7CiAgICAkcHJvZHVjdCA9IGdldF9wcm9kdWN0KCRwcm9kdWN0SWQpOwogICAgaWYgKCRwcm9kdWN0ID09PSBudWxsIHx8IChpbnQpICgkcHJvZHVjdFsnaXNfYWN0aXZlJ10gPz8gMCkgIT09IDEpIHsKICAgICAgICBodHRwX3Jlc3BvbnNlX2NvZGUoNDA0KTsKICAgICAgICAkdGl0bGUgPSAn2YXYrdi12YjZhCDZvtuM2K/YpyDZhti02K8g4oCUICcgLiAkc2l0ZVRpdGxlOwogICAgICAgICRib2R5ID0gJzxzZWN0aW9uIGNsYXNzPSJjb250ZW50LXNlY3Rpb24iPjxkaXYgY2xhc3M9ImNvbnRhaW5lciI+JwogICAgICAgICAgICAuICc8aDE+2YXYrdi12YjZhCDZvtuM2K/YpyDZhti02K88L2gxPicKICAgICAgICAgICAgLiAnPHA+2KfbjNmGINmF2K3YtdmI2YQg2YjYrNmI2K8g2YbYr9in2LHYryDbjNinINi624zYsdmB2LnYp9mEINin2LPYqi48L3A+JwogICAgICAgICAgICAuICc8cD48YSBjbGFzcz0iYnRuIiBocmVmPSJwcm9kdWN0cy5waHAiPtio2KfYstqv2LTYqiDYqNmHINqp2KfYqtin2YTZiNqvPC9hPjwvcD4nCiAgICAgICAgICAgIC4gJzwvZGl2Pjwvc2VjdGlvbj4nOwogICAgICAgIGVjaG8gc2tlbGV0b25faGVhZCgkc2V0dGluZ3MsICR0aXRsZSwgKHN0cmluZykgKCRzZXR0aW5nc1snc2l0ZV9kZXNjcmlwdGlvbiddID8/ICcnKSk7CiAgICAgICAgZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ2hlYWRlcicsICRzZXR0aW5ncykgLiAiXG4iOwogICAgICAgIGVjaG8gJzxtYWluIGlkPSJtYWluIj4nIC4gIlxuIiAuICRib2R5IC4gIlxuIiAuICc8L21haW4+JyAuICJcbiI7CiAgICAgICAgZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ2Zvb3RlcicsICRzZXR0aW5ncykgLiAiXG4iOwogICAgICAgIGVjaG8gc2tlbGV0b25fZm9vdCgpOwogICAgICAgIGV4aXQ7CiAgICB9CgogICAgJHJldGFpbEJhc2UgID0gcHJvZHVjdF9iYXNlX3ByaWNlX3Blcl9tZXRlcigkcHJvZHVjdCwgZmFsc2UpOwogICAgJHBhcnRuZXJCYXNlID0gcHJvZHVjdF9iYXNlX3ByaWNlX3Blcl9tZXRlcigkcHJvZHVjdCwgdHJ1ZSk7CiAgICAkZXh0cmEgPSBbCiAgICAgICAgJ2NhdGFsb2dfdGl0bGUnID0+ICRjYXRhbG9nVGl0bGUsCiAgICAgICAgJ3Byb2R1Y3RfbmFtZScgID0+IChzdHJpbmcpICRwcm9kdWN0WyduYW1lJ10sCiAgICAgICAgJ3Byb2R1Y3RfaW1hZ2UnID0+IHVwbG9hZGVkX2ltYWdlX3VybCgkcHJvZHVjdFsnaW1hZ2UnXSA/PyAnJyksCiAgICAgICAgJ3Byb2R1Y3RfZGVzY3JpcHRpb24nID0+IChzdHJpbmcpICgkcHJvZHVjdFsnZGVzY3JpcHRpb24nXSA/PyAnJyksCiAgICAgICAgJ2NhdGVnb3J5X3RpdGxlJyAgICAgID0+IChzdHJpbmcpICgkcHJvZHVjdFsnY2F0ZWdvcnlfdGl0bGUnXSA/PyAnJyksCiAgICAgICAgJ3ByaWNlX3Blcl9tZXRlcl9mb3JtYXR0ZWQnICAgICAgICAgPT4gZm9ybWF0X3ByaWNlKCRyZXRhaWxCYXNlKSwKICAgICAgICAncGFydG5lcl9wcmljZV9wZXJfbWV0ZXJfZm9ybWF0dGVkJyA9PiAkcGFydG5lckJhc2UgIT0gJHJldGFpbEJhc2UgPyBmb3JtYXRfcHJpY2UoJHBhcnRuZXJCYXNlKSA6ICcnLAogICAgICAgICdwcm9kdWN0X3NwZWNzJyAgICAgID0+IHByb2R1Y3Rfc3BlY3NfaHRtbCgkcHJvZHVjdCksCiAgICAgICAgJ2F0dHJpYnV0ZXNfb3B0aW9ucycgPT4gcHJvZHVjdF9vcHRpb25zX3NlbGVjdHNfaHRtbCgkcHJvZHVjdCksCiAgICAgICAgJ2VzdGltYXRvcicgICAgICAgICAgPT4gcHJvZHVjdF9lc3RpbWF0b3JfaHRtbCgkcHJvZHVjdCksCiAgICBdOwogICAgJHRpdGxlID0gKHN0cmluZykgJHByb2R1Y3RbJ25hbWUnXSAuICcg4oCUICcgLiAkc2l0ZVRpdGxlOwogICAgJGRlc2MgPSB0cmltKChzdHJpbmcpICgkcHJvZHVjdFsnZGVzY3JpcHRpb24nXSA/PyAnJykpICE9PSAnJwogICAgICAgID8gbWJfc3Vic3RyKHRyaW0oc3RyaXBfdGFncygoc3RyaW5nKSAkcHJvZHVjdFsnZGVzY3JpcHRpb24nXSkpLCAwLCAxNjApCiAgICAgICAgOiAoc3RyaW5nKSAoJHNldHRpbmdzWydzaXRlX2Rlc2NyaXB0aW9uJ10gPz8gJycpOwoKICAgIGVjaG8gc2tlbGV0b25faGVhZCgkc2V0dGluZ3MsICR0aXRsZSwgJGRlc2MpOwogICAgZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ2hlYWRlcicsICRzZXR0aW5ncykgLiAiXG4iOwogICAgZWNobyAnPG1haW4gaWQ9Im1haW4iPicgLiAiXG4iOwogICAgZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ3Byb2R1Y3QnLCAkc2V0dGluZ3MsIG51bGwsIG51bGwsICRleHRyYSkgLiAiXG4iOwogICAgJG9yZGVyRm9ybUh0bWwgPSBzaXRlX29yZGVyX2Zvcm1faHRtbCgkcHJvZHVjdCk7CiAgICBpZiAoJG9yZGVyRm9ybUh0bWwgIT09ICcnKSB7CiAgICAgICAgZWNobyAnPHNlY3Rpb24gY2xhc3M9ImNvbnRlbnQtc2VjdGlvbiI+PGRpdiBjbGFzcz0iY29udGFpbmVyIj4nIC4gIlxuIiAuICRvcmRlckZvcm1IdG1sIC4gIlxuIiAuICc8L2Rpdj48L3NlY3Rpb24+JyAuICJcbiI7CiAgICB9CiAgICBlY2hvICc8L21haW4+JyAuICJcbiI7CiAgICBlY2hvIHJlbmRlcl9kYl90ZW1wbGF0ZSgnZm9vdGVyJywgJHNldHRpbmdzKSAuICJcbiI7CiAgICBlY2hvIHNrZWxldG9uX2Zvb3QoKTsKICAgIGV4aXQ7Cn0KCi8vIC0tLS0tLS0tLS0g2YHZh9ix2LPYqiDaqdin2KrYp9mE2YjaryAo2KjYpyDZgduM2YTYqtixINiv2LPYqtmHKSAtLS0tLS0tLS0tCiRjYXRJZCA9IChpbnQpICgkX0dFVFsnY2F0J10gPz8gMCk7CiRhY3RpdmVDYXQgPSBudWxsOwppZiAoJGNhdElkID4gMCkgewogICAgJGFjdGl2ZUNhdCA9IGdldF9jYXRlZ29yeSgkY2F0SWQpOwogICAgaWYgKCRhY3RpdmVDYXQgPT09IG51bGwgfHwgKGludCkgKCRhY3RpdmVDYXRbJ2lzX2FjdGl2ZSddID8/IDApICE9PSAxKSB7CiAgICAgICAgJGFjdGl2ZUNhdCA9IG51bGw7CiAgICAgICAgJGNhdElkID0gMDsKICAgIH0KfQokcHJvZHVjdHMgPSBnZXRfcHJvZHVjdHModHJ1ZSwgJGFjdGl2ZUNhdCAhPT0gbnVsbCA/IChpbnQpICRhY3RpdmVDYXRbJ2lkJ10gOiBudWxsKTsKCiRleHRyYSA9IFsKICAgICdjYXRhbG9nX3RpdGxlJyAgICA9PiAkY2F0YWxvZ1RpdGxlLAogICAgJ2NhdGVnb3JpZXNfbmF2JyAgID0+IGNhdGFsb2dfY2F0ZWdvcmllc19uYXZfaHRtbCgkYWN0aXZlQ2F0ICE9PSBudWxsID8gKGludCkgJGFjdGl2ZUNhdFsnaWQnXSA6IG51bGwpLAogICAgJ3Byb2R1Y3RzX2dyaWQnICAgID0+IGNhdGFsb2dfcHJvZHVjdHNfZ3JpZF9odG1sKCRwcm9kdWN0cyksCiAgICAnY2F0ZWdvcnlfdGl0bGUnICAgPT4gJGFjdGl2ZUNhdCAhPT0gbnVsbCA/IChzdHJpbmcpICRhY3RpdmVDYXRbJ3RpdGxlJ10gOiAnJywKXTsKCiR0aXRsZSA9ICRjYXRhbG9nVGl0bGUgLiAoJGFjdGl2ZUNhdCAhPT0gbnVsbCA/ICcg4oCUICcgLiAoc3RyaW5nKSAkYWN0aXZlQ2F0Wyd0aXRsZSddIDogJycpIC4gJyDigJQgJyAuICRzaXRlVGl0bGU7CiRkZXNjID0gKHN0cmluZykgKCRzZXR0aW5nc1snc2l0ZV9kZXNjcmlwdGlvbiddID8/ICcnKTsKCmVjaG8gc2tlbGV0b25faGVhZCgkc2V0dGluZ3MsICR0aXRsZSwgJGRlc2MpOwplY2hvIHJlbmRlcl9kYl90ZW1wbGF0ZSgnaGVhZGVyJywgJHNldHRpbmdzKSAuICJcbiI7CmVjaG8gJzxtYWluIGlkPSJtYWluIj4nIC4gIlxuIjsKZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ2NhdGFsb2cnLCAkc2V0dGluZ3MsIG51bGwsIG51bGwsICRleHRyYSkgLiAiXG4iOwplY2hvICc8L21haW4+JyAuICJcbiI7CmVjaG8gcmVuZGVyX2RiX3RlbXBsYXRlKCdmb290ZXInLCAkc2V0dGluZ3MpIC4gIlxuIjsKZWNobyBza2VsZXRvbl9mb290KCk7Cg==
+<?php
+// products.php — کاتالوگ عمومی محصولات (فاز ۲ / نسخه ۶)
+// فهرست محصولات و صفحه هر محصول با قالب‌های دیتابیسی «catalog» و «product» ساخته می‌شود.
+// قیمت‌ها متری هستند؛ برآوردگر صفحه محصول با همان موتور قیمت config.php کار می‌کند.
+// ثبت سفارش در فاز ۳ اضافه می‌شود؛ فعلاً CTA به فرم تماس صفحه اصلی است.
+
+declare(strict_types=1);
+
+require __DIR__ . '/config.php';
+
+// سشن عمومی (برای CSRF فرم ثبت سفارش) — باید قبل از هر خروجی شروع شود
+// روی هاست اشتراکی مسیر پیش‌فرض سشن زود پاک می‌شود و فرم‌ها خطای CSRF می‌دهند؛
+// سشن را داخل پوشهٔ خود سیستم نگه می‌داریم (اگر ساخته نشد، پیش‌فرض هاست می‌ماند).
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    $cmsPubSessionDir = __DIR__ . '/sessions';
+    if (!is_dir($cmsPubSessionDir)) {
+        @mkdir($cmsPubSessionDir, 0700, true);
+    }
+    if (is_dir($cmsPubSessionDir) && is_writable($cmsPubSessionDir)) {
+        ini_set('session.save_path', $cmsPubSessionDir);
+    }
+    ini_set('session.gc_maxlifetime', '604800');
+    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+    session_start();
+}
+
+// پردازش ثبت سفارش از صفحه محصول قبل از هر خروجی
+process_site_order();
+
+$settings = all_settings();
+$siteTitle = (string) ($settings['site_title'] ?? 'وب‌سایت من');
+$catalogTitle = (string) ($settings['catalog_title'] ?? 'کاتالوگ محصولات');
+$catalogPublic = ($settings['catalog_public'] ?? '1') === '1';
+
+// ---------- کاتالوگ غیرفعال است ----------
+if (!$catalogPublic) {
+    http_response_code(404);
+    $title = 'صفحه پیدا نشد — ' . $siteTitle;
+    $desc = (string) ($settings['site_description'] ?? '');
+    $body = '<section class="content-section"><div class="container">'
+        . '<h1>این بخش در دسترس نیست</h1>'
+        . '<p>کاتالوگ محصولات در حال حاضر نمایش عمومی ندارد. برای دریافت اطلاعات محصولات با ما در تماس باشید.</p>'
+        . '<p><a class="btn" href="index.php">بازگشت به صفحه اصلی</a></p>'
+        . '</div></section>';
+    echo skeleton_head($settings, $title, $desc);
+    echo render_db_template('header', $settings) . "\n";
+    echo '<main id="main">' . "\n" . $body . "\n" . '</main>' . "\n";
+    echo render_db_template('footer', $settings) . "\n";
+    echo skeleton_foot();
+    exit;
+}
+
+$productId = (int) ($_GET['id'] ?? 0);
+
+// ---------- صفحه یک محصول ----------
+if ($productId > 0) {
+    $product = get_product($productId);
+    if ($product === null || (int) ($product['is_active'] ?? 0) !== 1) {
+        http_response_code(404);
+        $title = 'محصول پیدا نشد — ' . $siteTitle;
+        $body = '<section class="content-section"><div class="container">'
+            . '<h1>محصول پیدا نشد</h1>'
+            . '<p>این محصول وجود ندارد یا غیرفعال است.</p>'
+            . '<p><a class="btn" href="products.php">بازگشت به کاتالوگ</a></p>'
+            . '</div></section>';
+        echo skeleton_head($settings, $title, (string) ($settings['site_description'] ?? ''));
+        echo render_db_template('header', $settings) . "\n";
+        echo '<main id="main">' . "\n" . $body . "\n" . '</main>' . "\n";
+        echo render_db_template('footer', $settings) . "\n";
+        echo skeleton_foot();
+        exit;
+    }
+
+    $retailBase  = product_base_price_per_meter($product, false);
+    $partnerBase = product_base_price_per_meter($product, true);
+    $extra = [
+        'catalog_title' => $catalogTitle,
+        'product_name'  => (string) $product['name'],
+        'product_image' => uploaded_image_url($product['image'] ?? ''),
+        'product_description' => (string) ($product['description'] ?? ''),
+        'category_title'      => (string) ($product['category_title'] ?? ''),
+        'price_per_meter_formatted'         => format_price($retailBase),
+        'partner_price_per_meter_formatted' => $partnerBase != $retailBase ? format_price($partnerBase) : '',
+        'product_specs'      => product_specs_html($product),
+        'attributes_options' => product_options_selects_html($product),
+        'estimator'          => product_estimator_html($product),
+    ];
+    $title = (string) $product['name'] . ' — ' . $siteTitle;
+    $desc = trim((string) ($product['description'] ?? '')) !== ''
+        ? mb_substr(trim(strip_tags((string) $product['description'])), 0, 160)
+        : (string) ($settings['site_description'] ?? '');
+
+    echo skeleton_head($settings, $title, $desc);
+    echo render_db_template('header', $settings) . "\n";
+    echo '<main id="main">' . "\n";
+    echo render_db_template('product', $settings, null, null, $extra) . "\n";
+    $orderFormHtml = site_order_form_html($product);
+    if ($orderFormHtml !== '') {
+        echo '<section class="content-section"><div class="container">' . "\n" . $orderFormHtml . "\n" . '</div></section>' . "\n";
+    }
+    echo '</main>' . "\n";
+    echo render_db_template('footer', $settings) . "\n";
+    echo skeleton_foot();
+    exit;
+}
+
+// ---------- فهرست کاتالوگ (با فیلتر دسته) ----------
+$catId = (int) ($_GET['cat'] ?? 0);
+$activeCat = null;
+if ($catId > 0) {
+    $activeCat = get_category($catId);
+    if ($activeCat === null || (int) ($activeCat['is_active'] ?? 0) !== 1) {
+        $activeCat = null;
+        $catId = 0;
+    }
+}
+$products = get_products(true, $activeCat !== null ? (int) $activeCat['id'] : null);
+
+$extra = [
+    'catalog_title'    => $catalogTitle,
+    'categories_nav'   => catalog_categories_nav_html($activeCat !== null ? (int) $activeCat['id'] : null),
+    'products_grid'    => catalog_products_grid_html($products),
+    'category_title'   => $activeCat !== null ? (string) $activeCat['title'] : '',
+];
+
+$title = $catalogTitle . ($activeCat !== null ? ' — ' . (string) $activeCat['title'] : '') . ' — ' . $siteTitle;
+$desc = (string) ($settings['site_description'] ?? '');
+
+echo skeleton_head($settings, $title, $desc);
+echo render_db_template('header', $settings) . "\n";
+echo '<main id="main">' . "\n";
+echo render_db_template('catalog', $settings, null, null, $extra) . "\n";
+echo '</main>' . "\n";
+echo render_db_template('footer', $settings) . "\n";
+echo skeleton_foot();
