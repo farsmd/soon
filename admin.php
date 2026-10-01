@@ -16,26 +16,10 @@ require_once __DIR__ . '/admin_orders.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
 
-// ---------- سشن امن نسبی ----------
-// روی خیلی از هاست‌های اشتراکی مسیر پیش‌فرض ذخیرهٔ سشن هر ~۲۴ دقیقه پاک می‌شود و
-// فرمِ بازمانده روی صفحه با خطای CSRF می‌مرد؛ پس سشن را داخل پوشهٔ خود سیستم نگه
-// می‌داریم و عمرش را هم بلند می‌کنیم تا این اتفاق نیفتد. اگر پوشه ساخته نشد، همان
-// مسیر پیش‌فرض هاست استفاده می‌شود و سیستم مثل قبل کار می‌کند.
-$cmsSessionDir = __DIR__ . '/sessions';
-if (!is_dir($cmsSessionDir)) {
-    @mkdir($cmsSessionDir, 0700, true);
-}
-if (is_dir($cmsSessionDir) && is_writable($cmsSessionDir)) {
-    ini_set('session.save_path', $cmsSessionDir);
-}
-ini_set('session.gc_maxlifetime', (string) session_lifetime_seconds()); // مدت نشست از پنل قابل تنظیم است (پیش‌فرض یک هفته)
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path'     => '/',
-    'httponly' => true,
-    'samesite' => 'Lax',
-]);
-session_start();
+// ---------- نشست ----------
+// نشست‌ها داخل دیتابیس سیستم ذخیره می‌شوند (نسخه ۸٫۲٫۱) تا پاک‌سازی و قفلِ مسیر
+// نشستِ هاست اشتراکی نتواند نشست مدیر را بکشد و فرمِ بازمانده را با خطای CSRF بکشد.
+cms_session_start();
 
 function is_logged_in(): bool
 {
@@ -60,19 +44,21 @@ function check_csrf(): void
     if (hash_equals((string) ($_SESSION['csrf'] ?? ''), (string) ($_POST['csrf'] ?? ''))) {
         return;
     }
-    // نشست منقضی یا صفحهٔ خیلی بازمانده نباید بن‌بست باشد: درخواست مثل قبل رد می‌شود،
-    // ولی مدیرِ واردشده با یک پیام روشن برمی‌گردد به همان صفحه تا دوباره تلاش کند.
+    // نشست منقضی یا صفحهٔ خیلی بازمانده نباید بن‌بست باشد: درخواست مثل قبل رد و
+    // هیچ‌وقت اجرا نمی‌شود، ولی کاربر هیچ‌وقت متن خامِ خطای CSRF نمی‌بیند؛ مدیرِ
+    // واردشده با پیام روشن به همان صفحه برمی‌گردد و اگر نشست کاملاً منقضی شده
+    // بود، به صفحهٔ ورود می‌رود و همان‌جا پیام را می‌بیند.
+    $_SESSION['flash'] = ['type' => 'error', 'message' => 'نشستت منقضی شده بود یا این صفحه خیلی باز مانده بود، برای همین فرمت ثبت نشد. حالا دوباره تلاش کن.'];
     if (!empty($_SESSION['admin_logged_in'])) {
         $back = (string) ($_GET['page'] ?? '');
         if (!preg_match('/^[a-z_]+$/', $back)) {
             $back = 'dashboard';
         }
-        $_SESSION['flash'] = ['type' => 'error', 'message' => 'نشستت منقضی شده بود یا این صفحه خیلی باز مانده بود، برای همین فرمت ثبت نشد. حالا دوباره تلاش کن.'];
         header('Location: admin.php?page=' . $back);
         exit;
     }
-    http_response_code(400);
-    exit('درخواست نامعتبر است (CSRF). لطفاً دوباره تلاش کنید.');
+    header('Location: admin.php');
+    exit;
 }
 
 function redirect_admin(string $url = 'admin.php'): void
@@ -206,6 +192,12 @@ if (!is_logged_in()) {
         }
         log_admin_event('login', 'تلاش ناموفق برای ورود (پسورد اشتباه)', false);
         $error = 'پسورد اشتباه است.';
+    } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // فرمی از نشستی تمام‌شده رسیده است (مثلاً صفحه از قبل باز بوده و نشست
+        // منقضی شده)؛ فرم اجرا نمی‌شود و کاربر با یک پیام روشن به ورود برمی‌گردد.
+        $_SESSION['flash'] = ['type' => 'error', 'message' => 'نشستت منقضی شده بود، برای همین فرمت ثبت نشد. دوباره وارد شو و تلاش کن.'];
+        header('Location: admin.php');
+        exit;
     }
     ?>
 <!DOCTYPE html>
@@ -219,6 +211,8 @@ if (!is_logged_in()) {
 <body>
 <div class="auth-box">
     <h1>ورود مدیریت</h1>
+    <?php $authFlash = $_SESSION['flash'] ?? null; unset($_SESSION['flash']); ?>
+    <?php if ($authFlash): ?><div class="alert <?= e((string) ($authFlash['type'] ?? 'error')) ?>"><?= e((string) ($authFlash['message'] ?? '')) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="alert error"><?= e($error) ?></div><?php endif; ?>
     <form method="post">
         <?= csrf_field() ?>
