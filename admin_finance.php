@@ -859,7 +859,7 @@ function finance_render_dashboard(array $d): void
                     <td class="muted"><?= e($ex['expense_date'] ?? $ex['created_at']) ?></td>
                     <td class="muted"><?= (string) $ex['source'] === 'material_purchase' ? 'خرید مواد (خودکار)' : 'دستی' ?></td>
                     <td style="white-space:nowrap">
-                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="confirm_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small primary">✓ تأیید</button></form>
+                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="confirm_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small add">✓ تأیید</button></form>
                         <form method="post" style="display:inline" onsubmit="return confirm('این هزینه رد شود و در گزارش‌ها حساب نشود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="reject_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small">رد</button></form>
                     </td>
                 </tr>
@@ -1049,7 +1049,7 @@ function finance_render_invoice_view(array $d): void
                 <label>یادداشت فاکتور (اختیاری)
                     <input type="text" name="note" maxlength="300" placeholder="مثلاً: پرداخت تا پایان هفته">
                 </label>
-                <button type="submit" class="btn primary">صدور فاکتور</button>
+                <button type="submit" class="btn add">صدور فاکتور</button>
             </form>
         </section>
         <?php else: ?>
@@ -1080,7 +1080,7 @@ function finance_render_invoice_view(array $d): void
                 </label>
                 <label>تاریخ<input type="date" name="paid_on" value="<?= e(date('Y-m-d')) ?>"></label>
                 <label style="flex:1">توضیح<input type="text" name="note" maxlength="200"></label>
-                <button type="submit" class="btn primary" style="align-self:end">+ ثبت دریافتی</button>
+                <button type="submit" class="btn add" style="align-self:end">+ ثبت دریافتی</button>
             </form>
             <?php if ($finInvPayments === []): ?>
                 <p class="muted">هنوز دریافتی ثبت نشده است.</p>
@@ -1182,6 +1182,12 @@ function finance_render_expenses(array $d): void
         </p>
     <?php endif; ?>
 
+    <?php if ($edit === null): ?>
+    <div class="crud-toolbar">
+        <button type="button" class="btn add" data-toggle-panel="expense-form-panel" aria-expanded="false">+ ثبت هزینه جدید</button>
+    </div>
+    <?php endif; ?>
+    <div class="crud-panel" id="expense-form-panel" <?= $edit !== null ? 'data-open="1"' : 'hidden' ?>>
     <section class="card wide">
         <h2><?= $edit !== null ? 'ویرایش هزینه #' . (int) $edit['id'] : 'ثبت هزینه جدید' ?></h2>
         <?php if ($edit !== null && (string) $edit['source'] === 'material_purchase'): ?>
@@ -1225,11 +1231,12 @@ function finance_render_expenses(array $d): void
                     </select>
                 </label>
                 <?php endif; ?>
-                <button type="submit" class="btn primary" style="align-self:end"><?= $edit !== null ? 'ذخیره' : '+ ثبت هزینه' ?></button>
+                <button type="submit" class="btn <?= $edit !== null ? 'edit' : 'add' ?>" style="align-self:end"><?= $edit !== null ? 'ذخیره' : '+ ثبت هزینه' ?></button>
                 <?php if ($edit !== null): ?><a class="btn" href="admin.php?page=expenses" style="align-self:end">انصراف</a><?php endif; ?>
             </div>
         </form>
     </section>
+    </div>
 
     <p>
         <a class="btn small<?= $finExpenseFilter === '' ? ' primary' : '' ?>" href="admin.php?page=expenses">همه</a>
@@ -1256,10 +1263,10 @@ function finance_render_expenses(array $d): void
                     <td><?= !empty($ex['linked_order_no']) ? '<a href="admin.php?page=order_view&id=' . (int) $ex['order_id'] . '">#' . (int) $ex['linked_order_no'] . '</a>' : '—' ?></td>
                     <td style="white-space:nowrap">
                         <?php if ((string) $ex['status'] === 'pending'): ?>
-                            <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="confirm_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small primary">✓ تأیید</button></form>
+                            <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="confirm_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small add">✓ تأیید</button></form>
                             <form method="post" style="display:inline" onsubmit="return confirm('این هزینه رد شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="reject_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small">رد</button></form>
                         <?php endif; ?>
-                        <a class="btn small" href="admin.php?page=expenses&edit_id=<?= (int) $ex['id'] ?>">ویرایش</a>
+                        <a class="btn small edit" href="admin.php?page=expenses&edit_id=<?= (int) $ex['id'] ?>">ویرایش</a>
                         <form method="post" style="display:inline" onsubmit="return confirm('این هزینه حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_expense"><input type="hidden" name="id" value="<?= (int) $ex['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
                     </td>
                 </tr>
@@ -1411,8 +1418,8 @@ function finance_render_rules(array $d): void
             <?php foreach ($finMethodsAll as $m): ?>
                 <tr>
                     <td>
-                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><input type="hidden" name="dir" value="up"><button type="submit" class="btn small">↑</button></form>
-                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><input type="hidden" name="dir" value="down"><button type="submit" class="btn small">↓</button></form>
+                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><input type="hidden" name="dir" value="up"><button type="submit" class="btn small">↑ بالا</button></form>
+                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><input type="hidden" name="dir" value="down"><button type="submit" class="btn small">↓ پایین</button></form>
                     </td>
                     <td>
                         <form method="post" class="inline-fields">
@@ -1420,12 +1427,12 @@ function finance_render_rules(array $d): void
                             <input type="hidden" name="action" value="update_payment_method">
                             <input type="hidden" name="id" value="<?= (int) $m['id'] ?>">
                             <input type="text" name="title" value="<?= e($m['title']) ?>" maxlength="60" required>
-                            <button type="submit" class="btn small">ذخیره</button>
+                            <button type="submit" class="btn small edit">ذخیره</button>
                         </form>
                     </td>
                     <td class="muted"><?= e($m['method_key']) ?></td>
                     <td>
-                        <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><button type="submit" class="btn small"><?= (int) $m['is_active'] === 1 ? 'فعال — غیرفعالش کن' : 'غیرفعال — فعالش کن' ?></button></form>
+                        <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><button type="submit" class="btn small warn"><?= (int) $m['is_active'] === 1 ? 'فعال — غیرفعالش کن' : 'غیرفعال — فعالش کن' ?></button></form>
                     </td>
                     <td>
                         <form method="post" onsubmit="return confirm('این روش حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_payment_method"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
@@ -1434,13 +1441,18 @@ function finance_render_rules(array $d): void
             <?php endforeach; ?>
             </tbody>
         </table>
+        <div class="crud-toolbar">
+            <button type="button" class="btn add" data-toggle-panel="paymethod-form-panel" aria-expanded="false">+ افزودن روش پرداخت</button>
+        </div>
+        <div class="crud-panel" id="paymethod-form-panel" hidden>
         <form method="post" class="inline-fields" style="margin-top:12px">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="add_payment_method">
             <label>عنوان روش جدید<input type="text" name="title" maxlength="60" required placeholder="مثلاً: کارت‌به‌کارت"></label>
             <label>کلید (انگلیسی، ثابت)<input type="text" name="method_key" maxlength="30" required placeholder="مثلاً: card2card" dir="ltr"></label>
-            <button type="submit" class="btn primary" style="align-self:end">+ افزودن روش</button>
+            <button type="submit" class="btn add" style="align-self:end">+ افزودن روش</button>
         </form>
+        </div>
     </section>
 
     <section class="card wide">
@@ -1452,8 +1464,8 @@ function finance_render_rules(array $d): void
             <?php foreach ($finCatsAll as $c): ?>
                 <tr>
                     <td>
-                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><input type="hidden" name="dir" value="up"><button type="submit" class="btn small">↑</button></form>
-                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><input type="hidden" name="dir" value="down"><button type="submit" class="btn small">↓</button></form>
+                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><input type="hidden" name="dir" value="up"><button type="submit" class="btn small">↑ بالا</button></form>
+                        <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><input type="hidden" name="dir" value="down"><button type="submit" class="btn small">↓ پایین</button></form>
                     </td>
                     <td>
                         <form method="post" class="inline-fields">
@@ -1462,13 +1474,13 @@ function finance_render_rules(array $d): void
                             <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
                             <input type="text" name="title" value="<?= e($c['title']) ?>" maxlength="60" required>
                             <input type="color" name="color" value="<?= e((string) $c['color']) ?>">
-                            <button type="submit" class="btn small">ذخیره</button>
+                            <button type="submit" class="btn small edit">ذخیره</button>
                         </form>
                     </td>
                     <td><span class="badge" style="background:<?= e((string) $c['color']) ?>22;color:<?= e((string) $c['color']) ?>">نمونه</span></td>
                     <td class="muted"><?= e($c['cat_key']) ?></td>
                     <td>
-                        <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><button type="submit" class="btn small"><?= (int) $c['is_active'] === 1 ? 'فعال — غیرفعالش کن' : 'غیرفعال — فعالش کن' ?></button></form>
+                        <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><button type="submit" class="btn small warn"><?= (int) $c['is_active'] === 1 ? 'فعال — غیرفعالش کن' : 'غیرفعال — فعالش کن' ?></button></form>
                     </td>
                     <td>
                         <form method="post" onsubmit="return confirm('این دسته حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_expense_category"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
@@ -1477,14 +1489,19 @@ function finance_render_rules(array $d): void
             <?php endforeach; ?>
             </tbody>
         </table>
+        <div class="crud-toolbar">
+            <button type="button" class="btn add" data-toggle-panel="expcat-form-panel" aria-expanded="false">+ افزودن دسته هزینه</button>
+        </div>
+        <div class="crud-panel" id="expcat-form-panel" hidden>
         <form method="post" class="inline-fields" style="margin-top:12px">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="add_expense_category">
             <label>عنوان دسته جدید<input type="text" name="title" maxlength="60" required placeholder="مثلاً: تبلیغات"></label>
             <label>کلید (انگلیسی، ثابت)<input type="text" name="cat_key" maxlength="30" required placeholder="مثلاً: ads" dir="ltr"></label>
             <label>رنگ<input type="color" name="color" value="#2563eb"></label>
-            <button type="submit" class="btn primary" style="align-self:end">+ افزودن دسته</button>
+            <button type="submit" class="btn add" style="align-self:end">+ افزودن دسته</button>
         </form>
+        </div>
     </section>
     <?php
 }
