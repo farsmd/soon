@@ -849,7 +849,7 @@ function production_render_list(array $d): void
                     <?php endforeach; ?>
                 </select>
             </label>
-            <button type="submit" class="btn primary" style="align-self:end">+ ساخت برگه تولید</button>
+            <button type="submit" class="btn add" style="align-self:end">+ ساخت برگه تولید</button>
         </form>
         <p class="muted">با ساخت برگه، وضعیت سفارش (اگر وضعیت «در حال تولید» تعریف شده باشد) خودکار به «در حال تولید» می‌رود. کسر مواد هنگام «شروع تولید» انجام می‌شود، نه حالا.</p>
         <?php endif; ?>
@@ -951,7 +951,7 @@ function production_render_view(array $d): void
                 <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
                 <label>مسئول تولید<input type="text" name="responsible" value="<?= e($p['responsible'] ?? '') ?>" placeholder="نام مسئول این برگه…"></label>
                 <label style="flex:1">یادداشت برگه<input type="text" name="notes" value="<?= e($p['notes'] ?? '') ?>" placeholder="اختیاری…"></label>
-                <button type="submit" class="btn small" style="align-self:end">ذخیره</button>
+                <button type="submit" class="btn small edit" style="align-self:end">ذخیره</button>
             </form>
             <?php endif; ?>
         </section>
@@ -989,7 +989,7 @@ function production_render_view(array $d): void
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="production_finish">
                     <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
-                    <button type="submit" class="btn small" style="background:#16a34a;color:#fff">✓ پایان تولید</button>
+                    <button type="submit" class="btn small add">✓ پایان تولید</button>
                 </form>
                 <?php endif; ?>
                 <form method="post" onsubmit="return confirm('<?= $started ? 'برگه لغو شود؟ همه مواد مصرف‌شده و پرت‌ها دقیق به انبار برمی‌گردند.' : 'این برگه تولید لغو شود؟' ?>')">
@@ -1139,6 +1139,30 @@ function production_render_rules(array $d): void
     <h1>مراحل و قوانین تولید</h1>
     <p class="muted">مراحل کارگاه کاملاً از همین‌جا قابل‌ویرایش‌اند؛ ترتیب و رنگ هر مرحله روی برگه‌های تولید و بج منو اثر می‌گذارد. هیچ مرحله‌ای در کد ثابت نیست.</p>
 
+    <?php if ($edit === null): ?>
+    <div class="crud-toolbar">
+        <button type="button" class="btn add" data-toggle-panel="pstage-form-panel" aria-expanded="false">+ افزودن مرحله</button>
+    </div>
+    <?php endif; ?>
+    <div class="crud-panel" id="pstage-form-panel" <?= $edit !== null ? 'data-open="1"' : 'hidden' ?>>
+    <section class="card wide">
+        <h2><?= $edit !== null ? 'ویرایش مرحله: ' . e($edit['title'] ?? '') : 'افزودن مرحله تازه' ?></h2>
+        <form method="post" class="inline-fields">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="<?= $edit !== null ? 'update_pstage' : 'add_pstage' ?>">
+            <?php if ($edit !== null): ?><input type="hidden" name="id" value="<?= (int) $edit['id'] ?>"><?php endif; ?>
+            <label>کلید (انگلیسی)<input type="text" name="stage_key" dir="ltr" required pattern="[a-z0-9_]{2,30}" value="<?= e($edit['stage_key'] ?? '') ?>" placeholder="مثلاً cutting"></label>
+            <label>عنوان<input type="text" name="title" required value="<?= e($edit['title'] ?? '') ?>" placeholder="مثلاً برش"></label>
+            <label>رنگ<input type="color" name="color" value="<?= e($edit['color'] ?? '#6b7280') ?>"></label>
+            <label>ترتیب<input type="number" name="sort_order" step="1" value="<?= (int) ($edit['sort_order'] ?? 0) ?>"></label>
+            <label class="check"><input type="checkbox" name="is_active" value="1"<?= $edit === null || (int) $edit['is_active'] === 1 ? ' checked' : '' ?>> فعال</label>
+            <button type="submit" class="btn <?= $edit !== null ? 'edit' : 'add' ?>" style="align-self:end"><?= $edit !== null ? 'ذخیره ویرایش' : 'افزودن مرحله' ?></button>
+            <?php if ($edit !== null): ?><a class="btn" style="align-self:end" href="admin.php?page=production_rules">انصراف</a><?php endif; ?>
+        </form>
+        <p class="muted">اولین مرحله فعال، مرحله شروع هر برگه تازه است؛ مرحله «در صف» را معمولاً اول نگه دارید. تغییر کلید یک مرحله، برگه‌های موجود را هم به کلید تازه منتقل می‌کند.</p>
+    </section>
+    </div>
+
     <section class="card wide">
         <h2>مراحل تولید</h2>
         <?php if ($productionStagesList === []): ?>
@@ -1150,8 +1174,8 @@ function production_render_rules(array $d): void
             <?php foreach ($productionStagesList as $s): ?>
                 <tr>
                     <td>
-                        <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" class="btn small" title="بالا">↑</button></form>
-                        <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" class="btn small" title="پایین">↓</button></form>
+                        <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" class="btn small" title="بالا">↑ بالا</button></form>
+                        <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" class="btn small" title="پایین">↓ پایین</button></form>
                         <span class="muted"><?= (int) $s['sort_order'] ?></span>
                     </td>
                     <td><?= e($s['title']) ?></td>
@@ -1159,8 +1183,8 @@ function production_render_rules(array $d): void
                     <td><span class="badge" style="background:<?= e($s['color']) ?>22;color:<?= e($s['color']) ?>"><?= e($s['color']) ?></span></td>
                     <td><?= (int) $s['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge">غیرفعال</span>' ?></td>
                     <td>
-                        <a class="btn small" href="admin.php?page=production_rules&edit_pstage=<?= (int) $s['id'] ?>">ویرایش</a>
-                        <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit" class="btn small"><?= (int) $s['is_active'] === 1 ? 'غیرفعال' : 'فعال' ?></button></form>
+                        <a class="btn small edit" href="admin.php?page=production_rules&edit_pstage=<?= (int) $s['id'] ?>">ویرایش</a>
+                        <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit" class="btn small warn"><?= (int) $s['is_active'] === 1 ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?></button></form>
                         <form method="post" class="inline" onsubmit="return confirm('این مرحله حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_pstage"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
                     </td>
                 </tr>
@@ -1168,23 +1192,6 @@ function production_render_rules(array $d): void
             </tbody>
         </table>
         <?php endif; ?>
-    </section>
-
-    <section class="card wide">
-        <h2><?= $edit !== null ? 'ویرایش مرحله' : 'افزودن مرحله تازه' ?></h2>
-        <form method="post" class="inline-fields">
-            <?= csrf_field() ?>
-            <input type="hidden" name="action" value="<?= $edit !== null ? 'update_pstage' : 'add_pstage' ?>">
-            <?php if ($edit !== null): ?><input type="hidden" name="id" value="<?= (int) $edit['id'] ?>"><?php endif; ?>
-            <label>کلید (انگلیسی)<input type="text" name="stage_key" dir="ltr" required pattern="[a-z0-9_]{2,30}" value="<?= e($edit['stage_key'] ?? '') ?>" placeholder="مثلاً cutting"></label>
-            <label>عنوان<input type="text" name="title" required value="<?= e($edit['title'] ?? '') ?>" placeholder="مثلاً برش"></label>
-            <label>رنگ<input type="color" name="color" value="<?= e($edit['color'] ?? '#6b7280') ?>"></label>
-            <label>ترتیب<input type="number" name="sort_order" step="1" value="<?= (int) ($edit['sort_order'] ?? 0) ?>"></label>
-            <label class="check"><input type="checkbox" name="is_active" value="1"<?= $edit === null || (int) $edit['is_active'] === 1 ? ' checked' : '' ?>> فعال</label>
-            <button type="submit" class="btn primary" style="align-self:end"><?= $edit !== null ? 'ذخیره ویرایش' : 'افزودن مرحله' ?></button>
-            <?php if ($edit !== null): ?><a class="btn" style="align-self:end" href="admin.php?page=production_rules">انصراف</a><?php endif; ?>
-        </form>
-        <p class="muted">اولین مرحله فعال، مرحله شروع هر برگه تازه است؛ مرحله «در صف» را معمولاً اول نگه دارید. تغییر کلید یک مرحله، برگه‌های موجود را هم به کلید تازه منتقل می‌کند.</p>
     </section>
 
     <section class="card wide">
