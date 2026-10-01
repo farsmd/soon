@@ -1,5 +1,5 @@
 <?php
-// page.php — نمایش یک صفحه جدا با آدرس page.php?slug=... (نسخه ۵)
+// page.php — نمایش یک صفحه جدا با آدرس page.php?slug=... (نسخه ۶)
 // متن صفحه با قالب دیتابیسی «single» و پلیس‌هولدرهای {{page_title}} و {{page_content}} ساخته می‌شود.
 
 declare(strict_types=1);
