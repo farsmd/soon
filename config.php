@@ -1,14 +1,18 @@
 <?php
-// config.php — اتصال دیتابیس و توابع کمکی مشترک (نسخه ۵)
+// config.php — اتصال دیتابیس و توابع کمکی مشترک (نسخه ۶)
 // همه فایل‌های این پروژه در یک فولدر کنار هم قرار دارند؛ عکس‌های آپلودی داخل فولدر uploads همان فولدر است.
 // نسخه ۵: محتوای قالب‌ها و CSS سایت داخل دیتابیس نگهداری می‌شود؛ فقط اسکلت صفحه در کد باقی مانده است.
+// نسخه ۶ (فاز ۲): مشتری‌ها، دسته‌بندی و کاتالوگ محصول با قیمت متری + آپشن + قیمت همکار و ماشین‌حساب قیمت.
 
 declare(strict_types=1);
 
-define('APP_VERSION', '5.0.0');
+define('APP_VERSION', '6.0.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
+
+// قالب‌ها و CSS کارخانه‌ای در فایل جدا هستند تا هر فایل برای آپدیت گیت‌هاب کوچک بماند
+require_once __DIR__ . '/defaults.php';
 
 /**
  * اتصال PDO به SQLite (فایل در همان فولدر ساخته می‌شود)
@@ -98,6 +102,87 @@ function init_db(PDO $pdo): void
         )
     ");
 
+    // --- فاز ۲ (نسخه ۶): مشتری‌ها ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS customers (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name     TEXT NOT NULL,
+            company       TEXT,
+            mobile        TEXT NOT NULL,
+            customer_type TEXT NOT NULL DEFAULT 'retail',
+            city          TEXT,
+            address       TEXT,
+            notes         TEXT,
+            created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+
+    // --- فاز ۲ (نسخه ۶): دسته‌بندی محصولات (با زیردسته) ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS product_categories (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL,
+            slug        TEXT NOT NULL UNIQUE,
+            parent_id   INTEGER,
+            description TEXT,
+            image       TEXT,
+            sort_order  INTEGER NOT NULL DEFAULT 0,
+            is_active   INTEGER NOT NULL DEFAULT 1,
+            created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+
+    // --- فاز ۲ (نسخه ۶): محصولات (قیمت متری + قیمت همکار) ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS products (
+            id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_id             INTEGER,
+            name                    TEXT NOT NULL,
+            sku                     TEXT,
+            description             TEXT,
+            image                   TEXT,
+            price_per_meter         INTEGER NOT NULL DEFAULT 0,
+            partner_price_per_meter INTEGER,
+            is_active               INTEGER NOT NULL DEFAULT 1,
+            sort_order              INTEGER NOT NULL DEFAULT 0,
+            created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+
+    // --- فاز ۲ (نسخه ۶): تعریف ویژگی‌های محصول و گزینه‌هایشان ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS product_attributes (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            title      TEXT NOT NULL,
+            attr_key   TEXT NOT NULL UNIQUE,
+            input_type TEXT NOT NULL DEFAULT 'select',
+            unit       TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active  INTEGER NOT NULL DEFAULT 1
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS product_attribute_options (
+            id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+            attribute_id           INTEGER NOT NULL,
+            title                  TEXT NOT NULL,
+            price_delta_per_meter  INTEGER NOT NULL DEFAULT 0,
+            sort_order             INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS product_attribute_values (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id   INTEGER NOT NULL,
+            attribute_id INTEGER NOT NULL,
+            option_id    INTEGER,
+            num_value    REAL,
+            text_value   TEXT
+        )
+    ");
+
     // --- جدول قالب‌های داخل دیتابیس (نسخه ۵) ---
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS site_templates (
@@ -146,6 +231,10 @@ function init_db(PDO $pdo): void
         'border_radius'       => '12',
         'default_theme'       => 'light',
         'header_sticky'       => '1',
+        // فاز ۲ (نسخه ۶): مشتری و کاتالوگ محصول
+        'partner_discount_percent' => '10',
+        'catalog_public'      => '1',
+        'catalog_title'       => 'کاتالوگ محصولات',
     ];
     $stmt = $pdo->prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (:key, :value)');
     foreach ($defaults as $k => $v) {
@@ -183,6 +272,9 @@ function init_db(PDO $pdo): void
 
     // --- نسخه ۵: سید قالب‌ها و CSS داخل دیتابیس (فقط آیتم‌های غایب؛ داده کاربر دست نمی‌خورد) ---
     seed_design_if_needed($pdo);
+
+    // --- فاز ۲ (نسخه ۶): سید دسته‌ها و ویژگی‌های پیش‌فرض + CSS کاتالوگ (فقط وقتی خالی/غایب است) ---
+    seed_catalog_if_needed($pdo);
 }
 
 /** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
@@ -471,6 +563,10 @@ function is_valid_slug(string $slug): bool
 function menu_items(): array
 {
     $items = [['title' => 'خانه', 'url' => 'index.php']];
+    // فاز ۲: لینک کاتالوگ محصولات وقتی نمایش عمومی کاتالوگ فعال است
+    if (get_setting('catalog_public', '1') === '1') {
+        $items[] = ['title' => get_setting('catalog_title', 'کاتالوگ محصولات'), 'url' => 'products.php'];
+    }
     foreach (get_pages(true) as $p) {
         if ((int) ($p['show_in_menu'] ?? 0) === 1) {
             $items[] = [
@@ -629,108 +725,7 @@ function available_templates(): array
 // فقط اسکلت سند HTML در کد می‌ماند؛ هیچ کدی از دیتابیس اجرا نمی‌شود.
 // =============================================================
 
-/** قالب‌های کارخانه‌ای سیستم (کلید => عنوان و محتوای HTML امن با پلیس‌هولدر) */
-function factory_templates(): array
-{
-    return [
-        'header' => [
-            'title'   => 'هدر سایت',
-            'content' => <<<'HTML'
-<header class="site-header">
-    <div class="container header-inner">
-        <a class="logo" href="index.php">{{site_title}}</a>
-        {{menu}}
-    </div>
-</header>
-HTML,
-        ],
-        'slider' => [
-            'title'   => 'اسلایدر (قهرمان صفحه)',
-            'content' => <<<'HTML'
-<section class="slider{{#if section_image}} has-image{{/if}}"{{#if section_image}} style="background-image:url('{{section_image_url}}')"{{/if}}>
-    <div class="container slider-inner">
-        <h1>{{section_heading}}</h1>
-        <div class="lead">{{section_body}}</div>
-        {{#if section_link_url}}<a class="btn btn-light" href="{{section_link_url}}">{{section_link_text}}</a>{{/if}}
-    </div>
-</section>
-HTML,
-        ],
-        'features' => [
-            'title'   => 'ویژگی‌ها',
-            'content' => <<<'HTML'
-<section id="features" class="features">
-    <div class="container">
-        <h2>{{section_heading}}</h2>
-        {{#if section_image}}<p class="section-image"><img src="{{section_image_url}}" alt="{{section_heading}}" loading="lazy" decoding="async"></p>{{/if}}
-        {{#if section_body}}<div class="section-body">{{section_body}}</div>{{else}}<div class="cards">
-            <article class="card">
-                <h3>سریع و سبک</h3>
-                <p>بر پایه PHP و SQLite، بدون نیاز به دیتابیس جدا.</p>
-            </article>
-            <article class="card">
-                <h3>قالب‌های داخل دیتابیس</h3>
-                <p>هدر، اسلایدر و فوتر را از پنل «قالب و استایل» ویرایش کنید؛ آپدیت سایت آن‌ها را پاک نمی‌کند.</p>
-            </article>
-            <article class="card">
-                <h3>چندصفحه‌ای و قابل ویرایش</h3>
-                <p>صفحه بسازید، محتوا و عکس هر بخش را از ادمین عوض کنید و منو خودکار ساخته می‌شود.</p>
-            </article>
-        </div>{{/if}}
-    </div>
-</section>
-HTML,
-        ],
-        'content' => [
-            'title'   => 'محتوای اصلی',
-            'content' => <<<'HTML'
-<section id="content" class="content-section">
-    <div class="container">
-        <h2>{{section_heading}}</h2>
-        {{#if section_image}}<p class="section-image"><img src="{{section_image_url}}" alt="{{section_heading}}" loading="lazy" decoding="async"></p>{{/if}}
-        {{#if section_body}}<div class="section-body">{{section_body}}</div>{{else}}<p>{{site_description}}</p>
-        <p>این یک بخش محتوای نمونه است. از پنل مدیریت، «بخش‌های صفحه اصلی»، همین بخش را ویرایش کنید و تیتر، متن و عکس خودش را بدهید؛ یا از «قالب و استایل» ظاهر آن را تغییر دهید.</p>{{/if}}
-        {{#if section_link_url}}{{#if section_link_text}}<p><a class="btn" href="{{section_link_url}}">{{section_link_text}}</a></p>{{/if}}{{/if}}
-    </div>
-</section>
-HTML,
-        ],
-        'footer' => [
-            'title'   => 'فوتر سایت',
-            'content' => <<<'HTML'
-<footer class="site-footer">
-    <div class="container">
-        <p>© {{current_year}} {{site_title}} — همه حقوق محفوظ است.</p>
-        <p class="muted">ساخته‌شده با مدیریت محتوای ساده PHP و SQLite — نسخه ۵</p>
-    </div>
-</footer>
-HTML,
-        ],
-        'contact' => [
-            'title'   => 'فرم تماس',
-            'content' => <<<'HTML'
-<section id="contact" class="content-section contact-section">
-    <div class="container">
-        <h2>{{section_heading}}</h2>
-        {{#if section_body}}<div class="section-body">{{section_body}}</div>{{/if}}
-        {{contact_form}}
-    </div>
-</section>
-HTML,
-        ],
-        'single' => [
-            'title'   => 'صفحه تکی',
-            'content' => <<<'HTML'
-<section class="content-section page-content">
-    <div class="container">
-        <h1>{{page_title}}</h1>
-        <div class="page-body">{{page_content}}</div>
-    </div>
-</section>
-HTML,
-        ],
-    ];
-}
+// تابع factory_templates() در فایل defaults.php است (بالای همین فایل require می‌شود).
 
 /** محتوای کارخانه‌ای یک قالب (یا null) */
 function factory_template_content(string $key): ?string
@@ -1040,7 +1035,9 @@ function legacy_cleanup_candidates(): array
 /** کلیدهایی که مقدارشان HTML خامِ داخلی و مطمئن است (بدون escape) */
 function tpl_raw_keys(): array
 {
-    return ['menu', 'section_body', 'page_content', 'contact_form', 'slider_slides'];
+    return ['menu', 'section_body', 'page_content', 'contact_form', 'slider_slides',
+        // فاز ۲: HTML داخلی ساخته‌شده در کد برای کاتالوگ و محصول (هرگز از ورودی کاربر ساخته نمی‌شود)
+        'categories_nav', 'products_grid', 'product_specs', 'attributes_options', 'estimator'];
 }
 
 /** پارس بازگشتی توکن‌های قالب به درخت گره‌ها (متن / متغیر / شرط) */
@@ -1546,196 +1543,502 @@ HTML;
 
 // ---------- CSS پایه کارخانه‌ای ----------
 
-/**
- * CSS پیش‌فرض نسخه ۵: موبایل‌اول، بخش‌بندی‌شده و سازگار گسترده.
- * رنگ/فونت/عرض/گردی از متغیرها می‌آیند و از پنل «قالب و استایل» بدون ویرایش کد عوض می‌شوند.
- */
-function default_site_css(): string
+// تابع default_site_css() در فایل defaults.php است (بالای همین فایل require می‌شود).
+
+/** نشانگر بلوک CSS کاتالوگ داخل site_css (برای جلوگیری از افزودن تکراری هنگام مهاجرت) */
+function catalog_css_marker(): string
 {
-    return <<<'CSS'
-/* ============================================================
-   استایل پایه سایت — نسخه ۵ (داخل دیتابیس از «قالب و استایل» ویرایش می‌شود)
-   ساختار: توکن‌ها ← تم تیره ← ریست و پایه ← ابزارها ← هدر و ناوبری
-   ← اسلایدر و کاروسل ← دکمه و فرم ← بخش‌ها ← فوتر ← شبکه مدرن
-   ← ناوبری موبایل ← حرکت کم ← چاپ
-   ============================================================ */
-
-/* ---------- توکن‌ها (تنظیمات ظاهری پنل روی این‌ها می‌نشیند) ---------- */
-:root{
-    --primary:#2563eb;
-    --primary-dark:#1d4ed8;
-    --accent:#0d9488;
-    --accent-dark:#0f766e;
-    --font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Tahoma, Arial, sans-serif;
-    --container-width:1200px;
-    --radius:12px;
-    --bg:#ffffff;
-    --surface:#f9fafb;
-    --surface-border:#e5e7eb;
-    --text:#111827;
-    --muted:#6b7280;
-    --header-bg:#111827;
-    --header-text:#ffffff;
-    --header-link:#d1d5db;
-    --footer-bg:#111827;
-    --footer-text:#d1d5db;
-    --input-bg:#ffffff;
-    --input-border:#d1d5db;
-    --alert-ok-bg:#dcfce7;
-    --alert-ok-text:#166534;
-    --alert-error-bg:#fee2e2;
-    --alert-error-text:#991b1b;
-    --shadow:0 10px 30px rgba(15,23,42,.14);
+    return '/* === کاتالوگ محصولات (نسخه ۶) === */';
 }
 
-/* ---------- تم تیره (با دکمه تغییر تم و کلاس روی html) ---------- */
-html[data-theme="dark"]{
-    --bg:#0f172a;
-    --surface:#1e293b;
-    --surface-border:#334155;
-    --text:#e5e7eb;
-    --muted:#94a3b8;
-    --header-bg:#020617;
-    --header-text:#f8fafc;
-    --header-link:#cbd5e1;
-    --footer-bg:#020617;
-    --footer-text:#94a3b8;
-    --input-bg:#1e293b;
-    --input-border:#475569;
-    --alert-ok-bg:#14532d;
-    --alert-ok-text:#bbf7d0;
-    --alert-error-bg:#7f1d1d;
-    --alert-error-text:#fecaca;
-    --shadow:0 10px 30px rgba(0,0,0,.45);
-}
+// تابع catalog_css_block() در فایل defaults.php است (بالای همین فایل require می‌شود).
 
-/* ---------- ریست و پایه ---------- */
-*,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{margin:0;font-family:var(--font-family);background:var(--bg);color:var(--text);line-height:1.9;transition:background .25s ease,color .25s ease}
-img{max-width:100%;height:auto}
-a{color:var(--primary);text-decoration:none}
-a:hover{text-decoration:underline}
-:focus{outline:none}
-:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
-code{background:var(--surface);border:1px solid var(--surface-border);padding:1px 6px;border-radius:5px;direction:ltr;display:inline-block;font-size:.92em}
-pre{overflow-x:auto;direction:ltr;text-align:left}
-button{font-family:inherit}
+/** سید داده‌های پایه فاز ۲ و افزودن CSS کاتالوگ به سایت‌های قدیمی — فقط آیتم‌های غایب؛ هرگز داده کاربر بازنویسی نمی‌شود */
+function seed_catalog_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
 
-/* ---------- ابزارها ---------- */
-.container{width:100%;max-width:1080px;max-width:var(--container-width,1080px);margin-right:auto;margin-left:auto;margin-inline:auto;padding-right:16px;padding-left:16px;padding-inline:16px}
-.muted{color:var(--muted);font-size:13px}
-.skip-link{position:absolute;top:-100px;inset-inline-start:12px;z-index:100;background:var(--primary);color:#fff;padding:10px 16px;border-radius:0 0 var(--radius) var(--radius);min-height:44px;display:inline-flex;align-items:center}
-.skip-link:focus{top:0;color:#fff;text-decoration:none}
+    // دسته‌بندی‌های پیش‌فرض (فقط وقتی هیچ دسته‌ای وجود ندارد)
+    $catCount = (int) $pdo->query('SELECT COUNT(*) FROM product_categories')->fetchColumn();
+    if ($catCount === 0) {
+        $ins = $pdo->prepare('INSERT INTO product_categories (title, slug, sort_order, is_active) VALUES (:t, :s, :o, 1)');
+        $seedCats = [
+            ['چراغ خطی کمد',     'wardrobe-linear', 10],
+            ['چراغ خطی کابینت',  'cabinet-linear',  20],
+            ['چراغ خطی کلوزت',   'closet-linear',   30],
+            ['چراغ دکوراتیو',    'decorative',      40],
+        ];
+        foreach ($seedCats as [$t, $s, $o]) {
+            $ins->execute([':t' => $t, ':s' => $s, ':o' => $o]);
+        }
+    }
 
-/* ---------- هدر و ناوبری ---------- */
-.site-header{background:var(--header-bg);color:var(--header-text);padding:10px 0;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.18)}
-.header-inner{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
-.logo{color:var(--header-text);font-weight:bold;font-size:19px;line-height:1.4}
-.logo:hover{color:var(--header-text);text-decoration:none}
-.main-nav{position:relative;display:flex;align-items:center}
-.nav-toggle{display:none;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--header-link);border-radius:var(--radius);background:transparent;color:var(--header-text);font-size:20px;cursor:pointer}
-.nav-list{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
-.nav-list a{color:var(--header-link);padding:10px 12px;border-radius:8px;min-height:44px;display:inline-flex;align-items:center}
-.nav-list a:hover{color:var(--header-text);text-decoration:none;background:rgba(255,255,255,.08)}
-.theme-toggle{background:transparent;border:1px solid var(--header-link);color:var(--header-text);border-radius:99px;padding:6px 12px;cursor:pointer;margin-inline-start:10px;font-size:14px;min-height:44px;min-width:44px}
+    // ویژگی‌های پیش‌فرض و گزینه‌هایشان (فقط وقتی هیچ ویژگی‌ای وجود ندارد)
+    $attrCount = (int) $pdo->query('SELECT COUNT(*) FROM product_attributes')->fetchColumn();
+    if ($attrCount === 0) {
+        $insA = $pdo->prepare('INSERT INTO product_attributes (title, attr_key, input_type, unit, sort_order, is_active) VALUES (:t, :k, :ty, :u, :o, 1)');
+        $insO = $pdo->prepare('INSERT INTO product_attribute_options (attribute_id, title, price_delta_per_meter, sort_order) VALUES (:a, :t, 0, :o)');
+        $insA->execute([':t' => 'رنگ نور', ':k' => 'light_color', ':ty' => 'select', ':u' => '', ':o' => 10]);
+        $lightId = (int) $pdo->lastInsertId();
+        foreach (['آفتابی ۳۰۰۰K', 'طبیعی ۴۰۰۰K', 'مهتابی ۶۵۰۰K'] as $i => $title) {
+            $insO->execute([':a' => $lightId, ':t' => $title, ':o' => ($i + 1) * 10]);
+        }
+        $insA->execute([':t' => 'سنسور', ':k' => 'sensor', ':ty' => 'select', ':u' => '', ':o' => 20]);
+        $sensorId = (int) $pdo->lastInsertId();
+        foreach (['بدون سنسور', 'سنسور لمسی', 'سنسور حرکتی'] as $i => $title) {
+            $insO->execute([':a' => $sensorId, ':t' => $title, ':o' => ($i + 1) * 10]);
+        }
+        $insA->execute([':t' => 'جنس پروفیل', ':k' => 'profile_material', ':ty' => 'text', ':u' => '', ':o' => 30]);
+    }
 
-/* ---------- اسلایدر (قهرمان صفحه) ---------- */
-.slider{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;padding:64px 0;padding:clamp(52px,9vw,96px) 0;text-align:center;background-size:cover;background-position:center;position:relative}
-.slider.has-image::before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:rgba(2,6,23,.55)}
-.slider-inner{position:relative;z-index:1}
-.slider h1{margin:0 0 14px;font-size:30px;font-size:clamp(27px,5.5vw,42px);line-height:1.4}
-.lead{font-size:17px;font-size:clamp(16px,2.6vw,20px);opacity:.97;max-width:720px;margin:0 auto}
-.lead p{margin:6px 0}
-
-/* ---------- کاروسل اسلایدها برای {{slider_slides}} ---------- */
-.slides{position:relative;overflow:hidden;border-radius:var(--radius);box-shadow:var(--shadow);background:var(--surface)}
-.slide{display:none;margin:0;position:relative}
-.slide.is-active{display:block}
-.slide img{width:100%;display:block}
-.slide-caption{position:absolute;right:0;left:0;inset-inline:0;bottom:0;padding:38px 18px 46px;background:linear-gradient(to top,rgba(2,6,23,.78),rgba(2,6,23,0));color:#fff}
-.slide-caption h3{margin:0 0 6px;font-size:22px;font-size:clamp(18px,3.4vw,26px);line-height:1.5}
-.slide-text{font-size:15px;opacity:.95}
-.slide-btn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(2,6,23,.45);color:#fff;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;padding:0}
-.slide-btn:hover{background:rgba(2,6,23,.7)}
-.slide-prev{inset-inline-start:10px}
-.slide-next{inset-inline-end:10px}
-.slide-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:2px;z-index:2}
-.slide-dot{width:30px;height:30px;border:0;background:transparent;cursor:pointer;position:relative;padding:0}
-.slide-dot::after{content:"";position:absolute;top:50%;left:50%;width:10px;height:10px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.55)}
-.slide-dot.is-active::after{background:#fff;width:12px;height:12px}
-
-/* ---------- دکمه، هشدار و فرم ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 22px;border-radius:var(--radius);background:var(--primary);color:#fff;margin-top:16px;border:1px solid var(--primary);cursor:pointer;font-size:15px;min-height:44px;line-height:1.4}
-.btn:hover{background:var(--primary-dark);border-color:var(--primary-dark);color:#fff;text-decoration:none}
-.btn-light{background:#fff;color:var(--primary-dark);border-color:#fff}
-.btn-light:hover{background:#f1f5f9;border-color:#f1f5f9;color:var(--primary-dark)}
-.alert{padding:12px 14px;border-radius:var(--radius);margin:12px auto;font-size:14px;max-width:640px}
-.alert.ok{background:var(--alert-ok-bg);color:var(--alert-ok-text)}
-.alert.error{background:var(--alert-error-bg);color:var(--alert-error-text)}
-.contact-form{max-width:640px;margin:18px auto 0;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:20px}
-.contact-form label{display:block;margin:12px 0;font-size:14px}
-.contact-form input[type="text"],.contact-form textarea{width:100%;padding:11px;margin-top:6px;border:1px solid var(--input-border);border-radius:var(--radius);font-family:inherit;font-size:16px;background:var(--input-bg);color:var(--text)}
-.hp-field{position:absolute!important;left:-9999px!important;width:1px;height:1px;overflow:hidden}
-
-/* ---------- بخش‌ها و محتوای متنی ---------- */
-.features,.content-section,.custom-section{padding:48px 0;padding:clamp(40px,7vw,64px) 0}
-.features h2,.content-section h2{text-align:center;margin-top:0;font-size:25px;font-size:clamp(22px,4vw,30px);line-height:1.5}
-.page-content h1{font-size:28px;font-size:clamp(24px,4.5vw,34px);line-height:1.5;margin-top:0}
-.section-body{max-width:820px;margin:0 auto}
-.section-body p,.page-body p{margin:0 0 14px}
-.section-body ul,.section-body ol,.page-body ul,.page-body ol{padding-inline-start:22px}
-.section-body img,.page-body img{border-radius:var(--radius)}
-.section-body table,.page-body table{display:block;overflow-x:auto;border-collapse:collapse;max-width:100%}
-.section-body th,.section-body td,.page-body th,.page-body td{border:1px solid var(--surface-border);padding:8px 10px}
-.section-body blockquote,.page-body blockquote{margin:16px 0;padding:10px 16px;border-inline-start:4px solid var(--primary);background:var(--surface);border-radius:var(--radius)}
-.section-image{text-align:center}
-.section-image img{border-radius:var(--radius);box-shadow:var(--shadow)}
-.cards{display:flex;flex-direction:column;gap:18px;margin-top:22px}
-.card{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:20px}
-.card h3{margin-top:0}
-
-/* ---------- فوتر ---------- */
-.site-footer{background:var(--footer-bg);color:var(--footer-text);text-align:center;padding:30px 0}
-.site-footer .muted{color:var(--footer-text);opacity:.75}
-.empty-state{text-align:center;padding:70px 16px}
-
-/* ---------- شبکه کارت‌ها (با پس‌روی فلکس برای مرورگرهای قدیمی) ---------- */
-@supports (display:grid){
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
-    @media (min-width:640px){
-        .cards{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))}
+    // CSS کاتالوگ برای سایت‌های نسخه ۵: فقط اگر نشانگرش نیست، یک بار به انتهای CSS اصلی افزوده می‌شود (CSS کاربر پاک نمی‌شود)
+    $st = $pdo->prepare('SELECT value FROM settings WHERE key = :k');
+    $st->execute([':k' => 'site_css']);
+    $row = $st->fetch();
+    $siteCss = $row === false ? '' : (string) ($row['value'] ?? '');
+    if ($siteCss !== '' && strpos($siteCss, catalog_css_marker()) === false) {
+        $upd = $pdo->prepare('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+        $upd->execute([':k' => 'site_css', ':v' => rtrim($siteCss) . "\n\n" . catalog_css_block() . "\n"]);
+        $upd->execute([':k' => 'css_updated_at', ':v' => date('Y-m-d H:i:s')]);
     }
 }
 
-/* ---------- ناوبری موبایل و صفحه‌های کوچک ---------- */
-@media (max-width:860px){
-    .nav-toggle{display:inline-flex}
-    .nav-list{display:none;position:absolute;top:calc(100% + 10px);inset-inline-end:0;min-width:210px;flex-direction:column;align-items:stretch;background:var(--header-bg);border:1px solid rgba(255,255,255,.16);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);z-index:60}
-    .nav-list.open{display:flex}
-    .nav-list a{width:100%}
-    .theme-toggle{margin:6px 0 0;width:100%}
-}
-@media (max-width:480px){
-    .logo{font-size:17px}
-    .slider{padding:46px 0}
-    .contact-form{padding:14px}
-    .slide-caption{padding-bottom:40px}
+// ---------- مشتری‌ها ----------
+
+/** انواع مشتری: کلید ذخیره‌شده => برچسب فارسی */
+function customer_types(): array
+{
+    return [
+        'partner' => 'همکار',
+        'retail'  => 'مشتری',
+        'company' => 'شرکت',
+    ];
 }
 
-/* ---------- حرکت کم (احترام به ترجیح کاربر) ---------- */
-@media (prefers-reduced-motion:reduce){
-    html{scroll-behavior:auto}
-    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+function customer_type_label(string $key): string
+{
+    $types = customer_types();
+    return $types[$key] ?? $types['retail'];
 }
 
-/* ---------- چاپ ---------- */
-@media print{
-    .site-header,.site-footer,.nav-toggle,.theme-toggle,.slide-btn,.slide-dots,.skip-link{display:none!important}
-    body{background:#fff;color:#000}
-    .container{max-width:100%}
+/** فهرست مشتری‌ها با جستجو (نام/شرکت/موبایل) و فیلتر نوع */
+function get_customers(string $search = '', string $type = ''): array
+{
+    $sql = 'SELECT * FROM customers WHERE 1=1';
+    $params = [];
+    if ($search !== '') {
+        $sql .= ' AND (full_name LIKE :s OR company LIKE :s OR mobile LIKE :s)';
+        $params[':s'] = '%' . $search . '%';
+    }
+    if ($type !== '' && array_key_exists($type, customer_types())) {
+        $sql .= ' AND customer_type = :t';
+        $params[':t'] = $type;
+    }
+    $sql .= ' ORDER BY id DESC';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
 }
-CSS;
+
+function get_customer(int $id): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM customers WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch();
+    return $row === false ? null : $row;
+}
+
+/** مشتری دیگری با همین موبایل هست؟ (برای هشدار تکراری؛ $excludeId رکورد در حال ویرایش) */
+function customer_mobile_exists(string $mobile, int $excludeId = 0): bool
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM customers WHERE mobile = :m AND id != :x');
+    $stmt->execute([':m' => $mobile, ':x' => $excludeId]);
+    return (int) $stmt->fetchColumn() > 0;
+}
+
+// ---------- دسته‌بندی و محصول ----------
+
+/** همه دسته‌ها به ترتیب (والدها و زیردسته‌ها با هم، بر اساس ترتیب و شناسه) */
+function get_categories(bool $onlyActive = false): array
+{
+    $sql = 'SELECT * FROM product_categories';
+    if ($onlyActive) {
+        $sql .= ' WHERE is_active = 1';
+    }
+    $sql .= ' ORDER BY sort_order ASC, id ASC';
+    return db()->query($sql)->fetchAll();
+}
+
+function get_category(int $id): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM product_categories WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch();
+    return $row === false ? null : $row;
+}
+
+/** شناسه‌های یک دسته + همه زیردسته‌هایش (برای فیلتر کاتالوگ) */
+function category_ids_with_children(int $id): array
+{
+    $ids = [$id];
+    $stmt = db()->prepare('SELECT id FROM product_categories WHERE parent_id = :p');
+    $queue = [$id];
+    while ($queue !== []) {
+        $cur = array_shift($queue);
+        $stmt->execute([':p' => $cur]);
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $child) {
+            $cid = (int) $child;
+            if (!in_array($cid, $ids, true)) {
+                $ids[] = $cid;
+                $queue[] = $cid;
+            }
+        }
+    }
+    return $ids;
+}
+
+/** دسته دیگری با همین نامک (slug) هست؟ */
+function category_slug_exists(string $slug, int $excludeId = 0): bool
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM product_categories WHERE slug = :s AND id != :x');
+    $stmt->execute([':s' => $slug, ':x' => $excludeId]);
+    return (int) $stmt->fetchColumn() > 0;
+}
+
+function get_products(bool $onlyActive = false, ?int $categoryId = null): array
+{
+    $sql = 'SELECT p.*, c.title AS category_title FROM products p LEFT JOIN product_categories c ON c.id = p.category_id WHERE 1=1';
+    $params = [];
+    if ($onlyActive) {
+        $sql .= ' AND p.is_active = 1';
+    }
+    if ($categoryId !== null) {
+        $ids = category_ids_with_children($categoryId);
+        $marks = [];
+        foreach ($ids as $i => $cid) {
+            $marks[] = ':c' . $i;
+            $params[':c' . $i] = $cid;
+        }
+        $sql .= ' AND p.category_id IN (' . implode(',', $marks) . ')';
+    }
+    $sql .= ' ORDER BY p.sort_order ASC, p.id ASC';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function get_product(int $id): ?array
+{
+    $stmt = db()->prepare('SELECT p.*, c.title AS category_title FROM products p LEFT JOIN product_categories c ON c.id = p.category_id WHERE p.id = :id');
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch();
+    return $row === false ? null : $row;
+}
+
+/** مسیر عمومی عکس محصول/دسته (یا رشته خالی) */
+function uploaded_image_url($filename): string
+{
+    $img = trim((string) ($filename ?? ''));
+    if ($img === '') {
+        return '';
+    }
+    return UPLOADS_URL . '/' . basename($img);
+}
+
+// ---------- ویژگی‌های محصول ----------
+
+function get_attributes(bool $onlyActive = false): array
+{
+    $sql = 'SELECT * FROM product_attributes';
+    if ($onlyActive) {
+        $sql .= ' WHERE is_active = 1';
+    }
+    $sql .= ' ORDER BY sort_order ASC, id ASC';
+    return db()->query($sql)->fetchAll();
+}
+
+function get_attribute(int $id): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM product_attributes WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch();
+    return $row === false ? null : $row;
+}
+
+function get_attribute_options(int $attributeId): array
+{
+    $stmt = db()->prepare('SELECT * FROM product_attribute_options WHERE attribute_id = :a ORDER BY sort_order ASC, id ASC');
+    $stmt->execute([':a' => $attributeId]);
+    return $stmt->fetchAll();
+}
+
+function get_attribute_option(int $id): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM product_attribute_options WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch();
+    return $row === false ? null : $row;
+}
+
+/** مقادیر ویژگی‌های یک محصول (ردیف‌های product_attribute_values) */
+function get_product_attribute_values(int $productId): array
+{
+    $stmt = db()->prepare('SELECT * FROM product_attribute_values WHERE product_id = :p ORDER BY id ASC');
+    $stmt->execute([':p' => $productId]);
+    return $stmt->fetchAll();
+}
+
+/**
+ * ویژگی‌هایی که محصول ارائه می‌کند، ساخت‌یافته برای نمایش/برآورد:
+ * [ ['attribute'=>row, 'options'=>[optionRow...], 'default_option_id'=>?int, 'num_value'=>?float, 'text_value'=>?string], ... ]
+ * فقط ویژگی‌های فعال؛ برای select فقط وقتی ردیف مقدار با option_id معتبر دارد، ارائه‌شده حساب می‌شود.
+ */
+function product_offered_attributes(int $productId): array
+{
+    $values = [];
+    foreach (get_product_attribute_values($productId) as $v) {
+        $values[(int) $v['attribute_id']] = $v;
+    }
+    $out = [];
+    foreach (get_attributes(true) as $attr) {
+        $aid = (int) $attr['id'];
+        if (!isset($values[$aid])) {
+            continue;
+        }
+        $v = $values[$aid];
+        $type = (string) $attr['input_type'];
+        if ($type === 'select') {
+            $options = get_attribute_options($aid);
+            $optIds = array_map(static fn ($o) => (int) $o['id'], $options);
+            $defId = isset($v['option_id']) ? (int) $v['option_id'] : 0;
+            if ($defId <= 0 || !in_array($defId, $optIds, true)) {
+                continue;
+            }
+            $out[] = ['attribute' => $attr, 'options' => $options, 'default_option_id' => $defId, 'num_value' => null, 'text_value' => null];
+        } elseif ($type === 'number') {
+            if ($v['num_value'] === null || $v['num_value'] === '') {
+                continue;
+            }
+            $out[] = ['attribute' => $attr, 'options' => [], 'default_option_id' => null, 'num_value' => (float) $v['num_value'], 'text_value' => null];
+        } else {
+            $tv = trim((string) ($v['text_value'] ?? ''));
+            if ($tv === '') {
+                continue;
+            }
+            $out[] = ['attribute' => $attr, 'options' => [], 'default_option_id' => null, 'num_value' => null, 'text_value' => $tv];
+        }
+    }
+    return $out;
+}
+
+// ---------- موتور قیمت (متری + آپشن + همکار) ----------
+
+/** قالب‌بندی مبلغ تومان با جداکننده هزارگان */
+function format_price($amount): string
+{
+    $n = (float) $amount;
+    if (floor($n) == $n) {
+        return number_format($n, 0, '.', ',');
+    }
+    return number_format($n, 2, '.', ',');
+}
+
+/** درصد تخفیف همکار از تنظیمات (۰ تا ۹۰) */
+function partner_discount_percent(): float
+{
+    $d = (float) get_setting('partner_discount_percent', '10');
+    if ($d < 0) {
+        return 0.0;
+    }
+    return $d > 90 ? 90.0 : $d;
+}
+
+/** قیمت پایه متری: مشتری عادی یا همکار (قیمت صریح همکار، وگرنه قیمت منهای درصد همکار) */
+function product_base_price_per_meter(array $product, bool $isPartner): float
+{
+    $price = (float) ($product['price_per_meter'] ?? 0);
+    if (!$isPartner) {
+        return $price;
+    }
+    $partner = $product['partner_price_per_meter'] ?? null;
+    if ($partner !== null && $partner !== '' && (float) $partner > 0) {
+        return (float) $partner;
+    }
+    return $price * (1 - partner_discount_percent() / 100);
+}
+
+/**
+ * قیمت واحد متری با آپشن‌های انتخابی: پایه + مجموع اختلاف قیمت متری گزینه‌ها.
+ * $selectedOptionIds: آرایه‌ای از شناسه گزینه‌ها (یا مقادیر رشته‌ای فرم‌ها).
+ */
+function product_unit_price(array $product, array $selectedOptionIds = [], bool $isPartner = false): float
+{
+    $unit = product_base_price_per_meter($product, $isPartner);
+    foreach ($selectedOptionIds as $oid) {
+        $opt = get_attribute_option((int) $oid);
+        if ($opt !== null) {
+            $unit += (float) ($opt['price_delta_per_meter'] ?? 0);
+        }
+    }
+    return $unit;
+}
+
+/** برآورد قیمت کل برای طول مشخص (متر، اعشاری مجاز؛ طول نامعتبر = صفر) */
+function estimate_price(array $product, float $lengthM, array $selectedOptionIds = [], bool $isPartner = false): float
+{
+    if (!is_finite($lengthM) || $lengthM <= 0) {
+        return 0.0;
+    }
+    return product_unit_price($product, $selectedOptionIds, $isPartner) * $lengthM;
+}
+
+// ---------- سازنده‌های HTML کاتالوگ (خروجی خام داخلیِ مطمئن؛ ورودی‌ها escape می‌شوند) ----------
+
+/** ناو دسته‌های کاتالوگ (چیپ‌ها) با حالت فعال */
+function catalog_categories_nav_html(?int $activeCategoryId): string
+{
+    $cats = get_categories(true);
+    $html = '<nav class="catalog-nav" aria-label="دسته‌بندی محصولات">';
+    $html .= '<a href="products.php"' . ($activeCategoryId === null ? ' class="active"' : '') . '>همه محصولات</a>';
+    $idsWithProducts = [];
+    foreach (get_products(true) as $p) {
+        if (!empty($p['category_id'])) {
+            $idsWithProducts[(int) $p['category_id']] = true;
+        }
+    }
+    foreach ($cats as $c) {
+        $cid = (int) $c['id'];
+        if (!isset($idsWithProducts[$cid]) && $activeCategoryId !== $cid) {
+            $has = false;
+            foreach (category_ids_with_children($cid) as $sub) {
+                if (isset($idsWithProducts[$sub])) {
+                    $has = true;
+                    break;
+                }
+            }
+            if (!$has) {
+                continue;
+            }
+        }
+        $indent = !empty($c['parent_id']) ? ' style="margin-inline-start:10px"' : '';
+        $html .= '<a href="products.php?cat=' . $cid . '"' . ($activeCategoryId === $cid ? ' class="active"' : '') . $indent . '>' . e($c['title']) . '</a>';
+    }
+    $html .= '</nav>';
+    return $html;
+}
+
+/** شبکه کارت‌های محصول برای صفحه فهرست کاتالوگ */
+function catalog_products_grid_html(array $products): string
+{
+    if ($products === []) {
+        return '<div class="empty-state"><p>هنوز محصولی در این بخش ثبت نشده است.</p></div>';
+    }
+    $html = '<div class="products-grid">';
+    foreach ($products as $p) {
+        $pid = (int) $p['id'];
+        $img = uploaded_image_url($p['image'] ?? '');
+        $html .= '<article class="product-card">';
+        if ($img !== '') {
+            $html .= '<a href="products.php?id=' . $pid . '"><img src="' . e($img) . '" alt="' . e($p['name']) . '" loading="lazy" decoding="async"></a>';
+        }
+        $html .= '<div class="product-card-body">';
+        if (!empty($p['category_title'])) {
+            $html .= '<span class="cat">' . e($p['category_title']) . '</span>';
+        }
+        $html .= '<h3><a href="products.php?id=' . $pid . '">' . e($p['name']) . '</a></h3>';
+        $html .= '<p class="price">قیمت متری: <strong>' . e(format_price($p['price_per_meter'] ?? 0)) . '</strong> تومان</p>';
+        $html .= '<a class="btn small" href="products.php?id=' . $pid . '">مشاهده و برآورد قیمت</a>';
+        $html .= '</div></article>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/** جدول مشخصات محصول از ویژگی‌های ارائه‌شده (گزینه پیش‌فرض / مقدار عددی / متن) */
+function product_specs_html(array $product): string
+{
+    $offered = product_offered_attributes((int) $product['id']);
+    if ($offered === []) {
+        return '';
+    }
+    $html = '<table class="spec-table"><tbody>';
+    foreach ($offered as $item) {
+        $attr = $item['attribute'];
+        $html .= '<tr><th>' . e($attr['title']) . '</th><td>';
+        if ($item['default_option_id'] !== null) {
+            $label = '';
+            foreach ($item['options'] as $o) {
+                if ((int) $o['id'] === $item['default_option_id']) {
+                    $label = (string) $o['title'];
+                    break;
+                }
+            }
+            $html .= e($label);
+        } elseif ($item['num_value'] !== null) {
+            $html .= e(format_price($item['num_value'])) . (!empty($attr['unit']) ? ' ' . e($attr['unit']) : '');
+        } else {
+            $html .= e((string) $item['text_value']);
+        }
+        $html .= '</td></tr>';
+    }
+    $html .= '</tbody></table>';
+    return $html;
+}
+
+/** انتخاب‌های آپشن برای برآوردگر (select برای هر ویژگی انتخابی ارائه‌شده) */
+function product_options_selects_html(array $product): string
+{
+    $offered = product_offered_attributes((int) $product['id']);
+    $html = '';
+    foreach ($offered as $item) {
+        if ($item['default_option_id'] === null) {
+            continue;
+        }
+        $attr = $item['attribute'];
+        $html .= '<div class="field"><label for="est-opt-' . (int) $attr['id'] . '">' . e($attr['title']) . '</label>';
+        $html .= '<select id="est-opt-' . (int) $attr['id'] . '" class="est-option">';
+        foreach ($item['options'] as $o) {
+            $delta = (float) ($o['price_delta_per_meter'] ?? 0);
+            $html .= '<option value="' . (int) $o['id'] . '" data-delta="' . $delta . '"'
+                . ((int) $o['id'] === $item['default_option_id'] ? ' selected' : '') . '>'
+                . e($o['title'])
+                . ($delta != 0.0 ? ' (' . ($delta > 0 ? '+' : '') . e(format_price($delta)) . ' تومان/متر)' : '')
+                . '</option>';
+        }
+        $html .= '</select></div>';
+    }
+    return $html;
+}
+
+/** بلوک برآوردگر قیمت صفحه محصول: طول (متر) + آپشن‌ها → برآورد زنده مشتری و همکار */
+function product_estimator_html(array $product): string
+{
+    $retailBase  = product_base_price_per_meter($product, false);
+    $partnerBase = product_base_price_per_meter($product, true);
+    $html = '<div class="estimator" id="estimator" data-retail-base="' . (float) $retailBase . '" data-partner-base="' . (float) $partnerBase . '">';
+    $html .= '<h2>برآورد قیمت</h2>';
+    $html .= '<div class="field"><label for="est-length">طول (متر)</label>';
+    $html .= '<input type="number" id="est-length" min="0.1" step="0.1" value="1" inputmode="decimal"></div>';
+    $html .= product_options_selects_html($product);
+    $html .= '<p class="estimator-result">برآورد مشتری: <strong id="est-retail">' . e(format_price($retailBase)) . '</strong> تومان</p>';
+    if ($partnerBase != $retailBase) {
+        $html .= '<p class="partner-line">برآورد همکار: <strong id="est-partner">' . e(format_price($partnerBase)) . '</strong> تومان</p>';
+    }
+    $html .= '<p><a class="btn" href="index.php#contact">برای ثبت سفارش و مشاوره با ما در تماس باشید</a></p>';
+    $html .= '<script>(function(){var box=document.getElementById("estimator");if(!box)return;'
+        . 'var len=document.getElementById("est-length"),r=document.getElementById("est-retail"),p=document.getElementById("est-partner");'
+        . 'function fmt(n){return Math.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g,",");}'
+        . 'function calc(){var L=parseFloat(len.value)||0;if(L<0)L=0;var d=0;'
+        . 'box.querySelectorAll(".est-option").forEach(function(s){var o=s.options[s.selectedIndex];d+=o?parseFloat(o.getAttribute("data-delta")||"0"):0;});'
+        . 'var rb=parseFloat(box.getAttribute("data-retail-base")||"0"),pb=parseFloat(box.getAttribute("data-partner-base")||"0");'
+        . 'if(r)r.textContent=fmt((rb+d)*L);if(p)p.textContent=fmt((pb+d)*L);}'
+        . 'len.addEventListener("input",calc);box.querySelectorAll(".est-option").forEach(function(s){s.addEventListener("change",calc);});calc();})();</script>';
+    $html .= '</div>';
+    return $html;
 }
 
 // =============================================================
