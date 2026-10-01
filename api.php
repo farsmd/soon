@@ -182,11 +182,18 @@ if ($res === 'section') {
     if ($isWrite) {
         api_need_write($auth);
         $fields = [];
-        foreach (['title' => 's', 'is_active' => 'i', 'sort_order' => 'i'] as $k => $t) {
+        foreach (['title' => 's', 'heading' => 's', 'body' => 's', 'link_url' => 's', 'link_text' => 's', 'is_active' => 'i', 'sort_order' => 'i'] as $k => $t) {
             $v = api_in($k, null);
             if ($v !== null) {
                 if ($k === 'title' && trim((string) $v) === '') {
                     api_fail('عنوان بخش نمی‌تواند خالی باشد.');
+                }
+                $caps = ['title' => 200, 'heading' => 300, 'body' => 20000, 'link_url' => 500, 'link_text' => 120];
+                if (isset($caps[$k])) {
+                    $v = mb_substr((string) $v, 0, $caps[$k]);
+                }
+                if ($k === 'link_url' && (string) $v !== '' && !preg_match('~^(https?://|/|#|\?)~', (string) $v) && !preg_match('/^[a-z0-9_\-\.\/]+(#.*)?$/i', (string) $v)) {
+                    api_fail('نشانی پیوند نامعتبر است.');
                 }
                 $fields[$k] = $t === 'i' ? (int) $v : (string) $v;
             }
