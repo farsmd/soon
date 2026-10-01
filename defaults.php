@@ -380,6 +380,21 @@ function catalog_css_block(): string
 @media print{
     .catalog-nav,.estimator{display:none!important}
 }
+/* === ثبت سفارش سایت (فاز ۳ / نسخه ۸) === */
+.site-order{margin-top:26px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:18px}
+.site-order h2{margin-top:0;font-size:20px}
+.site-order .field{margin-bottom:12px}
+.site-order label{display:block;margin-bottom:5px;font-size:14px;font-weight:600}
+.site-order input,.site-order select,.site-order textarea{width:100%;padding:11px 12px;min-height:44px;border:1px solid var(--input-border);border-radius:var(--radius);background:var(--input-bg);color:var(--text);font:inherit;font-size:16px}
+.site-order textarea{min-height:88px}
+.site-order .check{display:flex;align-items:center;gap:8px;font-weight:400}
+.site-order .check input{width:auto;min-height:0}
+.hp-field{position:absolute!important;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.so-estimate{margin:14px 0;font-size:16px}
+.so-estimate strong{color:var(--primary);font-size:19px}
+@media print{
+    .site-order{display:none!important}
+}
 CSS;
 }
 
@@ -527,6 +542,219 @@ function product_estimator_html(array $product): string
         . 'var rb=parseFloat(box.getAttribute("data-retail-base")||"0"),pb=parseFloat(box.getAttribute("data-partner-base")||"0");'
         . 'if(r)r.textContent=fmt((rb+d)*L);if(p)p.textContent=fmt((pb+d)*L);}'
         . 'len.addEventListener("input",calc);box.querySelectorAll(".est-option").forEach(function(s){s.addEventListener("change",calc);});calc();})();</script>';
+    $html .= '</div>';
+    return $html;
+}
+
+/* ---------- فرم «ثبت سفارش» صفحه محصول (فاز ۳ / نسخه ۸) ---------- */
+
+/** وضعیت ارسال فرم سفارش سایت (مثل contact_state) */
+function site_order_state(?array $set = null): array
+{
+    static $state = ['submitted' => false, 'ok' => false, 'msg' => '', 'err' => ''];
+    if ($set !== null) {
+        $state = $set;
+    }
+    return $state;
+}
+
+/**
+ * پردازش ثبت سفارش از صفحه محصول — قبل از هر خروجی و بعد از شروع سشن صدا زده شود.
+ * CSRF سشنی + honeypot + محدودیت نرخ (حداکثر ۵ سفارش در ساعت و حداقل ۳۰ ثانیه فاصله).
+ * مشتری با موبایل تازه ساخته می‌شود (نوع «مشتری»)؛ سفارش با منبع site و وضعیت «جدید».
+ */
+function process_site_order(): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || ($_POST['site_order'] ?? '') !== '1') {
+        return;
+    }
+    if (order_setting('orders_public', '1') !== '1') {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'ثبت سفارش آنلاین در حال حاضر فعال نیست.']);
+        return;
+    }
+    if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+    $tokenOk = hash_equals((string) ($_SESSION['csrf'] ?? ''), (string) ($_POST['csrf'] ?? ''));
+    $honeyOk = trim((string) ($_POST['website2'] ?? '')) === '';
+    $times = array_filter((array) ($_SESSION['site_order_times'] ?? []), function ($t) {
+        return is_numeric($t) && (time() - (int) $t) < 3600;
+    });
+    $rateOk = count($times) < 5 && (empty($times) || (time() - max($times)) >= 30);
+
+    $name   = trim((string) ($_POST['so_name'] ?? ''));
+    $mobile = preg_replace('/\D+/', '', (string) ($_POST['so_mobile'] ?? ''));
+    $pid    = (int) ($_POST['product_id'] ?? 0);
+    $lenCm  = round((float) ($_POST['so_length_cm'] ?? 0), 1);
+    $qty    = max(1, (int) ($_POST['so_qty'] ?? 1));
+    $note   = trim((string) ($_POST['so_note'] ?? ''));
+    $product = $pid > 0 ? get_product($pid) : null;
+
+    if (!$tokenOk) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'درخواست نامعتبر است؛ صفحه را تازه کنید.']);
+    } elseif (!$honeyOk || !$rateOk) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'ارسال انجام نشد؛ کمی صبر کنید و دوباره تلاش کنید.']);
+    } elseif ($name === '' || strlen($mobile) < 10) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'نام و شماره موبایل معتبر را وارد کنید.']);
+    } elseif ($product === null || (int) ($product['is_active'] ?? 0) !== 1) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'محصول انتخابی معتبر نیست.']);
+    } elseif ($lenCm <= 0) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول چراغ را وارد کنید.']);
+    } else {
+        $wire = (float) ($_POST['so_wire_cm'] ?? order_setting('wire_default_cm', 20));
+        $step = (int) order_setting('wire_step_cm', 5);
+        if ($wire < 0 || ($step > 0 && abs($wire / $step - round($wire / $step)) > 0.0001)) {
+            site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول سیم باید مضربی از ' . $step . ' سانت باشد.']);
+            return;
+        }
+        $opts = [];
+        $rawOpts = $_POST['so_options'] ?? [];
+        if (is_array($rawOpts)) {
+            foreach ($rawOpts as $aidRaw => $oidRaw) {
+                $oid = (int) $oidRaw;
+                if ($oid > 0 && get_attribute_option($oid) !== null) {
+                    $opts[(int) $aidRaw] = $oid;
+                }
+            }
+        }
+        $pdo = db();
+        $pdo->beginTransaction();
+        try {
+            $ex = $pdo->prepare('SELECT * FROM customers WHERE mobile = :m LIMIT 1');
+            $ex->execute([':m' => $mobile]);
+            $customer = $ex->fetch();
+            if ($customer === false) {
+                $pdo->prepare('INSERT INTO customers (full_name, mobile, customer_type) VALUES (:n, :m, :t)')
+                    ->execute([':n' => $name, ':m' => $mobile, ':t' => 'retail']);
+                $customer = get_customer((int) $pdo->lastInsertId());
+            }
+            $lines = [[
+                'product_id' => $pid,
+                'length_cm' => $lenCm,
+                'qty' => $qty,
+                'wire_length_cm' => $wire,
+                'has_endcap' => !empty($_POST['so_endcap']),
+                'options' => $opts,
+            ]];
+            $tot = compute_order_totals($lines, false);
+            $tl = $tot['lines'][0];
+            $orderNo = (int) order_setting('next_order_no', 1001);
+            $prepDays = max((int) order_setting('default_prep_days', 3), (int) ($product['prep_days'] ?? 0));
+            $pdo->prepare('INSERT INTO orders (order_no, customer_id, customer_type, source, status, subtotal, discount_percent, discount_amount, total, total_meters, total_fixtures, prep_days, notes, created_by)
+                VALUES (:no, :cid, :ct, :src, :st, :sub, :dp, :da, :tot, :m, :f, :prep, :notes, :by)')
+                ->execute([
+                    ':no' => $orderNo, ':cid' => (int) $customer['id'], ':ct' => 'retail',
+                    ':src' => 'site', ':st' => 'new',
+                    ':sub' => $tot['subtotal'], ':dp' => $tot['discount_percent'], ':da' => $tot['discount_amount'],
+                    ':tot' => $tot['total'], ':m' => $tot['total_meters'], ':f' => $tot['total_fixtures'],
+                    ':prep' => $prepDays, ':notes' => $note !== '' ? ('ثبت از سایت: ' . $note) : 'ثبت از سایت',
+                    ':by' => 'site',
+                ]);
+            $oid = (int) $pdo->lastInsertId();
+            $optSnap = [];
+            foreach ($opts as $aid => $opid) {
+                $a = get_attribute((int) $aid);
+                $oo = get_attribute_option((int) $opid);
+                if ($a !== null && $oo !== null) {
+                    $optSnap[] = ['attr' => (string) $a['title'], 'option' => (string) $oo['title'], 'delta' => (float) ($oo['price_delta_per_meter'] ?? 0)];
+                }
+            }
+            $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, line_subtotal, line_total, sort_order)
+                VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :ls, :lt, 10)')
+                ->execute([
+                    ':o' => $oid, ':p' => $pid, ':pn' => (string) $product['name'],
+                    ':len' => $lenCm, ':q' => $qty, ':bm' => $tl['billable_m'],
+                    ':up' => $tl['unit_price_per_m'], ':oj' => $optSnap === [] ? null : json_encode($optSnap, JSON_UNESCAPED_UNICODE),
+                    ':oe' => $tl['options_extra_per_m'], ':w' => $wire, ':ws' => $tl['wire_steps'],
+                    ':we' => $tl['wire_extra_total'], ':ec' => !empty($_POST['so_endcap']) ? 1 : 0,
+                    ':ls' => $tl['line_subtotal'], ':lt' => $tl['line_total'],
+                ]);
+            $pdo->prepare("INSERT INTO order_status_history (order_id, from_status, to_status, note) VALUES (:o, NULL, 'new', :n)")
+                ->execute([':o' => $oid, ':n' => 'ثبت سفارش از سایت']);
+            set_setting('next_order_no', (string) ($orderNo + 1));
+            $pdo->commit();
+        } catch (Throwable $ex) {
+            $pdo->rollBack();
+            site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'خطا در ثبت سفارش؛ لطفاً دوباره تلاش کنید.']);
+            return;
+        }
+        $times[] = time();
+        $_SESSION['site_order_times'] = array_values($times);
+        site_order_state(['submitted' => true, 'ok' => true, 'msg' => 'سفارش شما با شماره ' . $orderNo . ' ثبت شد (' . format_price($tot['total']) . ' تومان). به‌زودی با شما تماس می‌گیریم.', 'err' => '']);
+    }
+}
+
+/** فرم «ثبت سفارش» زیر صفحه محصول (فقط وقتی orders_public=1) */
+function site_order_form_html(array $product): string
+{
+    if (order_setting('orders_public', '1') !== '1') {
+        return '';
+    }
+    $state = site_order_state();
+    if (session_status() === PHP_SESSION_ACTIVE && empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+    $pid = (int) $product['id'];
+    $step = max(1, (int) order_setting('wire_step_cm', 5));
+    $wireDef = (int) order_setting('wire_default_cm', 20);
+    $minBill = (float) order_setting('min_billable_m', 0.5);
+    $retailBase = product_base_price_per_meter($product, false);
+
+    $html = '<div class="site-order" id="site-order">';
+    $html .= '<h2>ثبت سفارش</h2>';
+    if ((string) ($state['msg'] ?? '') !== '') {
+        $html .= '<div class="alert ok" role="status">' . e($state['msg']) . '</div>';
+    }
+    if ((string) ($state['err'] ?? '') !== '') {
+        $html .= '<div class="alert error" role="alert">' . e($state['err']) . '</div>';
+    }
+    $html .= '<form method="post" action="products.php?id=' . $pid . '#site-order" data-retail-base="' . (float) $retailBase . '" data-min-bill="' . (float) $minBill . '">';
+    $html .= '<input type="hidden" name="site_order" value="1">';
+    $html .= '<input type="hidden" name="product_id" value="' . $pid . '">';
+    $html .= '<input type="hidden" name="csrf" value="' . e((string) ($_SESSION['csrf'] ?? '')) . '">';
+    $html .= '<div class="hp-field" aria-hidden="true"><label>وب‌سایت<input type="text" name="website2" tabindex="-1" autocomplete="off"></label></div>';
+    $html .= '<div class="field"><label for="so-name">نام و نام خانوادگی *</label><input type="text" id="so-name" name="so_name" required maxlength="120" autocomplete="name"></div>';
+    $html .= '<div class="field"><label for="so-mobile">شماره موبایل *</label><input type="text" id="so-mobile" name="so_mobile" required dir="ltr" inputmode="numeric" maxlength="15"></div>';
+    $html .= '<div class="field"><label for="so-len">طول هر چراغ (سانتی‌متر، یک رقم اعشار) *</label><input type="number" id="so-len" name="so_length_cm" step="0.1" min="0.1" required inputmode="decimal"></div>';
+    $html .= '<div class="field"><label for="so-qty">تعداد چراغ</label><input type="number" id="so-qty" name="so_qty" min="1" value="1"></div>';
+    $html .= '<div class="field"><label for="so-wire">طول سیم هر چراغ</label><select id="so-wire" name="so_wire_cm">';
+    for ($w = 0; $w <= 100; $w += $step) {
+        $html .= '<option value="' . $w . '"' . ($w === $wireDef ? ' selected' : '') . '>' . $w . ' سانت</option>';
+    }
+    $html .= '</select></div>';
+    $offered = product_offered_attributes($pid);
+    foreach ($offered as $item) {
+        if ($item['default_option_id'] === null) {
+            continue;
+        }
+        $attr = $item['attribute'];
+        $html .= '<div class="field"><label for="so-opt-' . (int) $attr['id'] . '">' . e($attr['title']) . '</label>';
+        $html .= '<select id="so-opt-' . (int) $attr['id'] . '" name="so_options[' . (int) $attr['id'] . ']" class="so-option">';
+        foreach ($item['options'] as $o) {
+            $delta = (float) ($o['price_delta_per_meter'] ?? 0);
+            $html .= '<option value="' . (int) $o['id'] . '" data-delta="' . $delta . '"' . ((int) $o['id'] === $item['default_option_id'] ? ' selected' : '') . '>'
+                . e($o['title']) . ($delta != 0.0 ? ' (' . ($delta > 0 ? '+' : '') . e(format_price($delta)) . ' تومان/متر)' : '') . '</option>';
+        }
+        $html .= '</select></div>';
+    }
+    $html .= '<div class="field"><label class="check"><input type="checkbox" name="so_endcap" value="1"> درپوش انتهایی برای هر چراغ</label></div>';
+    $html .= '<div class="field"><label for="so-note">توضیحات (اختیاری)</label><textarea id="so-note" name="so_note" rows="3" maxlength="2000"></textarea></div>';
+    $html .= '<p class="so-estimate">برآورد مبلغ: <strong id="so-total">۰</strong> تومان <span class="muted">(طول کمتر از ' . e(format_qty($minBill)) . ' متر، ' . e(format_qty($minBill)) . ' متر حساب می‌شود)</span></p>';
+    $html .= '<button type="submit" class="btn">ثبت سفارش</button>';
+    $html .= '</form>';
+    $html .= '<script>(function(){var f=document.querySelector(\'#site-order form\');if(!f)return;'
+        . 'var len=document.getElementById("so-len"),qty=document.getElementById("so-qty"),out=document.getElementById("so-total");'
+        . 'function fmt(n){return Math.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g,",");}'
+        . 'function calc(){var L=(parseFloat(len.value)||0)/100,Q=parseInt(qty.value)||0;'
+        . 'var bill=Math.max(L,parseFloat(f.getAttribute("data-min-bill")||"0.5"));'
+        . 'var d=0;f.querySelectorAll(".so-option").forEach(function(s){var o=s.options[s.selectedIndex];d+=o?parseFloat(o.getAttribute("data-delta")||"0"):0;});'
+        . 'var unit=parseFloat(f.getAttribute("data-retail-base")||"0")+d;'
+        . 'out.textContent=(L>0&&Q>0)?fmt(Math.round(bill*unit*Q)):"۰";}'
+        . 'len.addEventListener("input",calc);qty.addEventListener("input",calc);'
+        . 'f.querySelectorAll(".so-option").forEach(function(s){s.addEventListener("change",calc);});calc();})();</script>';
     $html .= '</div>';
     return $html;
 }
