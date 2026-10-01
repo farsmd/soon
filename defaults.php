@@ -382,3 +382,151 @@ function catalog_css_block(): string
 }
 CSS;
 }
+
+// ---------- سازنده‌های HTML کاتالوگ (از config.php منتقل شدند تا آن فایل کوچک بماند) ----------
+// این توابع فقط برای صفحه عمومی کاتالوگ (products.php) خروجی امن می‌سازند؛ ورودی‌ها escape می‌شوند.
+
+// ---------- سازنده‌های HTML کاتالوگ (خروجی خام داخلیِ مطمئن؛ ورودی‌ها escape می‌شوند) ----------
+
+/** ناو دسته‌های کاتالوگ (چیپ‌ها) با حالت فعال */
+function catalog_categories_nav_html(?int $activeCategoryId): string
+{
+    $cats = get_categories(true);
+    $html = '<nav class="catalog-nav" aria-label="دسته‌بندی محصولات">';
+    $html .= '<a href="products.php"' . ($activeCategoryId === null ? ' class="active"' : '') . '>همه محصولات</a>';
+    $idsWithProducts = [];
+    foreach (get_products(true) as $p) {
+        if (!empty($p['category_id'])) {
+            $idsWithProducts[(int) $p['category_id']] = true;
+        }
+    }
+    foreach ($cats as $c) {
+        $cid = (int) $c['id'];
+        if (!isset($idsWithProducts[$cid]) && $activeCategoryId !== $cid) {
+            $has = false;
+            foreach (category_ids_with_children($cid) as $sub) {
+                if (isset($idsWithProducts[$sub])) {
+                    $has = true;
+                    break;
+                }
+            }
+            if (!$has) {
+                continue;
+            }
+        }
+        $indent = !empty($c['parent_id']) ? ' style="margin-inline-start:10px"' : '';
+        $html .= '<a href="products.php?cat=' . $cid . '"' . ($activeCategoryId === $cid ? ' class="active"' : '') . $indent . '>' . e($c['title']) . '</a>';
+    }
+    $html .= '</nav>';
+    return $html;
+}
+
+/** شبکه کارت‌های محصول برای صفحه فهرست کاتالوگ */
+function catalog_products_grid_html(array $products): string
+{
+    if ($products === []) {
+        return '<div class="empty-state"><p>هنوز محصولی در این بخش ثبت نشده است.</p></div>';
+    }
+    $html = '<div class="products-grid">';
+    foreach ($products as $p) {
+        $pid = (int) $p['id'];
+        $img = uploaded_image_url($p['image'] ?? '');
+        $html .= '<article class="product-card">';
+        if ($img !== '') {
+            $html .= '<a href="products.php?id=' . $pid . '"><img src="' . e($img) . '" alt="' . e($p['name']) . '" loading="lazy" decoding="async"></a>';
+        }
+        $html .= '<div class="product-card-body">';
+        if (!empty($p['category_title'])) {
+            $html .= '<span class="cat">' . e($p['category_title']) . '</span>';
+        }
+        $html .= '<h3><a href="products.php?id=' . $pid . '">' . e($p['name']) . '</a></h3>';
+        $html .= '<p class="price">قیمت متری: <strong>' . e(format_price($p['price_per_meter'] ?? 0)) . '</strong> تومان</p>';
+        $html .= '<a class="btn small" href="products.php?id=' . $pid . '">مشاهده و برآورد قیمت</a>';
+        $html .= '</div></article>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/** جدول مشخصات محصول از ویژگی‌های ارائه‌شده (گزینه پیش‌فرض / مقدار عددی / متن) */
+function product_specs_html(array $product): string
+{
+    $offered = product_offered_attributes((int) $product['id']);
+    if ($offered === []) {
+        return '';
+    }
+    $html = '<table class="spec-table"><tbody>';
+    foreach ($offered as $item) {
+        $attr = $item['attribute'];
+        $html .= '<tr><th>' . e($attr['title']) . '</th><td>';
+        if ($item['default_option_id'] !== null) {
+            $label = '';
+            foreach ($item['options'] as $o) {
+                if ((int) $o['id'] === $item['default_option_id']) {
+                    $label = (string) $o['title'];
+                    break;
+                }
+            }
+            $html .= e($label);
+        } elseif ($item['num_value'] !== null) {
+            $html .= e(format_price($item['num_value'])) . (!empty($attr['unit']) ? ' ' . e($attr['unit']) : '');
+        } else {
+            $html .= e((string) $item['text_value']);
+        }
+        $html .= '</td></tr>';
+    }
+    $html .= '</tbody></table>';
+    return $html;
+}
+
+/** انتخاب‌های آپشن برای برآوردگر (select برای هر ویژگی انتخابی ارائه‌شده) */
+function product_options_selects_html(array $product): string
+{
+    $offered = product_offered_attributes((int) $product['id']);
+    $html = '';
+    foreach ($offered as $item) {
+        if ($item['default_option_id'] === null) {
+            continue;
+        }
+        $attr = $item['attribute'];
+        $html .= '<div class="field"><label for="est-opt-' . (int) $attr['id'] . '">' . e($attr['title']) . '</label>';
+        $html .= '<select id="est-opt-' . (int) $attr['id'] . '" class="est-option">';
+        foreach ($item['options'] as $o) {
+            $delta = (float) ($o['price_delta_per_meter'] ?? 0);
+            $html .= '<option value="' . (int) $o['id'] . '" data-delta="' . $delta . '"'
+                . ((int) $o['id'] === $item['default_option_id'] ? ' selected' : '') . '>'
+                . e($o['title'])
+                . ($delta != 0.0 ? ' (' . ($delta > 0 ? '+' : '') . e(format_price($delta)) . ' تومان/متر)' : '')
+                . '</option>';
+        }
+        $html .= '</select></div>';
+    }
+    return $html;
+}
+
+/** بلوک برآوردگر قیمت صفحه محصول: طول (متر) + آپشن‌ها → برآورد زنده مشتری و همکار */
+function product_estimator_html(array $product): string
+{
+    $retailBase  = product_base_price_per_meter($product, false);
+    $partnerBase = product_base_price_per_meter($product, true);
+    $html = '<div class="estimator" id="estimator" data-retail-base="' . (float) $retailBase . '" data-partner-base="' . (float) $partnerBase . '">';
+    $html .= '<h2>برآورد قیمت</h2>';
+    $html .= '<div class="field"><label for="est-length">طول (متر)</label>';
+    $html .= '<input type="number" id="est-length" min="0.1" step="0.1" value="1" inputmode="decimal"></div>';
+    $html .= product_options_selects_html($product);
+    $html .= '<p class="estimator-result">برآورد مشتری: <strong id="est-retail">' . e(format_price($retailBase)) . '</strong> تومان</p>';
+    if ($partnerBase != $retailBase) {
+        $html .= '<p class="partner-line">برآورد همکار: <strong id="est-partner">' . e(format_price($partnerBase)) . '</strong> تومان</p>';
+    }
+    $html .= '<p><a class="btn" href="index.php#contact">برای ثبت سفارش و مشاوره با ما در تماس باشید</a></p>';
+    $html .= '<script>(function(){var box=document.getElementById("estimator");if(!box)return;'
+        . 'var len=document.getElementById("est-length"),r=document.getElementById("est-retail"),p=document.getElementById("est-partner");'
+        . 'function fmt(n){return Math.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g,",");}'
+        . 'function calc(){var L=parseFloat(len.value)||0;if(L<0)L=0;var d=0;'
+        . 'box.querySelectorAll(".est-option").forEach(function(s){var o=s.options[s.selectedIndex];d+=o?parseFloat(o.getAttribute("data-delta")||"0"):0;});'
+        . 'var rb=parseFloat(box.getAttribute("data-retail-base")||"0"),pb=parseFloat(box.getAttribute("data-partner-base")||"0");'
+        . 'if(r)r.textContent=fmt((rb+d)*L);if(p)p.textContent=fmt((pb+d)*L);}'
+        . 'len.addEventListener("input",calc);box.querySelectorAll(".est-option").forEach(function(s){s.addEventListener("change",calc);});calc();})();</script>';
+    $html .= '</div>';
+    return $html;
+}
