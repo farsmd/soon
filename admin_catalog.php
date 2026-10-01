@@ -197,13 +197,14 @@ function catalog_handle_post(string $action): void
                     ':pprice'  => $partnerPrice,
                     ':active'  => isset($_POST['is_active']) ? 1 : 0,
                     ':sort'    => (int) ($_POST['sort_order'] ?? 0),
+                    ':prep'    => max(0, (int) ($_POST['prep_days'] ?? 0)),
                 ];
                 if ($action === 'update_product' && $pid > 0) {
                     $data[':id'] = $pid;
-                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, is_active = :active, sort_order = :sort, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                     flash('ok', 'محصول به‌روزرسانی شد.');
                 } else {
-                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, is_active, sort_order) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :active, :sort)')->execute($data);
+                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :active, :sort, :prep)')->execute($data);
                     $pid = (int) $pdo->lastInsertId();
                     flash('ok', 'محصول جدید ثبت شد.');
                 }
@@ -243,6 +244,7 @@ function catalog_handle_post(string $action): void
                 $bomMids  = $_POST['bom_material_id'] ?? [];
                 $bomQtys  = $_POST['bom_qty'] ?? [];
                 $bomBases = $_POST['bom_basis'] ?? [];
+                $bomConds = $_POST['bom_cond'] ?? [];
                 if (is_array($bomMids)) {
                     $acc = [];
                     $orderKeys = [];
@@ -250,21 +252,26 @@ function catalog_handle_post(string $action): void
                         $mid = (int) $midRaw;
                         $qty = (float) ($bomQtys[$bi] ?? 0);
                         $basis = (string) ($bomBases[$bi] ?? 'per_meter');
+                        $cond = (string) ($bomConds[$bi] ?? 'always');
                         if ($mid <= 0 || $qty <= 0 || !in_array($basis, ['per_meter', 'per_fixture'], true) || get_material($mid) === null) {
                             continue;
                         }
-                        $key = $mid . '|' . $basis;
+                        // شرط «فقط وقتی درپوش دارد» فقط برای مصرف به‌ازای هر چراغ معنا دارد
+                        if ($basis !== 'per_fixture' || $cond !== 'endcap') {
+                            $cond = 'always';
+                        }
+                        $key = $mid . '|' . $basis . '|' . $cond;
                         if (!isset($acc[$key])) {
-                            $acc[$key] = ['mid' => $mid, 'qty' => 0.0, 'basis' => $basis];
+                            $acc[$key] = ['mid' => $mid, 'qty' => 0.0, 'basis' => $basis, 'cond' => $cond];
                             $orderKeys[] = $key;
                         }
                         $acc[$key]['qty'] += $qty;
                     }
-                    $insBom = $pdo->prepare('INSERT INTO product_materials (product_id, material_id, qty, basis, sort_order) VALUES (:p, :m, :q, :b, :s)');
+                    $insBom = $pdo->prepare('INSERT INTO product_materials (product_id, material_id, qty, basis, apply_condition, sort_order) VALUES (:p, :m, :q, :b, :c, :s)');
                     $bso = 0;
                     foreach ($orderKeys as $key) {
                         $bso += 10;
-                        $insBom->execute([':p' => $pid, ':m' => $acc[$key]['mid'], ':q' => round($acc[$key]['qty'], 6), ':b' => $acc[$key]['basis'], ':s' => $bso]);
+                        $insBom->execute([':p' => $pid, ':m' => $acc[$key]['mid'], ':q' => round($acc[$key]['qty'], 6), ':b' => $acc[$key]['basis'], ':c' => $acc[$key]['cond'], ':s' => $bso]);
                     }
                 }
                 redirect_admin('admin.php?page=products');
@@ -393,6 +400,7 @@ $customersList = [];
 $customerSearch = '';
 $customerTypeFilter = '';
 $viewCustomer = null;
+$viewCustomerOrders = [];
 $editCustomer = null;
 if ($page === 'customers') {
     $customerSearch = trim((string) ($_GET['q'] ?? ''));
@@ -400,6 +408,11 @@ if ($page === 'customers') {
     $customersList = get_customers($customerSearch, $customerTypeFilter);
     if (isset($_GET['view'])) {
         $viewCustomer = get_customer((int) $_GET['view']);
+        if ($viewCustomer !== null) {
+            $ost = db()->prepare('SELECT * FROM orders WHERE customer_id = :c ORDER BY id DESC LIMIT 100');
+            $ost->execute([':c' => (int) $viewCustomer['id']]);
+            $viewCustomerOrders = $ost->fetchAll();
+        }
     }
     if (isset($_GET['edit_id'])) {
         $editCustomer = get_customer((int) $_GET['edit_id']);
@@ -460,6 +473,7 @@ if ($page === 'attributes') {
         'customerSearch' => $customerSearch,
         'customerTypeFilter' => $customerTypeFilter,
         'viewCustomer' => $viewCustomer,
+        'viewCustomerOrders' => $viewCustomerOrders,
         'editCustomer' => $editCustomer,
         'categoriesList' => $categoriesList,
         'editCategory' => $editCategory,
@@ -508,8 +522,27 @@ function catalog_render_customers(array $d): void
                     </form>
                 </section>
                 <section class="card wide">
-                    <h2>سفارش‌های این مشتری</h2>
-                    <p class="muted">هنوز سفارشی برای این مشتری ثبت نشده است. سفارش‌ها در فاز بعد به این پروفایل وصل می‌شود و سابقه خرید هر مشتری اینجا نمایش داده خواهد شد.</p>
+                    <h2>سفارش‌های این مشتری (<?= count($viewCustomerOrders) ?>)</h2>
+                    <?php if ($viewCustomerOrders === []): ?>
+                        <p class="muted">هنوز سفارشی برای این مشتری ثبت نشده است.</p>
+                    <?php else: ?>
+                    <table>
+                        <thead><tr><th>شماره</th><th>متراژ</th><th>مبلغ (تومان)</th><th>وضعیت</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($viewCustomerOrders as $vo): ?>
+                            <tr>
+                                <td><strong>#<?= (int) $vo['order_no'] ?></strong></td>
+                                <td><?= e(format_qty((float) ($vo['total_meters'] ?? 0))) ?> متر</td>
+                                <td><?= e(format_price($vo['total'] ?? 0)) ?></td>
+                                <td><span class="badge" style="background:<?= e(order_status_color((string) $vo['status'])) ?>22;color:<?= e(order_status_color((string) $vo['status'])) ?>"><?= e(order_status_title((string) $vo['status'])) ?></span></td>
+                                <td class="muted"><?= e(mb_substr((string) ($vo['created_at'] ?? ''), 0, 10)) ?></td>
+                                <td class="actions"><a class="btn small" href="admin.php?page=order_view&id=<?= (int) $vo['id'] ?>">جزئیات</a></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <?php endif; ?>
+                    <p><a class="btn small" href="admin.php?page=order_new">+ سفارش تازه برای این مشتری</a></p>
                 </section>
             <?php else: ?>
                 <h1>مشتری‌ها</h1>
@@ -744,6 +777,9 @@ function catalog_render_products(array $d): void
                 <label>ترتیب نمایش
                     <input type="number" name="sort_order" value="<?= (int) ($editProduct['sort_order'] ?? 0) ?>">
                 </label>
+                <label>زمان آماده‌سازی این محصول (روز) — در سفارش، بیشترین زمان بین ردیف‌ها لحاظ می‌شود
+                    <input type="number" name="prep_days" min="0" step="1" value="<?= (int) ($editProduct['prep_days'] ?? 0) ?>">
+                </label>
                 <label class="check">
                     <input type="checkbox" name="is_active" value="1" <?= ($editProduct['is_active'] ?? 1) ? 'checked' : '' ?>>
                     فعال (نمایش در کاتالوگ)
@@ -785,7 +821,7 @@ function catalog_render_products(array $d): void
                 <div id="bom-rows">
                     <?php
                     $bomShowRows = $editProductBom;
-                    $bomShowRows[] = ['material_id' => 0, 'qty' => '', 'basis' => 'per_meter'];
+                    $bomShowRows[] = ['material_id' => 0, 'qty' => '', 'basis' => 'per_meter', 'apply_condition' => 'always'];
                     foreach ($bomShowRows as $br):
                     ?>
                     <div class="bom-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:8px">
@@ -804,6 +840,12 @@ function catalog_render_products(array $d): void
                             <select name="bom_basis[]">
                                 <option value="per_meter" <?= ($br['basis'] ?? 'per_meter') !== 'per_fixture' ? 'selected' : '' ?>>به‌ازای هر متر</option>
                                 <option value="per_fixture" <?= ($br['basis'] ?? '') === 'per_fixture' ? 'selected' : '' ?>>به‌ازای هر چراغ</option>
+                            </select>
+                        </label>
+                        <label style="flex:1;min-width:130px">شرط مصرف
+                            <select name="bom_cond[]">
+                                <option value="always" <?= ($br['apply_condition'] ?? 'always') !== 'endcap' ? 'selected' : '' ?>>همیشه</option>
+                                <option value="endcap" <?= ($br['apply_condition'] ?? '') === 'endcap' ? 'selected' : '' ?>>فقط وقتی درپوش دارد</option>
                             </select>
                         </label>
                         <button type="button" class="btn small bom-remove">حذف ردیف</button>
