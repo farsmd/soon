@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.3.1');
+define('APP_VERSION', '8.4.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -383,6 +383,75 @@ function init_db(PDO $pdo): void
         )
     ");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_production_consumptions ON production_consumptions (production_id, id)");
+
+    // --- فاز ۵ (نسخه ۸٫۴): مالی — فاکتور، دریافتی‌ها، هزینه‌ها و سود سفارش ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS payment_methods (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            method_key TEXT NOT NULL UNIQUE,
+            title      TEXT NOT NULL,
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS payments (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id   INTEGER NOT NULL,
+            customer_id INTEGER NOT NULL,
+            amount     INTEGER NOT NULL DEFAULT 0,
+            method_key TEXT NOT NULL DEFAULT 'cash',
+            kind       TEXT NOT NULL DEFAULT 'receipt',
+            note       TEXT,
+            paid_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_payments_order ON payments (order_id, id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_payments_customer ON payments (customer_id, id)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS invoices (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_no  INTEGER NOT NULL UNIQUE,
+            order_id    INTEGER NOT NULL UNIQUE,
+            vat_applied INTEGER NOT NULL DEFAULT 0,
+            vat_percent REAL NOT NULL DEFAULT 0,
+            subtotal    INTEGER NOT NULL DEFAULT 0,
+            discount    INTEGER NOT NULL DEFAULT 0,
+            vat_amount  INTEGER NOT NULL DEFAULT 0,
+            total       INTEGER NOT NULL DEFAULT 0,
+            note        TEXT,
+            issued_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS expense_categories (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            cat_key    TEXT NOT NULL UNIQUE,
+            title      TEXT NOT NULL,
+            color      TEXT NOT NULL DEFAULT '#6b7280',
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS expenses (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            cat_key      TEXT NOT NULL DEFAULT 'other',
+            title        TEXT NOT NULL,
+            amount       INTEGER NOT NULL DEFAULT 0,
+            order_id     INTEGER,
+            status       TEXT NOT NULL DEFAULT 'confirmed',
+            source       TEXT NOT NULL DEFAULT 'manual',
+            source_id    INTEGER,
+            expense_date TEXT,
+            note         TEXT,
+            created_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            confirmed_at TEXT
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_expenses_status ON expenses (status, id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_expenses_order ON expenses (order_id, id)");
     // طول واحد تازه (شاخه/رول) بر حسب سانتی‌متر برای مواد برش‌خور؛ ۰ یعنی بدون برش
     db_add_column_if_missing($pdo, 'materials', 'cut_unit_cm', 'REAL NOT NULL DEFAULT 0');
     // ستون‌های تازه فاز ۳ روی جدول‌های قدیمی (ارتقای خودکار، بدون حذف داده)
@@ -496,6 +565,9 @@ function init_db(PDO $pdo): void
         'partner_discount_percent' => '10',
         'catalog_public'      => '1',
         'catalog_title'       => 'کاتالوگ محصولات',
+        // فاز ۵ (نسخه ۸٫۴): مالی — شماره فاکتور بعدی و درصد مالیات بر ارزش افزوده
+        'next_invoice_no'     => '1',
+        'vat_percent'         => '10',
     ];
     $stmt = $pdo->prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (:key, :value)');
     foreach ($defaults as $k => $v) {
@@ -541,6 +613,7 @@ function init_db(PDO $pdo): void
     seed_inventory_if_needed($pdo);
     seed_order_rules_if_needed($pdo);
     seed_production_if_needed($pdo);
+    seed_finance_if_needed($pdo);
 
     // --- نسخه ۸٫۲٫۳: افزودن استایل تازه فرم ثبت سفارش به CSS دیتابیس (یک بار؛ نسخه قبلی آرشیو می‌شود) ---
     seed_order_form_css_v823_if_needed($pdo);
@@ -2434,6 +2507,26 @@ function apply_stock_movement(PDO $pdo, int $materialId, string $type, float $qt
         }
         return $err('ثبت گردش انبار انجام نشد: ' . $ex->getMessage());
     }
+    // فاز ۵ (نسخه ۸٫۴): هر خرید واقعی مواد (ورود با قیمت خرید) به‌صورت «ثبت اولیه»
+    // در هزینه‌ها می‌نشیند و فقط با تأیید مدیر به هزینه قطعی تبدیل می‌شود.
+    // برگشت‌های تولید (refType=production) خرید نیستند و عمداً از این قاعده بیرون‌اند.
+    if ($type === 'in' && $unitPrice !== null && $unitPrice > 0 && $refType !== 'production') {
+        try {
+            $expenseAmount = (int) round($qty * $unitPrice);
+            if ($expenseAmount > 0) {
+                $pdo->prepare("INSERT INTO expenses (cat_key, title, amount, status, source, source_id, expense_date, note) VALUES ('materials', :t, :a, 'pending', 'material_purchase', :sid, :d, :n)")
+                    ->execute([
+                        ':t' => 'خرید مواد اولیه: ' . (string) $mat['name'],
+                        ':a' => $expenseAmount,
+                        ':sid' => $movementId,
+                        ':d' => date('Y-m-d'),
+                        ':n' => $reason !== '' ? $reason : null,
+                    ]);
+            }
+        } catch (Throwable $ignored) {
+            // خطای مالی هرگز نباید ثبت گردش انبار را خراب کند
+        }
+    }
     return ['ok' => true, 'error' => null, 'movement_id' => $movementId, 'balance_after' => $balanceAfter];
 }
 
@@ -2610,6 +2703,54 @@ function seed_production_if_needed(PDO $pdo): void
         set_setting('next_production_no', '1');
     }
     set_setting('production_seeded_v83', '1');
+}
+
+/** سید فاز ۵ (نسخه ۸٫۴): روش‌های پرداخت و دسته‌های هزینه — فقط یک بار، بدون بازنویسی داده کاربر */
+function seed_finance_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('finance_seeded_v84', '') === '1') {
+        return;
+    }
+    // روش‌های پرداخت (قابل‌ویرایش از صفحه «قوانین مالی»)
+    if ((int) $pdo->query('SELECT COUNT(*) FROM payment_methods')->fetchColumn() === 0) {
+        $methods = [
+            ['cash', 'نقدی'],
+            ['card', 'کارت'],
+            ['transfer', 'حواله'],
+            ['check', 'چک'],
+        ];
+        $ins = $pdo->prepare('INSERT INTO payment_methods (method_key, title, is_active, sort_order) VALUES (:k, :t, 1, :s)');
+        $s = 0;
+        foreach ($methods as $m) {
+            $s += 10;
+            $ins->execute([':k' => $m[0], ':t' => $m[1], ':s' => $s]);
+        }
+    }
+    // دسته‌بندی هزینه‌ها (قابل‌ویرایش از صفحه «قوانین مالی»)
+    if ((int) $pdo->query('SELECT COUNT(*) FROM expense_categories')->fetchColumn() === 0) {
+        $cats = [
+            ['materials', 'خرید مواد اولیه', '#2563eb'],
+            ['rent', 'اجاره', '#7c3aed'],
+            ['salary', 'حقوق', '#0891b2'],
+            ['transport', 'حمل‌ونقل', '#d97706'],
+            ['other', 'سایر', '#6b7280'],
+        ];
+        $ins = $pdo->prepare('INSERT INTO expense_categories (cat_key, title, color, is_active, sort_order) VALUES (:k, :t, :c, 1, :s)');
+        $s = 0;
+        foreach ($cats as $c) {
+            $s += 10;
+            $ins->execute([':k' => $c[0], ':t' => $c[1], ':c' => $c[2], ':s' => $s]);
+        }
+    }
+    if (get_setting('next_invoice_no', '') === '') {
+        set_setting('next_invoice_no', '1');
+    }
+    set_setting('finance_seeded_v84', '1');
 }
 
 // توابع آپدیت یک‌کلیکی گیت‌هاب (backups_dir و update_* و perform_update) در فایل admin_catalog.php هستند؛
