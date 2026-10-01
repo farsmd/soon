@@ -1,6 +1,6 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۷
-// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی ، مشتری‌ها و کاتالوگ محصول (فاز ۲)، مواد اولیه و انبار (فاز ۲٫۵) و تنظیمات
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۸
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی ، مشتری‌ها و کاتالوگ محصول (فاز ۲)، مواد اولیه و انبار (فاز ۲٫۵)، سفارش‌ها و پیش‌فاکتور (فاز ۳) و تنظیمات
 
 declare(strict_types=1);
 
@@ -11,6 +11,8 @@ define('CMS_ADMIN_PANEL', true);
 require_once __DIR__ . '/admin_catalog.php';
 // صفحات و اکشن‌های انبار و مواد اولیه فاز ۲٫۵ (نسخه ۷) هم در فایل جدا هستند
 require_once __DIR__ . '/admin_inventory.php';
+// صفحات و اکشن‌های سفارش‌ها و پیش‌فاکتور (فاز ۳ / نسخه ۸) هم در فایل جدا هستند
+require_once __DIR__ . '/admin_orders.php';
 
 // ---------- سشن امن نسبی ----------
 session_set_cookie_params([
@@ -89,6 +91,9 @@ function nav_icon(string $name): string
         'refresh'   => '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
         'box'       => '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
         'swap'      => '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+        'receipt'   => '<path d="M5 2h14a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-2 2-2-2-1 1V3a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+        'plus'      => '<path d="M12 5v14M5 12h14"/>',
+        'cut'       => '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.7 8.7 20 20M8.7 15.3 20 4"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -215,6 +220,11 @@ $pageTitles = [
     'attributes' => 'ویژگی‌های محصول',
     'materials'  => 'مواد اولیه و انبار',
     'stock'      => 'گردش انبار',
+    'orders'     => 'سفارش‌ها',
+    'order_new'  => 'سفارش تازه',
+    'order_view' => 'جزئیات سفارش',
+    'order_rules' => 'قوانین قیمت‌گذاری',
+    'remnants'   => 'انبار پرتی',
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
@@ -243,6 +253,12 @@ $navGroups = [
     'inventory' => ['انبار', [
         ['admin.php?page=materials', 'box', 'مواد اولیه', 'materials'],
         ['admin.php?page=stock', 'swap', 'گردش انبار', 'stock'],
+        ['admin.php?page=remnants', 'cut', 'انبار پرتی', 'remnants'],
+    ]],
+    'orders' => ['سفارش‌ها', [
+        ['admin.php?page=orders', 'receipt', 'سفارش‌ها', 'orders'],
+        ['admin.php?page=order_new', 'plus', 'سفارش تازه', 'order_new'],
+        ['admin.php?page=order_rules', 'sliders', 'قوانین قیمت‌گذاری', 'order_rules'],
     ]],
     'system' => ['سیستم', [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
@@ -290,6 +306,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۲٫۵ (مواد اولیه و انبار) در admin_inventory.php پردازش می‌شوند
         if (in_array($action, inventory_post_actions(), true)) {
             inventory_handle_post($action);
+        }
+        // اکشن‌های فاز ۳ (سفارش‌ها) در admin_orders.php پردازش می‌شوند
+        if (in_array($action, orders_post_actions(), true)) {
+            orders_handle_post($action);
         }
         switch ($action) {
             case 'add_section':
@@ -758,12 +778,18 @@ extract($catalogData);
 $inventoryData = inventory_load_data($page);
 extract($inventoryData);
 
+// ---------- داده‌های فاز ۳ (سفارش‌ها) — بارگذاری در admin_orders.php ----------
+$ordersData = orders_load_data($page);
+extract($ordersData);
+
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
-$dashCounts = ['customers' => 0, 'products' => 0];
+$dashCounts = ['customers' => 0, 'products' => 0, 'orders' => 0, 'new_orders' => 0];
 if ($page === 'dashboard') {
     try {
         $dashCounts['customers'] = (int) $pdo->query('SELECT COUNT(*) FROM customers')->fetchColumn();
         $dashCounts['products']  = (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
+        $dashCounts['orders']     = (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn();
+        $dashCounts['new_orders'] = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE status = 'new'")->fetchColumn();
     } catch (Throwable $ignored) {
     }
 }
@@ -861,6 +887,10 @@ if ($page === 'design') {
             <div class="stat-grid dash-cards">
                 <a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong><?= (int) $dashCounts['customers'] ?></strong></a>
                 <a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong><?= (int) $dashCounts['products'] ?></strong></a>
+                <a class="stat-card" href="admin.php?page=orders"><span>سفارش‌ها</span><strong><?= (int) $dashCounts['orders'] ?></strong></a>
+                <?php if ((int) $dashCounts['new_orders'] > 0): ?>
+                <a class="stat-card" href="admin.php?page=orders&status=new" style="border-color:#2563eb;background:#eff6ff"><span style="color:#1d4ed8">سفارش‌های جدید</span><strong style="color:#1d4ed8"><?= (int) $dashCounts['new_orders'] ?></strong></a>
+                <?php endif; ?>
                 <a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong><?= count($messages) ?></strong></a>
                 <a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr"><?= e(APP_VERSION) ?></strong></a>
                 <?php if ($lowStockCount > 0): ?>
@@ -1289,6 +1319,16 @@ if ($page === 'design') {
 
         <?php elseif ($page === 'stock'): ?>
             <?php inventory_render_stock($inventoryData); ?>
+        <?php elseif ($page === 'orders'): ?>
+            <?php orders_render_list($ordersData); ?>
+        <?php elseif ($page === 'order_new'): ?>
+            <?php orders_render_new($ordersData); ?>
+        <?php elseif ($page === 'order_view'): ?>
+            <?php orders_render_view($ordersData); ?>
+        <?php elseif ($page === 'order_rules'): ?>
+            <?php orders_render_rules($ordersData); ?>
+        <?php elseif ($page === 'remnants'): ?>
+            <?php orders_render_remnants($ordersData); ?>
         <?php elseif ($page === 'tools'): ?>
             <h1>ابزار و بکاپ</h1>
 
@@ -1586,6 +1626,7 @@ th{background:#f9fafb}.actions{white-space:nowrap}.inline{display:inline}
 .card{background:#fff;padding:16px;border-radius:10px;margin:14px 0;max-width:640px}
 .card.wide{max-width:820px}
 .badge{padding:2px 8px;border-radius:99px;font-size:12px}.badge.ok{background:#dcfce7}.badge.off{background:#e5e7eb}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid #e5e7eb;border-radius:99px;background:#fff;font-size:13px;color:#374151}.chip:hover{border-color:#2563eb;color:#2563eb;text-decoration:none}.chip.active{background:#2563eb;border-color:#2563eb;color:#fff}.chip .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
 .check{display:flex;gap:8px;align-items:center}.file-input{direction:ltr;display:flex;align-items:center;gap:4px}
 code{background:#f3f4f6;padding:1px 5px;border-radius:5px;direction:ltr;display:inline-block}
 .ph-list{line-height:2.1}.ph-list code{margin-inline-end:6px}
