@@ -42,20 +42,26 @@ function inventory_handle_post(string $action): void
             if ($threshold < 0) {
                 $threshold = 0.0;
             }
+            // طول واحد تازه (شاخه/رول) به سانتی‌متر برای مواد برش‌خور — ۰ یعنی بدون برش مستقیم
+            $cutUnitCm = (float) ($_POST['cut_unit_cm'] ?? 0);
+            if ($cutUnitCm < 0) {
+                $cutUnitCm = 0.0;
+            }
             $data = [
                 ':name'  => $name,
                 ':unit'  => $unit,
                 ':thr'   => $threshold,
+                ':cut'   => $cutUnitCm,
                 ':notes' => trim((string) ($_POST['notes'] ?? '')) ?: null,
                 ':act'   => isset($_POST['is_active']) ? 1 : 0,
             ];
             if ($action === 'update_material' && $mid > 0) {
                 $data[':id'] = $mid;
-                $pdo->prepare('UPDATE materials SET name = :name, unit = :unit, low_stock_threshold = :thr, notes = :notes, is_active = :act, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                $pdo->prepare('UPDATE materials SET name = :name, unit = :unit, low_stock_threshold = :thr, cut_unit_cm = :cut, notes = :notes, is_active = :act, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                 flash('ok', 'ماده اولیه به‌روزرسانی شد.');
                 redirect_admin('admin.php?page=materials&edit_id=' . $mid);
             }
-            $pdo->prepare('INSERT INTO materials (name, unit, low_stock_threshold, notes, is_active) VALUES (:name, :unit, :thr, :notes, :act)')->execute($data);
+            $pdo->prepare('INSERT INTO materials (name, unit, low_stock_threshold, cut_unit_cm, notes, is_active) VALUES (:name, :unit, :thr, :cut, :notes, :act)')->execute($data);
             flash('ok', 'ماده اولیه تازه ثبت شد. حالا از دکمه «ورود خرید» موجودی و قیمت خریدش را وارد کنید.');
             redirect_admin('admin.php?page=materials');
             // no break
@@ -261,6 +267,9 @@ function inventory_render_materials(array $d): void
                 <label>حد هشدار موجودی — وقتی موجودی به این مقدار یا کمتر رسید، هشدار داده شود (۰ = بدون هشدار)
                     <input type="number" name="low_stock_threshold" step="any" min="0" value="<?= isset($editMaterial['low_stock_threshold']) ? e(format_qty((float) $editMaterial['low_stock_threshold'])) : '0' ?>">
                 </label>
+                <label>طول هر واحد تازه / شاخه / رول (سانت) — فقط برای مواد برش‌خور مثل پروفیل و نوار LED؛ ۰ یعنی بدون برش. موجودی این مواد بر حسب «متر» ثبت شود تا لیست برش تولید درست کار کند (مثلاً پروفیل: ۳۰۰، نوار LED: ‏۵۰۰)
+                    <input type="number" name="cut_unit_cm" step="any" min="0" value="<?= isset($editMaterial['cut_unit_cm']) ? e(format_qty((float) $editMaterial['cut_unit_cm'])) : '0' ?>">
+                </label>
                 <label>یادداشت
                     <input type="text" name="notes" value="<?= e($editMaterial['notes'] ?? '') ?>">
                 </label>
@@ -280,7 +289,7 @@ function inventory_render_materials(array $d): void
                 <div class="card wide"><p class="muted">هنوز ماده‌ای ثبت نشده است. اولین ماده را با فرم بالا بسازید، بعد برای محصولات از صفحه ویرایش محصول «مواد مصرفی» تعریف کنید.</p></div>
             <?php else: ?>
             <table>
-                <thead><tr><th>نام ماده</th><th>واحد</th><th>موجودی</th><th>آخرین قیمت خرید</th><th>ارزش موجودی</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <thead><tr><th>نام ماده</th><th>واحد</th><th>برش</th><th>موجودی</th><th>آخرین قیمت خرید</th><th>ارزش موجودی</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                 <tbody>
                 <?php foreach ($materialsList as $m):
                     $mid = (int) $m['id'];
@@ -290,6 +299,7 @@ function inventory_render_materials(array $d): void
                     <tr>
                         <td><?= e($m['name']) ?><?php if (!empty($m['notes'])): ?><br><span class="muted"><?= e($m['notes']) ?></span><?php endif; ?></td>
                         <td><?= e($m['unit']) ?></td>
+                        <td><?= (float) ($m['cut_unit_cm'] ?? 0) > 0 ? e(format_qty((float) $m['cut_unit_cm'])) . ' سانت' : '<span class="muted">—</span>' ?></td>
                         <td><strong><?= e(format_qty((float) $m['stock_qty'])) ?></strong></td>
                         <td><?= e(format_price($m['last_price'])) ?> تومان</td>
                         <td><?= e(format_price((float) $m['stock_qty'] * (int) $m['last_price'])) ?> تومان</td>
