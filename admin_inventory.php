@@ -250,7 +250,13 @@ function inventory_render_materials(array $d): void
             </form>
             <?php endif; ?>
 
-            <h2><?= $editMaterial !== null ? 'ویرایش ماده اولیه' : 'ماده اولیه تازه' ?></h2>
+            <?php if ($editMaterial === null && $moveMaterial === null): ?>
+            <div class="crud-toolbar">
+                <button type="button" class="btn add" data-toggle-panel="material-form-panel" aria-expanded="false">+ افزودن ماده اولیه</button>
+            </div>
+            <?php endif; ?>
+            <div class="crud-panel" id="material-form-panel" <?= $editMaterial !== null ? 'data-open="1"' : 'hidden' ?>>
+            <h2><?= $editMaterial !== null ? 'ویرایش ماده اولیه: ' . e($editMaterial['name'] ?? '') : 'ماده اولیه تازه' ?></h2>
             <form method="post" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editMaterial !== null ? 'update_material' : 'add_material' ?>">
@@ -280,13 +286,14 @@ function inventory_render_materials(array $d): void
                 <?php if ($editMaterial !== null): ?>
                 <p class="muted">موجودی و قیمت خرید از این فرم تغییر نمی‌کند؛ برای آن‌ها از دکمه‌های «ورود خرید»، «خروج» و «اصلاح» در فهرست زیر استفاده کنید.</p>
                 <?php endif; ?>
-                <button type="submit" class="btn primary"><?= $editMaterial !== null ? 'ذخیره تغییرات' : 'ثبت ماده اولیه' ?></button>
+                <button type="submit" class="btn <?= $editMaterial !== null ? 'edit' : 'add' ?>"><?= $editMaterial !== null ? 'ذخیره تغییرات' : 'ثبت ماده اولیه' ?></button>
                 <?php if ($editMaterial !== null): ?><a class="btn" href="admin.php?page=materials">انصراف</a><?php endif; ?>
             </form>
+            </div>
 
             <h2>فهرست مواد (<?= count($materialsList) ?>)</h2>
             <?php if ($materialsList === []): ?>
-                <div class="card wide"><p class="muted">هنوز ماده‌ای ثبت نشده است. اولین ماده را با فرم بالا بسازید، بعد برای محصولات از صفحه ویرایش محصول «مواد مصرفی» تعریف کنید.</p></div>
+                <div class="card wide"><p class="muted">هنوز ماده‌ای ثبت نشده است. اولین ماده را با دکمه «+ افزودن ماده اولیه» بسازید، بعد برای محصولات از صفحه ویرایش محصول «مواد مصرفی» تعریف کنید.</p></div>
             <?php else: ?>
             <table>
                 <thead><tr><th>نام ماده</th><th>واحد</th><th>برش</th><th>موجودی</th><th>آخرین قیمت خرید</th><th>ارزش موجودی</th><th>وضعیت</th><th>عملیات</th></tr></thead>
@@ -312,13 +319,13 @@ function inventory_render_materials(array $d): void
                             <a class="btn small" href="admin.php?page=materials&move=<?= $mid ?>&mtype=in">ورود خرید</a>
                             <a class="btn small" href="admin.php?page=materials&move=<?= $mid ?>&mtype=out">خروج</a>
                             <a class="btn small" href="admin.php?page=materials&move=<?= $mid ?>&mtype=adjust">اصلاح</a>
-                            <a class="btn small" href="admin.php?page=materials&edit_id=<?= $mid ?>">ویرایش</a>
+                            <a class="btn small edit" href="admin.php?page=materials&edit_id=<?= $mid ?>">ویرایش</a>
                             <a class="btn small" href="admin.php?page=stock&material_id=<?= $mid ?>">سوابق</a>
                             <form method="post" class="inline">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="toggle_material">
                                 <input type="hidden" name="id" value="<?= $mid ?>">
-                                <button type="submit" class="btn small"><?= (int) $m['is_active'] === 1 ? 'غیرفعال' : 'فعال' ?></button>
+                                <button type="submit" class="btn small warn"><?= (int) $m['is_active'] === 1 ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?></button>
                             </form>
                             <form method="post" class="inline" onsubmit="return confirm('این ماده اولیه حذف شود؟')">
                                 <?= csrf_field() ?>
