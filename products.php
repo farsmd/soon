@@ -8,21 +8,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/config.php';
 
-// سشن عمومی (برای CSRF فرم ثبت سفارش) — باید قبل از هر خروجی شروع شود
-// روی هاست اشتراکی مسیر پیش‌فرض سشن زود پاک می‌شود و فرم‌ها خطای CSRF می‌دهند؛
-// سشن را داخل پوشهٔ خود سیستم نگه می‌داریم (اگر ساخته نشد، پیش‌فرض هاست می‌ماند).
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    $cmsPubSessionDir = __DIR__ . '/sessions';
-    if (!is_dir($cmsPubSessionDir)) {
-        @mkdir($cmsPubSessionDir, 0700, true);
-    }
-    if (is_dir($cmsPubSessionDir) && is_writable($cmsPubSessionDir)) {
-        ini_set('session.save_path', $cmsPubSessionDir);
-    }
-    ini_set('session.gc_maxlifetime', (string) session_lifetime_seconds());
-    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
-    session_start();
-}
+// نشست عمومی (برای CSRF فرم ثبت سفارش) — باید قبل از هر خروجی شروع شود
+// نشست‌ها داخل دیتابیس سیستم ذخیره می‌شوند (نسخه ۸٫۲٫۱) تا پاک‌سازی و قفلِ مسیر
+// نشستِ هاست اشتراکی نتواند نشست را بکشد و فرم‌ها را با خطای CSRF بکشد.
+cms_session_start();
 
 // لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲) — برای بیکن کلیک همین‌جا پاسخ داده و تمام می‌شود
 track_public_request();
