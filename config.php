@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.2.3');
+define('APP_VERSION', '8.3.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -322,6 +322,69 @@ function init_db(PDO $pdo): void
         )
     ");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_material_remnants_material ON material_remnants (material_id, id)");
+
+    // --- فاز ۴ (نسخه ۸٫۳): تولید — برگه تولید، مراحل کارگاه، مصرف مواد و لیست برش ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS production_stages (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            stage_key  TEXT NOT NULL UNIQUE,
+            title      TEXT NOT NULL,
+            color      TEXT NOT NULL DEFAULT '#6b7280',
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS production_orders (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            production_no INTEGER NOT NULL UNIQUE,
+            order_id      INTEGER NOT NULL,
+            stage_key     TEXT NOT NULL DEFAULT 'queued',
+            state         TEXT NOT NULL DEFAULT 'open',
+            responsible   TEXT,
+            notes         TEXT,
+            plan_json     TEXT,
+            started_at    TEXT,
+            finished_at   TEXT,
+            cancelled_at  TEXT,
+            created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_production_orders_order ON production_orders (order_id, id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_production_orders_state ON production_orders (state, id)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS production_stage_history (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            production_id INTEGER NOT NULL,
+            from_stage    TEXT,
+            to_stage      TEXT NOT NULL,
+            responsible   TEXT,
+            note          TEXT,
+            created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_production_history ON production_stage_history (production_id, id)");
+    // مصرف ثبت‌شده هر برگه تولید تا لغو تولید دقیقاً همان مصرف را برگرداند:
+    // stock_out = خروج از موجودی اصلی (qty به واحد ماده)، remnant_use = مصرف یک تکه پرت،
+    // remnant_new = پرت تازه‌ای که از برش برگشته (remnant_id آن نگه داشته می‌شود).
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS production_consumptions (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            production_id INTEGER NOT NULL,
+            material_id   INTEGER NOT NULL,
+            kind          TEXT NOT NULL DEFAULT 'stock_out',
+            qty           REAL NOT NULL DEFAULT 0,
+            movement_id   INTEGER,
+            remnant_id    INTEGER,
+            detail        TEXT,
+            reversed      INTEGER NOT NULL DEFAULT 0,
+            created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_production_consumptions ON production_consumptions (production_id, id)");
+    // طول واحد تازه (شاخه/رول) بر حسب سانتی‌متر برای مواد برش‌خور؛ ۰ یعنی بدون برش
+    db_add_column_if_missing($pdo, 'materials', 'cut_unit_cm', 'REAL NOT NULL DEFAULT 0');
     // ستون‌های تازه فاز ۳ روی جدول‌های قدیمی (ارتقای خودکار، بدون حذف داده)
     db_add_column_if_missing($pdo, 'products', 'prep_days', 'INTEGER NOT NULL DEFAULT 0');
     db_add_column_if_missing($pdo, 'product_materials', 'apply_condition', "TEXT NOT NULL DEFAULT 'always'");
@@ -477,6 +540,7 @@ function init_db(PDO $pdo): void
     // --- فاز ۲٫۵ (نسخه ۷): سید مواد اولیه نمونه (فقط یک بار و فقط وقتی جدول مواد خالی است) ---
     seed_inventory_if_needed($pdo);
     seed_order_rules_if_needed($pdo);
+    seed_production_if_needed($pdo);
 
     // --- نسخه ۸٫۲٫۳: افزودن استایل تازه فرم ثبت سفارش به CSS دیتابیس (یک بار؛ نسخه قبلی آرشیو می‌شود) ---
     seed_order_form_css_v823_if_needed($pdo);
@@ -2512,6 +2576,40 @@ function seed_inventory_if_needed(PDO $pdo): void
         }
     }
     $pdo->prepare("INSERT INTO settings (key, value) VALUES ('inventory_seeded_v7', '1') ON CONFLICT(key) DO UPDATE SET value = '1'")->execute();
+}
+
+/** سید فاز ۴ (نسخه ۸٫۳): مراحل پیش‌فرض تولید + شماره برگه — فقط یک بار؛ داده کاربر دست نمی‌خورد */
+function seed_production_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('production_seeded_v83', '') === '1') {
+        return;
+    }
+    // مراحل کارگاه (کاملاً قابل‌ویرایش از صفحه «مراحل تولید»)
+    if ((int) $pdo->query('SELECT COUNT(*) FROM production_stages')->fetchColumn() === 0) {
+        $stages = [
+            ['queued', 'در صف تولید', '#6b7280'],
+            ['cutting', 'برش', '#d97706'],
+            ['assembly', 'مونتاژ', '#2563eb'],
+            ['testing', 'تست و کنترل کیفیت', '#7c3aed'],
+            ['packaging', 'بسته‌بندی', '#0891b2'],
+            ['done', 'آماده تحویل', '#16a34a'],
+        ];
+        $ins = $pdo->prepare('INSERT INTO production_stages (stage_key, title, color, is_active, sort_order) VALUES (:k, :t, :c, 1, :s)');
+        $s = 0;
+        foreach ($stages as $st) {
+            $s += 10;
+            $ins->execute([':k' => $st[0], ':t' => $st[1], ':c' => $st[2], ':s' => $s]);
+        }
+    }
+    if (get_setting('next_production_no', '') === '') {
+        set_setting('next_production_no', '1');
+    }
+    set_setting('production_seeded_v83', '1');
 }
 
 // توابع آپدیت یک‌کلیکی گیت‌هاب (backups_dir و update_* و perform_update) در فایل admin_catalog.php هستند؛
