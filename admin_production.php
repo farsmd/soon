@@ -20,6 +20,7 @@ function production_post_actions(): array
         'create_production', 'production_start', 'production_advance', 'production_back',
         'production_finish', 'production_cancel', 'production_save_meta',
         'add_pstage', 'update_pstage', 'delete_pstage', 'move_pstage', 'toggle_pstage',
+        'save_qc_items',
     ];
 }
 
@@ -60,6 +61,30 @@ function production_stage_color(string $key): string
 function production_state_label(string $state): string
 {
     return ['open' => 'در جریان', 'finished' => 'تمام‌شده', 'cancelled' => 'لغوشده'][$state] ?? $state;
+}
+
+/** آیتم‌های برگه تست و کنترل کیفیت (۸٫۵٫۰) — تنظیم qc_checklist، کاملاً از پنل قابل‌ویرایش است */
+function qc_checklist_items(): array
+{
+    $raw = (string) get_setting('qc_checklist', '');
+    $items = $raw !== '' ? json_decode($raw, true) : null;
+    if (is_array($items)) {
+        $items = array_values(array_filter(array_map('trim', array_map('strval', $items)), static fn ($s) => $s !== ''));
+        if ($items !== []) {
+            return $items;
+        }
+    }
+    // مقادیر اولیه — پس از اولین ذخیره در پنل دیگر از تنظیمات خوانده می‌شود
+    return [
+        'روشنایی کامل همه ردیف‌های LED بدون بخش تاریک',
+        'یکنواختی نور در کل طول چراغ',
+        'تطابق رنگ نور با سفارش (آفتابی/نچرال/مهتابی)',
+        'بررسی لحیم‌کاری و اتصال سیم‌ها',
+        'تست توان و دمای کارکرد ذره‌ای (burn-in) مطابق تنظیمات',
+        'تمیزی سطح پروفیل و لنز/دیفیوزر',
+        'بررسی درپوش‌ها و اتصالات (در صورت وجود)',
+        'تطابق تعداد و طول چراغ‌ها با برگه تولید',
+    ];
 }
 
 /** یک برگه تولید همراه مشخصات سفارش و مشتری */
@@ -288,6 +313,8 @@ function production_requirements(array $items): array
             $plan = production_plan_cutting($cutPacks[$mid]['pieces'], $stmt->fetchAll(), (float) $cutPacks[$mid]['unit_cm'], $minCm);
             $row['cuttable'] = true;
             $row['unit_cm'] = (float) $cutPacks[$mid]['unit_cm'];
+            // نام واحد تازه برای لیست برش (شاخه، رول، بسته…) — ۸٫۵٫۰
+            $row['cut_unit_label'] = trim((string) ($cutPacks[$mid]['material']['cut_unit_label'] ?? '')) ?: 'واحد';
             $row['needed_other'] = 0.0;
             $row['plan'] = $plan;
             $row['shortage'] = max(0.0, (float) $plan['new_meters'] - (float) $r['stock']);
@@ -578,6 +605,18 @@ function production_handle_post(string $action): void
     }
 
     // ----- مدیریت مراحل تولید (از صفحه production_rules) -----
+    if ($action === 'save_qc_items') {
+        $raw = mb_substr((string) ($_POST['qc_items'] ?? ''), 0, 5000);
+        $items = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $raw)), static fn ($s) => $s !== ''));
+        $items = array_slice($items, 0, 50);
+        foreach ($items as $i => $line) {
+            $items[$i] = mb_substr($line, 0, 200);
+        }
+        set_setting('qc_checklist', json_encode($items, JSON_UNESCAPED_UNICODE));
+        log_admin_event('production_qc', 'ویرایش آیتم‌های برگه تست و کنترل کیفیت (' . count($items) . ' مورد)');
+        flash('ok', 'آیتم‌های برگه تست و کنترل کیفیت ذخیره شد.');
+        redirect_admin('admin.php?page=production_rules');
+    }
     if ($action === 'add_pstage' || $action === 'update_pstage') {
         $key = strtolower(trim((string) ($_POST['stage_key'] ?? '')));
         $title = mb_substr(trim((string) ($_POST['title'] ?? '')), 0, 80);
@@ -754,7 +793,7 @@ function production_render_plan(array $materials, bool $snapshot): void
         ?>
         <div class="card" style="margin-bottom:14px">
             <h3 style="margin-top:0">✂️ برش «<?= e($m['name']) ?>»
-                <small class="muted">(واحد تازه: <?= e(format_qty((float) ($m['unit_cm'] ?? 0))) ?> سانت — موجودی انبار: <?= e(format_qty((float) $m['stock'])) ?> <?= e($m['unit']) ?>)</small>
+                <small class="muted">(هر <?= e($m['cut_unit_label'] ?? 'واحد') ?>: <?= e(format_qty((float) ($m['unit_cm'] ?? 0))) ?> سانت — موجودی انبار: <?= e(format_qty((float) $m['stock'])) ?> <?= e($m['unit']) ?>)</small>
             </h3>
             <?php if (!empty($plan['unplaced'])): ?>
                 <p><span class="badge" style="background:#fee2e2;color:#b91c1c">⚠ قطعه‌های جاافتاده:
@@ -899,6 +938,7 @@ function production_render_view(array $d): void
         return;
     }
     $print = isset($_GET['print']);
+    $qcMode = isset($_GET['qc']);
     $isOpen = (string) $p['state'] === 'open';
     $started = !empty($p['started_at']);
     $stageKeys = array_map(static fn (array $s): string => (string) $s['stage_key'], production_stages(true));
@@ -929,6 +969,7 @@ function production_render_view(array $d): void
         </h1>
         <p>
             <a class="btn small" href="admin.php?page=production_view&id=<?= (int) $p['id'] ?>&print=1" target="_blank">🖨 چاپ برگه کارگاه</a>
+            <a class="btn small" href="admin.php?page=production_view&id=<?= (int) $p['id'] ?>&qc=1" target="_blank">🧪 چاپ برگه تست و کنترل کیفیت</a>
             <a class="btn small" href="admin.php?page=order_view&id=<?= (int) $p['order_id'] ?>">مشاهده سفارش #<?= (int) $p['order_no'] ?></a>
         </p>
 
@@ -1080,7 +1121,7 @@ function production_render_view(array $d): void
         </section>
     </div>
 
-    <div class="worksheet" id="worksheet"<?= $print ? '' : ' style="display:none"' ?>>
+    <div class="worksheet" id="worksheet"<?= $print && !isset($_GET['qc']) ? '' : ' style="display:none"' ?>>
         <h2>برگه تولید #<?= (int) $p['production_no'] ?> — کارگاه</h2>
         <p class="muted"><?= e(all_settings()['site_title'] ?? '') ?> — سفارش #<?= (int) $p['order_no'] ?> — مشتری: <?= e($p['customer_name'] ?? '—') ?> — مرحله: <?= e(production_stage_title((string) $p['stage_key'])) ?><?= $started ? ' — شروع: ' . e($p['started_at']) : ' (برنامه پیشنهادی؛ هنوز شروع نشده)' ?></p>
         <table>
@@ -1103,26 +1144,128 @@ function production_render_view(array $d): void
             <?php endforeach; ?>
             </tbody>
         </table>
-        <?php if ($planMaterials !== null): ?>
-            <?php foreach ($planMaterials as $m): if (empty($m['cuttable'])) { continue; } $plan = (array) ($m['plan'] ?? []); ?>
-                <h3>برش <?= e($m['name']) ?> (واحد تازه <?= e(format_qty((float) ($m['unit_cm'] ?? 0))) ?> سانت)</h3>
-                <?php
-                $groups = [];
-                $leftovers = [];
-                foreach ((array) ($plan['bins'] ?? []) as $bin) {
-                    foreach ((array) $bin['pieces'] as $pc) {
-                        $k = number_format((float) $pc, 1, '.', '');
-                        $groups[$k] = ($groups[$k] ?? 0) + 1;
-                    }
-                    if (($bin['leftover'] ?? 0) > 0) { $leftovers[] = (float) $bin['leftover']; }
-                }
-                ?>
-                <p>قطعه‌ها: <?php foreach ($groups as $len => $cnt): ?><?= e(format_qty((float) $len)) ?> سانت × <?= $cnt ?>؛ <?php endforeach; ?><br>
-                واحد تازه: <?= (int) ($plan['new_units'] ?? 0) ?> عدد — پرت برگشتی: <?php if ($leftovers === []): ?>ندارد<?php else: foreach ($leftovers as $l): ?><?= e(format_qty($l)) ?> سانت؛ <?php endforeach; endif; ?> — ضایعات: <?= e(format_qty((float) ($plan['waste_cm'] ?? 0))) ?> سانت</p>
+
+        <?php if ($planMaterials !== null && $planMaterials !== []): ?>
+        <h3>☑ چک‌لیست مواد خام</h3>
+        <table>
+            <thead><tr><th style="width:38px">✓</th><th>ماده</th><th>مقدار لازم</th><th>منبع تامین</th></tr></thead>
+            <tbody>
+            <?php foreach ($planMaterials as $m): $plan = (array) ($m['plan'] ?? []); ?>
+                <tr>
+                    <td style="font-size:18px">☐</td>
+                    <td><strong><?= e($m['name']) ?></strong></td>
+                    <td>
+                        <?php if (!empty($m['cuttable'])): ?>
+                            <?= (int) ($plan['new_units'] ?? 0) ?> <?= e($m['cut_unit_label'] ?? 'واحد') ?> تازه
+                            <?php $remUse = 0; foreach ((array) ($plan['bins'] ?? []) as $bin) { if (($bin['kind'] ?? '') === 'remnant') { $remUse++; } } ?>
+                            <?= $remUse > 0 ? ' + ' . $remUse . ' تکه پرت انبار' : '' ?>
+                        <?php else: ?>
+                            <?= e(format_qty((float) ($m['needed_other'] ?? 0))) ?> <?= e($m['unit']) ?>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= !empty($m['cuttable']) ? 'انبار پرتی + انبار اصلی' : 'انبار اصلی' ?></td>
+                </tr>
             <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <h3>✂️ لیست برش</h3>
+        <?php $totWaste = 0.0; $totLeft = 0.0; $totUnits = 0; $totPieces = 0; ?>
+        <?php foreach ($planMaterials as $m): if (empty($m['cuttable'])) { continue; } $plan = (array) ($m['plan'] ?? []); $clbl = (string) ($m['cut_unit_label'] ?? 'واحد'); ?>
+            <h4 style="margin:18px 0 6px">«<?= e($m['name']) ?>» — هر <?= e($clbl) ?>: <?= e(format_qty((float) ($m['unit_cm'] ?? 0))) ?> سانت</h4>
+            <table>
+                <thead><tr><th style="width:38px">✓</th><th>منبع برش</th><th>قطعه‌ها (سانت)</th><th>باقی‌مانده</th></tr></thead>
+                <tbody>
+                <?php $newNo = 0; foreach ((array) ($plan['bins'] ?? []) as $bin): $isRem = ($bin['kind'] ?? '') === 'remnant'; if (!$isRem) { $newNo++; } ?>
+                    <tr>
+                        <td style="font-size:18px">☐</td>
+                        <td><?= $isRem ? 'تکه پرت انبار (' . e(format_qty((float) $bin['capacity'])) . ' سانت)' : e($clbl) . ' تازه ' . $newNo . ' (' . e(format_qty((float) $bin['capacity'])) . ' سانت)' ?></td>
+                        <td><?php foreach ((array) $bin['pieces'] as $pc): ?><?= e(format_qty((float) $pc)) ?>؛ <?php endforeach; ?></td>
+                        <td><?php if (($bin['leftover'] ?? 0) > 0): ?>
+                                <?= e(format_qty((float) $bin['leftover'])) ?> سانت ← انبار پرتی
+                            <?php elseif (($bin['waste'] ?? 0) > 0): ?>
+                                ضایعات <?= e(format_qty((float) $bin['waste'])) ?> سانت
+                            <?php else: ?>مصرف کامل<?php endif; ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php
+            $totWaste += (float) ($plan['waste_cm'] ?? 0);
+            $totLeft += (float) ($plan['leftover_cm'] ?? 0);
+            $totUnits += (int) ($plan['new_units'] ?? 0);
+            $totPieces += (int) ($plan['pieces_count'] ?? 0);
+            ?>
+        <?php endforeach; ?>
+
+        <h3>📊 میزان پرت این برگه</h3>
+        <table>
+            <thead><tr><th>ماده</th><th>قطعه‌ها</th><th><?= 'هر ' ?>واحد تازه</th><th>پرت برگشتی به انبار</th><th>ضایعات</th></tr></thead>
+            <tbody>
+            <?php foreach ($planMaterials as $m): if (empty($m['cuttable'])) { continue; } $plan = (array) ($m['plan'] ?? []); ?>
+                <tr>
+                    <td><?= e($m['name']) ?></td>
+                    <td><?= (int) ($plan['pieces_count'] ?? 0) ?> قطعه</td>
+                    <td><?= (int) ($plan['new_units'] ?? 0) ?> <?= e($m['cut_unit_label'] ?? 'واحد') ?> (<?= e(format_qty((float) ($plan['new_meters'] ?? 0))) ?> متر)</td>
+                    <td><?= e(format_qty((float) ($plan['leftover_cm'] ?? 0))) ?> سانت</td>
+                    <td><?= e(format_qty((float) ($plan['waste_cm'] ?? 0))) ?> سانت</td>
+                </tr>
+            <?php endforeach; ?>
+                <tr>
+                    <td><strong>جمع</strong></td>
+                    <td><strong><?= $totPieces ?> قطعه</strong></td>
+                    <td><strong><?= $totUnits ?> واحد تازه</strong></td>
+                    <td><strong><?= e(format_qty($totLeft)) ?> سانت</strong></td>
+                    <td><strong><?= e(format_qty($totWaste)) ?> سانت</strong></td>
+                </tr>
+            </tbody>
+        </table>
         <?php endif; ?>
         <p>مسئول تولید: <?= e($p['responsible'] ?? '……………………') ?></p>
         <div class="sig-row"><div>مسئول تولید</div><div>کنترل کیفیت</div></div>
+    </div>
+
+    <div class="worksheet" id="qc-sheet"<?= ($print && $qcMode) ? '' : ' style="display:none"' ?>>
+        <h2>برگه تست و کنترل کیفیت — برگه تولید #<?= (int) $p['production_no'] ?></h2>
+        <p class="muted"><?= e(all_settings()['site_title'] ?? '') ?> — سفارش #<?= (int) $p['order_no'] ?> — مشتری: <?= e($p['customer_name'] ?? '—') ?> — مرحله: <?= e(production_stage_title((string) $p['stage_key'])) ?> — تاریخ چاپ: <?= e(date('Y-m-d')) ?></p>
+
+        <h3>مشخصات محصول</h3>
+        <table>
+            <thead><tr><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>سیم</th><th>درپوش</th></tr></thead>
+            <tbody>
+            <?php $rn = 0; foreach ($prodItems as $it): $rn++; ?>
+                <tr>
+                    <td><?= $rn ?></td>
+                    <td><?= e($it['product_name']) ?></td>
+                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= (int) $it['qty'] ?></td>
+                    <td><?= (int) $it['wire_length_cm'] ?> سانت</td>
+                    <td><?= (int) $it['has_endcap'] === 1 ? 'دارد' : '—' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <h3>چک‌لیست تست و کنترل کیفیت</h3>
+        <?php $qcItems = qc_checklist_items(); ?>
+        <table>
+            <thead><tr><th style="width:38px">✓</th><th>آیتم تست</th><th style="width:80px">قبول ☐</th><th style="width:80px">رد ☐</th><th>یادداشت</th></tr></thead>
+            <tbody>
+            <?php foreach ($qcItems as $item): ?>
+                <tr>
+                    <td style="font-size:18px">☐</td>
+                    <td><?= e($item) ?></td>
+                    <td style="text-align:center;font-size:18px">☐</td>
+                    <td style="text-align:center;font-size:18px">☐</td>
+                    <td>&nbsp;</td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <p style="margin-top:18px"><strong>نتیجه نهایی:</strong> ☐ تایید — ☐ رد — ☐ نیاز به اصلاح</p>
+        <p><strong>تاریخ تست:</strong> <?= e(date('Y-m-d')) ?></p>
+        <div class="sig-row"><div>تست‌کننده</div><div>کنترل کیفیت</div><div>تایید نهایی</div></div>
     </div>
     <?php if ($print): ?>
     <script>window.addEventListener('load', function(){ window.print(); });</script>
@@ -1192,6 +1335,19 @@ function production_render_rules(array $d): void
             </tbody>
         </table>
         <?php endif; ?>
+    </section>
+
+    <section class="card wide">
+        <h2>آیتم‌های برگه تست و کنترل کیفیت (۸٫۵٫۰)</h2>
+        <p class="muted">هر خط یک آیتم تست است. برگه تست و کنترل کیفیت هر برگه تولید از همین‌جا خوانده می‌شود؛ آیتم‌ها را با نیاز کارگاه خودتان تنظیم کنید.</p>
+        <form method="post">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="save_qc_items">
+            <label style="display:block">آیتم‌های چک‌لیست (هر خط یک آیتم)
+                <textarea name="qc_items" rows="8" style="width:100%"><?= e(implode("\n", qc_checklist_items())) ?></textarea>
+            </label>
+            <button type="submit" class="btn add">💾 ذخیره آیتم‌های کنترل کیفیت</button>
+        </form>
     </section>
 
     <section class="card wide">
