@@ -1140,30 +1140,13 @@ if ($page === 'design') {
             <h1>بخش‌های صفحه اصلی</h1>
             <p class="muted">صفحه اصلی (index.php) بخش‌های فعال را دقیقاً به همین ترتیب نمایش می‌دهد. هر بخش محتوای خودش (تیتر، متن، عکس، لینک) و یک قالب دارد که متن و چیدمانش داخل دیتابیس است و از صفحه «قالب و استایل» ویرایش می‌شود. برای فرم تماس، یک بخش با قالب «تماس با ما» بسازید. صفحه‌های جدا هم با قالب «صفحه تکی» نمایش داده می‌شوند.</p>
 
-            <table>
-                <thead><tr><th>ترتیب</th><th>عنوان</th><th>قالب</th><th>عکس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-                <tbody>
-                <?php foreach ($sections as $s): ?>
-                    <tr>
-                        <td><?= (int) $s['sort_order'] ?></td>
-                        <td><?= e($s['title']) ?></td>
-                        <td><?= e($templateTitles[section_template_key($s)] ?? section_template_key($s)) ?> <span class="muted">(<code><?= e(section_template_key($s)) ?></code>)</span></td>
-                        <td><?= !empty($s['image']) ? 'دارد' : '<span class="muted">—</span>' ?></td>
-                        <td><?= (int) $s['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
-                        <td class="actions">
-                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" title="بالا">▲</button></form>
-                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" title="پایین">▼</button></form>
-                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit"><?= (int) $s['is_active'] === 1 ? 'غیرفعال' : 'فعال' ?></button></form>
-                            <a class="btn small" href="admin.php?page=sections&edit_id=<?= (int) $s['id'] ?>">ویرایش</a>
-                            <form method="post" class="inline" onsubmit="return confirm('این بخش حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit" class="danger">حذف</button></form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if ($sections === []): ?><tr><td colspan="6" class="muted">هنوز بخشی ساخته نشده است.</td></tr><?php endif; ?>
-                </tbody>
-            </table>
-
-            <h2><?= $editSection ? 'ویرایش بخش' : 'افزودن بخش جدید' ?></h2>
+            <?php if ($editSection === null): ?>
+            <div class="crud-toolbar">
+                <button type="button" class="btn add" data-toggle-panel="section-form-panel" aria-expanded="false">+ افزودن بخش جدید</button>
+            </div>
+            <?php endif; ?>
+            <div class="crud-panel" id="section-form-panel" <?= $editSection !== null ? 'data-open="1"' : 'hidden' ?>>
+            <h2><?= $editSection ? 'ویرایش بخش: ' . e($editSection['title'] ?? '') : 'افزودن بخش جدید' ?></h2>
             <form method="post" class="card wide" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editSection ? 'update_section' : 'add_section' ?>">
@@ -1206,38 +1189,45 @@ if ($page === 'design') {
                     <input type="text" name="link_text" value="<?= e($editSection['link_text'] ?? '') ?>" placeholder="مثلاً اطلاعات بیشتر">
                 </label>
                 <label class="check"><input type="checkbox" name="is_active" value="1" <?= (!$editSection || (int) $editSection['is_active'] === 1) ? 'checked' : '' ?>> فعال باشد</label>
-                <button type="submit" class="btn primary"><?= $editSection ? 'ذخیره ویرایش' : 'افزودن بخش' ?></button>
+                <button type="submit" class="btn <?= $editSection ? 'edit' : 'add' ?>"><?= $editSection ? 'ذخیره ویرایش' : 'افزودن بخش' ?></button>
                 <?php if ($editSection): ?><a class="btn" href="admin.php?page=sections">انصراف</a><?php endif; ?>
             </form>
+            </div>
+
+            <table>
+                <thead><tr><th>ترتیب</th><th>عنوان</th><th>قالب</th><th>عکس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                <?php foreach ($sections as $s): ?>
+                    <tr>
+                        <td><?= (int) $s['sort_order'] ?></td>
+                        <td><?= e($s['title']) ?></td>
+                        <td><?= e($templateTitles[section_template_key($s)] ?? section_template_key($s)) ?> <span class="muted">(<code><?= e(section_template_key($s)) ?></code>)</span></td>
+                        <td><?= !empty($s['image']) ? 'دارد' : '<span class="muted">—</span>' ?></td>
+                        <td><?= (int) $s['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
+                        <td class="actions">
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" class="btn small">↑ بالا</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" class="btn small">↓ پایین</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit" class="btn small warn"><?= (int) $s['is_active'] === 1 ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?></button></form>
+                            <a class="btn small edit" href="admin.php?page=sections&edit_id=<?= (int) $s['id'] ?>">ویرایش</a>
+                            <form method="post" class="inline" onsubmit="return confirm('این بخش حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_section"><input type="hidden" name="id" value="<?= (int) $s['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if ($sections === []): ?><tr><td colspan="6" class="muted">هنوز بخشی ساخته نشده است.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
 
         <?php elseif ($page === 'pages'): ?>
             <h1>صفحه‌ها</h1>
             <p class="muted">هر صفحه آدرس جدا دارد: <code>page.php?slug=نامک</code>. اگر «نمایش در منو» فعال باشد، لینکش خودکار به منوی سایت (هدر و قالب تک‌صفحه) اضافه می‌شود. لینک «خانه» همیشه اول منو است.</p>
 
-            <table>
-                <thead><tr><th>ترتیب</th><th>عنوان</th><th>نامک (slug)</th><th>در منو</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-                <tbody>
-                <?php foreach ($pages as $p): ?>
-                    <tr>
-                        <td><?= (int) $p['sort_order'] ?></td>
-                        <td><?= e($p['title']) ?></td>
-                        <td><code><?= e($p['slug']) ?></code><br><a href="page.php?slug=<?= urlencode((string) $p['slug']) ?>" target="_blank">مشاهده</a></td>
-                        <td><?= (int) $p['show_in_menu'] === 1 ? 'بله' : '<span class="muted">خیر</span>' ?></td>
-                        <td><?= (int) $p['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
-                        <td class="actions">
-                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" title="بالا">▲</button></form>
-                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" title="پایین">▼</button></form>
-                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit"><?= (int) $p['is_active'] === 1 ? 'غیرفعال' : 'فعال' ?></button></form>
-                            <a class="btn small" href="admin.php?page=pages&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
-                            <form method="post" class="inline" onsubmit="return confirm('این صفحه حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="danger">حذف</button></form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if ($pages === []): ?><tr><td colspan="6" class="muted">هنوز صفحه‌ای ساخته نشده است.</td></tr><?php endif; ?>
-                </tbody>
-            </table>
-
-            <h2><?= $editPage ? 'ویرایش صفحه' : 'ساخت صفحه جدید' ?></h2>
+            <?php if ($editPage === null): ?>
+            <div class="crud-toolbar">
+                <button type="button" class="btn add" data-toggle-panel="page-form-panel" aria-expanded="false">+ ساخت صفحه جدید</button>
+            </div>
+            <?php endif; ?>
+            <div class="crud-panel" id="page-form-panel" <?= $editPage !== null ? 'data-open="1"' : 'hidden' ?>>
+            <h2><?= $editPage ? 'ویرایش صفحه: ' . e($editPage['title'] ?? '') : 'ساخت صفحه جدید' ?></h2>
             <form method="post" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editPage ? 'update_page' : 'add_page' ?>">
@@ -1262,9 +1252,33 @@ if ($page === 'design') {
                 </label>
                 <label class="check"><input type="checkbox" name="show_in_menu" value="1" <?= ($editPage && (int) $editPage['show_in_menu'] === 1) ? 'checked' : '' ?>> نمایش در منوی سایت</label>
                 <label class="check"><input type="checkbox" name="is_active" value="1" <?= (!$editPage || (int) $editPage['is_active'] === 1) ? 'checked' : '' ?>> فعال باشد</label>
-                <button type="submit" class="btn primary"><?= $editPage ? 'ذخیره ویرایش' : 'ساخت صفحه' ?></button>
+                <button type="submit" class="btn <?= $editPage ? 'edit' : 'add' ?>"><?= $editPage ? 'ذخیره ویرایش' : 'ساخت صفحه' ?></button>
                 <?php if ($editPage): ?><a class="btn" href="admin.php?page=pages">انصراف</a><?php endif; ?>
             </form>
+            </div>
+
+            <table>
+                <thead><tr><th>ترتیب</th><th>عنوان</th><th>نامک (slug)</th><th>در منو</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                <?php foreach ($pages as $p): ?>
+                    <tr>
+                        <td><?= (int) $p['sort_order'] ?></td>
+                        <td><?= e($p['title']) ?></td>
+                        <td><code><?= e($p['slug']) ?></code><br><a href="page.php?slug=<?= urlencode((string) $p['slug']) ?>" target="_blank">مشاهده</a></td>
+                        <td><?= (int) $p['show_in_menu'] === 1 ? 'بله' : '<span class="muted">خیر</span>' ?></td>
+                        <td><?= (int) $p['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
+                        <td class="actions">
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" class="btn small">↑ بالا</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" class="btn small">↓ پایین</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="btn small warn"><?= (int) $p['is_active'] === 1 ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?></button></form>
+                            <a class="btn small edit" href="admin.php?page=pages&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
+                            <form method="post" class="inline" onsubmit="return confirm('این صفحه حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if ($pages === []): ?><tr><td colspan="6" class="muted">هنوز صفحه‌ای ساخته نشده است.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
 
         <?php elseif ($page === 'design'): ?>
             <h1>قالب و استایل</h1>
@@ -1295,9 +1309,9 @@ if ($page === 'design') {
                             <td><?= e($row['updated_at']) ?></td>
                             <td><?= !empty($tplUsedIn[$k]) ? e(implode('، ', $tplUsedIn[$k])) : '<span class="muted">بلااستفاده</span>' ?></td>
                             <td class="actions">
-                                <a class="btn small" href="admin.php?page=design&tab=templates&edit_tpl=<?= urlencode($k) ?>">ویرایش</a>
+                                <a class="btn small edit" href="admin.php?page=design&tab=templates&edit_tpl=<?= urlencode($k) ?>">ویرایش</a>
                                 <?php if ((int) $row['is_system'] !== 1 && empty($tplUsedIn[$k])): ?>
-                                <form method="post" class="inline" onsubmit="return confirm('این قالب سفارشی حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_db_template"><input type="hidden" name="template_key" value="<?= e($k) ?>"><button type="submit" class="danger">حذف</button></form>
+                                <form method="post" class="inline" onsubmit="return confirm('این قالب سفارشی حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_db_template"><input type="hidden" name="template_key" value="<?= e($k) ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -1306,7 +1320,13 @@ if ($page === 'design') {
                     </tbody>
                 </table>
 
-                <div class="card wide">
+                <div class="crud-toolbar">
+                    <button type="button" class="btn" data-toggle-panel="tpl-help-panel" aria-expanded="false">؟ راهنمای پلیس‌هولدرها</button>
+                    <?php if ($editTplRow === null): ?>
+                    <button type="button" class="btn add" data-toggle-panel="tpl-add-panel" aria-expanded="false">+ ساخت قالب سفارشی</button>
+                    <?php endif; ?>
+                </div>
+                <div class="help-panel" id="tpl-help-panel" hidden>
                     <h2>راهنمای پلیس‌هولدرها</h2>
                     <p class="muted">متن قالب HTML ساده است و این نشانه‌ها هنگام نمایش با محتوای واقعی جایگزین می‌شوند؛ مقادیر متنی خودکار امن‌سازی (escape) می‌شوند:</p>
                     <ul class="ph-list">
@@ -1341,6 +1361,8 @@ if ($page === 'design') {
                     <p class="muted">نکته امنیتی: کد PHP داخل متن قالب هیچ‌وقت اجرا نمی‌شود و مثل متن ساده چاپ می‌شود؛ پس با خیال راحت قالب را ویرایش کنید.</p>
                 </div>
 
+                <?php if ($editTplRow === null): ?>
+                <div class="crud-panel" id="tpl-add-panel" hidden>
                 <h2>ساخت قالب سفارشی</h2>
                 <form method="post" class="card">
                     <?= csrf_field() ?>
@@ -1351,8 +1373,10 @@ if ($page === 'design') {
                     <label>عنوان نمایشی
                         <input type="text" name="template_title" placeholder="مثلاً بنر تبلیغاتی">
                     </label>
-                    <button type="submit" class="btn primary">ساخت قالب</button>
+                    <button type="submit" class="btn add">ساخت قالب</button>
                 </form>
+                </div>
+                <?php endif; ?>
 
                 <?php if ($editTplRow !== null): ?>
                     <h2>ویرایش قالب: <?= e($editTplRow['title']) ?> <span class="muted">(کلید: <code><?= e($editTplRow['template_key']) ?></code>)</span></h2>
@@ -1524,7 +1548,7 @@ if ($page === 'design') {
                         <td><?= e($m['name']) ?></td>
                         <td><?= e($m['contact']) ?></td>
                         <td><?= nl2br(e($m['message'])) ?></td>
-                        <td><form method="post" class="inline" onsubmit="return confirm('این پیام حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_message"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><button type="submit" class="danger">حذف</button></form></td>
+                        <td><form method="post" class="inline" onsubmit="return confirm('این پیام حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_message"><input type="hidden" name="id" value="<?= (int) $m['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if ($messages === []): ?><tr><td colspan="5" class="muted">هنوز پیامی ثبت نشده است.</td></tr><?php endif; ?>
@@ -1853,6 +1877,8 @@ if(t){t.addEventListener('click',function(){if(mq.matches){var op=b.classList.to
 if(o){o.addEventListener('click',closeD)}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeD()}});
 if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){closeD()}})}})();
+(function(){document.addEventListener('click',function(ev){var btn=ev.target;while(btn&&btn!==document&&!(btn.getAttribute&&btn.getAttribute('data-toggle-panel'))){btn=btn.parentNode}if(!btn||btn===document){return}var el=document.getElementById(btn.getAttribute('data-toggle-panel'));if(!el){return}var show=el.hasAttribute('hidden');if(show){el.removeAttribute('hidden');var f=el.querySelector('input,select,textarea');if(f){try{f.focus()}catch(e){}}}else{el.setAttribute('hidden','')}btn.setAttribute('aria-expanded',show?'true':'false')});
+var op=document.querySelector('.crud-panel[data-open],.help-panel[data-open]');if(op){try{op.scrollIntoView({block:'start'})}catch(e){}}})();
 </script>
 </body>
 </html>
@@ -1866,9 +1892,20 @@ a{color:#2563eb;text-decoration:none}.muted{color:#6b7280;font-size:13px}.center
 .auth-box{max-width:380px;margin:10vh auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
 label{display:block;margin:12px 0;font-size:14px}input[type=text],input[type=password],input[type=number],select,textarea,input[type=file]{width:100%;padding:9px;margin-top:6px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit}
 textarea[dir=ltr]{font-family:Consolas,monospace;font-size:13px}
-.btn{display:inline-block;padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;cursor:pointer;font-family:inherit}
+.btn{display:inline-block;padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;cursor:pointer;font-family:inherit;font-size:14px}
 .btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}.btn.small{padding:4px 10px;font-size:13px}.btn.block{width:100%}
 .btn.danger-btn{background:#dc2626;border-color:#dc2626;color:#fff}
+.btn.add{background:#16a34a;border-color:#15803d;color:#fff;font-weight:bold}
+.btn.add:hover{background:#15803d;color:#fff}
+.btn.edit{background:#facc15;border-color:#ca8a04;color:#422006;font-weight:bold}
+.btn.edit:hover{background:#eab308;color:#422006}
+.btn.warn{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.crud-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 4px}
+.crud-panel{border:1px dashed #86efac;background:#f0fdf4;border-radius:10px;padding:4px 14px 14px;margin:10px 0 16px}
+.crud-panel .card{margin:8px 0;box-shadow:none}
+.help-panel{border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:4px 16px 12px;margin:10px 0 16px}
+td.actions{white-space:normal;line-height:2}
+td.actions .btn,td.actions button{margin:1px 0}
 button{padding:6px 10px;border:1px solid #d1d5db;border-radius:7px;background:#fff;cursor:pointer;font-family:inherit}
 button.danger{color:#dc2626;border-color:#fecaca}
 .alert{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:14px}.alert.ok{background:#dcfce7}.alert.error{background:#fee2e2}
