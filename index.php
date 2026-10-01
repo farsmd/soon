@@ -18,10 +18,13 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     if (is_dir($cmsPubSessionDir) && is_writable($cmsPubSessionDir)) {
         ini_set('session.save_path', $cmsPubSessionDir);
     }
-    ini_set('session.gc_maxlifetime', '604800');
+    ini_set('session.gc_maxlifetime', (string) session_lifetime_seconds());
     session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
     session_start();
 }
+
+// لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲) — برای بیکن کلیک همین‌جا پاسخ داده و تمام می‌شود
+track_public_request();
 
 // پردازش ارسال فرم تماس قبل از هر خروجی (نتیجه‌اش داخل قالب «تماس» نشان داده می‌شود)
 process_contact_form();
