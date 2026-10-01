@@ -851,6 +851,8 @@ function orders_render_view(array $d): void
     $statusColor = order_status_color((string) $o['status']);
     $deposit = (int) round((float) ($o['total'] ?? 0) * (float) $s['deposit_percent'] / 100);
     $print = isset($_GET['print']);
+    // رسید تحویل بدون قیمت (۸٫۵٫۰)
+    $deliveryMode = isset($_GET['delivery']);
     ?>
     <style>
     @media print {
@@ -873,6 +875,7 @@ function orders_render_view(array $d): void
         </h1>
         <p>
             <a class="btn small" href="admin.php?page=order_view&id=<?= (int) $o['id'] ?>&print=1" target="_blank">🖨 چاپ پیش‌فاکتور</a>
+            <a class="btn small" href="admin.php?page=order_view&id=<?= (int) $o['id'] ?>&delivery=1&print=1" target="_blank">🧾 چاپ رسید تحویل (بدون قیمت)</a>
             <?php if (in_array((string) $o['status'], ['new', 'cancelled'], true)): ?>
             <form method="post" class="inline" onsubmit="return confirm('این سفارش حذف شود؟')">
                 <?= csrf_field() ?>
@@ -1062,7 +1065,7 @@ function orders_render_view(array $d): void
             <?php endif; ?>
         </section>
     </div>
-    <div class="proforma" id="proforma"<?= $print ? '' : ' style="display:none"' ?>>
+    <div class="proforma" id="proforma"<?= ($print && !$deliveryMode) ? '' : ' style="display:none"' ?>>
         <h2>پیش‌فاکتور سفارش #<?= (int) $o['order_no'] ?></h2>
         <p class="muted"><?= e(all_settings()['site_title'] ?? '') ?> — تاریخ: <?= e(mb_substr((string) ($o['created_at'] ?? ''), 0, 10)) ?></p>
         <table><tbody>
@@ -1117,6 +1120,46 @@ function orders_render_view(array $d): void
             <h3>توضیحات</h3><p><?= nl2br(e($o['notes'])) ?></p>
         <?php endif; ?>
         <div class="sig-row"><div>امضای فروشنده</div><div>امضای خریدار</div></div>
+    </div>
+
+    <div class="proforma" id="delivery-receipt"<?= ($print && $deliveryMode) ? '' : ' style="display:none"' ?>>
+        <h2>رسید تحویل سفارش #<?= (int) $o['order_no'] ?></h2>
+        <p class="muted"><?= e(all_settings()['site_title'] ?? '') ?> — تاریخ تحویل: <?= e(mb_substr((string) ($o['created_at'] ?? ''), 0, 10)) ?></p>
+        <table><tbody>
+            <tr><th>مشتری</th><td><?= e($o['customer_name'] ?? '—') ?> (<?= e(customer_type_label((string) ($o['customer_type'] ?? ''))) ?>)</td></tr>
+            <tr><th>موبایل</th><td><span dir="ltr"><?= e($o['customer_mobile'] ?? '') ?></span></td></tr>
+            <?php if (!empty($o['customer_company'])): ?><tr><th>شرکت</th><td><?= e($o['customer_company']) ?></td></tr><?php endif; ?>
+        </tbody></table>
+        <table>
+            <thead><tr><th style="width:38px">✓</th><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
+            <tbody>
+            <?php $rn = 0; foreach ($viewItems as $it): $rn++; ?>
+                <tr>
+                    <td style="font-size:18px">☐</td>
+                    <td><?= $rn ?></td>
+                    <td><?= e($it['product_name']) ?>
+                        <?php $oj = json_decode((string) ($it['options_json'] ?? ''), true); if (is_array($oj) && $oj !== []): ?>
+                            <br><small class="muted"><?php foreach ($oj as $osnap): ?><?= e($osnap['attr']) ?>: <?= e($osnap['option']) ?>؛ <?php endforeach; ?></small>
+                        <?php endif; ?>
+                        <?php if (!empty($it['note'])): ?>
+                            <br><small>توضیح: <?= e($it['note']) ?></small>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= (int) $it['qty'] ?></td>
+                    <td><?= (int) $it['wire_length_cm'] ?> سانت</td>
+                    <td><?= (int) $it['has_endcap'] === 1 ? 'دارد' : '—' ?></td>
+                    <td><?= e($it['note'] ?? '—') ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <p style="margin-top:14px"><strong>جمع تعداد:</strong> <?php $totalQty = 0; foreach ($viewItems as $it) { $totalQty += (int) $it['qty']; } echo $totalQty; ?> عدد</p>
+        <?php if (!empty($o['notes'])): ?>
+            <h3>توضیحات</h3><p><?= nl2br(e($o['notes'])) ?></p>
+        <?php endif; ?>
+        <p style="margin-top:14px">با امضای این رسید، تحویل کالاها با مشخصات بالا تایید می‌شود.</p>
+        <div class="sig-row"><div>امضای تحویل‌دهنده</div><div>امضای تحویل‌گیرنده</div></div>
     </div>
     <?php if ($print): ?>
     <script>window.addEventListener('load', function(){ window.print(); });</script>
