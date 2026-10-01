@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.2.2');
+define('APP_VERSION', '8.2.3');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -477,6 +477,9 @@ function init_db(PDO $pdo): void
     // --- فاز ۲٫۵ (نسخه ۷): سید مواد اولیه نمونه (فقط یک بار و فقط وقتی جدول مواد خالی است) ---
     seed_inventory_if_needed($pdo);
     seed_order_rules_if_needed($pdo);
+
+    // --- نسخه ۸٫۲٫۳: افزودن استایل تازه فرم ثبت سفارش به CSS دیتابیس (یک بار؛ نسخه قبلی آرشیو می‌شود) ---
+    seed_order_form_css_v823_if_needed($pdo);
 }
 
 /** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
@@ -2713,6 +2716,26 @@ function order_required_materials(array $orderLines): array
 }
 
 /** سید قواعد فاز ۳ — فقط یک بار (با پرچم تنظیمات)؛ هرگز داده کاربر بازنویسی نمی‌شود */
+/** نسخه ۸٫۲٫۳: افزودن استایل تازه فرم ثبت سفارش به CSS داخل دیتابیس (یک بار؛ CSS قبلی در بازبینی‌های طراحی آرشیو می‌شود) */
+function seed_order_form_css_v823_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('css_orderform_v823', '') === '1') {
+        return;
+    }
+    $cur = get_setting('site_css', '');
+    if (trim($cur) !== '' && strpos($cur, 'v8.2.3-order-form') === false) {
+        archive_design_revision($pdo, 'css', 'site_css', $cur, 'css-archive: CSS قبل از افزودن استایل تازه فرم ثبت سفارش (نسخه ۸٫۲٫۳) — برای بازگردانی از بخش «قالب و استایل» استفاده کنید.');
+        set_setting('site_css', rtrim($cur) . "\n\n" . trim(order_form_css()) . "\n");
+        set_setting('css_updated_at', date('Y-m-d H:i:s'));
+    }
+    set_setting('css_orderform_v823', '1');
+}
+
 function seed_order_rules_if_needed(PDO $pdo): void
 {
     if (get_setting('seeded_order_rules_v8', '') === '1') {
