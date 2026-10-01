@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.2.1');
+define('APP_VERSION', '8.2.2');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1431,7 +1431,7 @@ function contact_state(?array $set = null): array
  */
 function process_contact_form(): void
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
+    if (!defined('CMS_SESSION_STARTED')) {
         return;
     }
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || ($_POST['contact_form'] ?? '') !== '1') {
@@ -1466,7 +1466,7 @@ function process_contact_form(): void
 /** HTML داخلی فرم تماس (با پیام نتیجه) — به‌صورت پلیس‌هولدر خام {{contact_form}} در قالب نشست می‌کند */
 function contact_form_html(array $state): string
 {
-    if (session_status() === PHP_SESSION_ACTIVE) {
+    if (defined('CMS_SESSION_STARTED')) {
         if (empty($_SESSION['csrf'])) {
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
         }
@@ -1764,7 +1764,7 @@ function session_lifetime_seconds(): int
     return $h * 3600;
 }
 
-// نگهدارندهٔ نشست دیتابیسی و شروع نشست (نسخه ۸٫۲٫۱) در session_handler.php است.
+// نگهدارندهٔ نشست دیتابیسی و شروع نشست (نسخه ۸٫۲٫۲: نشست خودترمیم با کوکی امضاشده) در session_handler.php است.
 require_once __DIR__ . '/session_handler.php';
 
 /** آی‌پی واقعی بازدیدکننده (با احترام به هدر پراکسی هاست‌های اشتراکی). */
@@ -1815,8 +1815,8 @@ function track_public_request(): void
         $ua = substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 300);
         if (get_setting('log_skip_bots', '1') === '1' && ua_is_bot($ua)) { return; }
         $sessionKey = '';
-        if (session_status() === PHP_SESSION_ACTIVE && session_id() !== '') {
-            $sessionKey = substr(md5(session_id()), 0, 10);
+        if (defined('CMS_SESSION_STARTED') && ($GLOBALS['CMS_SID'] ?? '') !== '') {
+            $sessionKey = substr(md5((string) $GLOBALS['CMS_SID']), 0, 10);
         }
         if ($method === 'POST' && isset($_POST['track_click'])) {
             // بیکن کلیک: فقط از خود سایت قبول می‌شود
