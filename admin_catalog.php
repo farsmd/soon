@@ -512,7 +512,7 @@ function catalog_render_customers(array $d): void
                         </tbody>
                     </table>
                     <p>
-                        <a class="btn small" href="admin.php?page=customers&edit_id=<?= (int) $viewCustomer['id'] ?>">ویرایش مشتری</a>
+                        <a class="btn small edit" href="admin.php?page=customers&edit_id=<?= (int) $viewCustomer['id'] ?>">ویرایش مشتری</a>
                     </p>
                     <form method="post" class="inline" onsubmit="return confirm('این مشتری حذف شود؟')">
                         <?= csrf_field() ?>
@@ -564,7 +564,13 @@ function catalog_render_customers(array $d): void
                     <?php if ($customerSearch !== '' || $customerTypeFilter !== ''): ?><a class="btn" href="admin.php?page=customers">حذف فیلتر</a><?php endif; ?>
                 </form>
 
-                <h2><?= $editCustomer !== null ? 'ویرایش مشتری' : 'افزودن مشتری تازه' ?></h2>
+                <?php if ($editCustomer === null): ?>
+                <div class="crud-toolbar">
+                    <button type="button" class="btn add" data-toggle-panel="customer-form-panel" aria-expanded="false">+ افزودن مشتری</button>
+                </div>
+                <?php endif; ?>
+                <div class="crud-panel" id="customer-form-panel" <?= $editCustomer !== null ? 'data-open="1"' : 'hidden' ?>>
+                <h2><?= $editCustomer !== null ? 'ویرایش مشتری: ' . e($editCustomer['full_name'] ?? '') : 'افزودن مشتری تازه' ?></h2>
                 <form method="post" class="card wide">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="<?= $editCustomer !== null ? 'update_customer' : 'add_customer' ?>">
@@ -594,13 +600,14 @@ function catalog_render_customers(array $d): void
                     <label>یادداشت
                         <textarea name="notes" rows="2"><?= e($editCustomer['notes'] ?? '') ?></textarea>
                     </label>
-                    <button type="submit" class="btn primary"><?= $editCustomer !== null ? 'ذخیره تغییرات' : 'ثبت مشتری' ?></button>
+                    <button type="submit" class="btn <?= $editCustomer !== null ? 'edit' : 'add' ?>"><?= $editCustomer !== null ? 'ذخیره تغییرات' : 'ثبت مشتری' ?></button>
                     <?php if ($editCustomer !== null): ?><a class="btn" href="admin.php?page=customers">انصراف</a><?php endif; ?>
                 </form>
+                </div>
 
                 <h2>فهرست مشتری‌ها (<?= count($customersList) ?>)</h2>
                 <?php if ($customersList === []): ?>
-                    <div class="card wide"><p class="muted">هنوز مشتری‌ای ثبت نشده است. اولین مشتری را با فرم بالا اضافه کنید؛ بعداً سفارش‌ها به همین مشتری‌ها وصل می‌شوند.</p></div>
+                    <div class="card wide"><p class="muted">هنوز مشتری‌ای ثبت نشده است. اولین مشتری را با دکمه «+ افزودن مشتری» بسازید؛ بعداً سفارش‌ها به همین مشتری‌ها وصل می‌شوند.</p></div>
                 <?php else: ?>
                 <table>
                     <thead><tr><th>نام</th><th>شرکت</th><th>موبایل</th><th>نوع</th><th>شهر</th><th>عملیات</th></tr></thead>
@@ -614,7 +621,7 @@ function catalog_render_customers(array $d): void
                             <td><?= e($c['city'] ?? '—') ?></td>
                             <td class="actions">
                                 <a class="btn small" href="admin.php?page=customers&view=<?= (int) $c['id'] ?>">پروفایل</a>
-                                <a class="btn small" href="admin.php?page=customers&edit_id=<?= (int) $c['id'] ?>">ویرایش</a>
+                                <a class="btn small edit" href="admin.php?page=customers&edit_id=<?= (int) $c['id'] ?>">ویرایش</a>
                                 <form method="post" class="inline" onsubmit="return confirm('این مشتری حذف شود؟')">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="delete_customer">
@@ -639,7 +646,13 @@ function catalog_render_categories(array $d): void
     ?>            <h1>دسته‌بندی‌های محصولات</h1>
             <p class="muted">دسته‌ها می‌توانند زیردسته داشته باشند. دسته‌ای که محصول یا زیردسته دارد حذف نمی‌شود. پیش‌نمایش زنده کاتالوگ: <a href="products.php" target="_blank">products.php</a></p>
 
-            <h2><?= $editCategory !== null ? 'ویرایش دسته‌بندی' : 'دسته‌بندی تازه' ?></h2>
+            <?php if ($editCategory === null): ?>
+            <div class="crud-toolbar">
+                <button type="button" class="btn add" data-toggle-panel="category-form-panel" aria-expanded="false">+ افزودن دسته‌بندی</button>
+            </div>
+            <?php endif; ?>
+            <div class="crud-panel" id="category-form-panel" <?= $editCategory !== null ? 'data-open="1"' : 'hidden' ?>>
+            <h2><?= $editCategory !== null ? 'ویرایش دسته‌بندی: ' . e($editCategory['title'] ?? '') : 'دسته‌بندی تازه' ?></h2>
             <form method="post" enctype="multipart/form-data" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editCategory !== null ? 'update_category' : 'add_category' ?>">
@@ -676,9 +689,10 @@ function catalog_render_categories(array $d): void
                     <input type="checkbox" name="is_active" value="1" <?= ($editCategory['is_active'] ?? 1) ? 'checked' : '' ?>>
                     فعال (نمایش در کاتالوگ)
                 </label>
-                <button type="submit" class="btn primary"><?= $editCategory !== null ? 'ذخیره تغییرات' : 'ساخت دسته' ?></button>
+                <button type="submit" class="btn <?= $editCategory !== null ? 'edit' : 'add' ?>"><?= $editCategory !== null ? 'ذخیره تغییرات' : 'ساخت دسته' ?></button>
                 <?php if ($editCategory !== null): ?><a class="btn" href="admin.php?page=categories">انصراف</a><?php endif; ?>
             </form>
+            </div>
 
             <h2>فهرست دسته‌ها (<?= count($categoriesList) ?>)</h2>
             <?php if ($categoriesList === []): ?>
@@ -702,20 +716,20 @@ function catalog_render_categories(array $d): void
                                 <input type="hidden" name="action" value="move_category">
                                 <input type="hidden" name="id" value="<?= (int) $cc['id'] ?>">
                                 <input type="hidden" name="direction" value="up">
-                                <button type="submit" class="btn small">↑</button>
+                                <button type="submit" class="btn small">↑ بالا</button>
                             </form>
                             <form method="post" class="inline">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="move_category">
                                 <input type="hidden" name="id" value="<?= (int) $cc['id'] ?>">
                                 <input type="hidden" name="direction" value="down">
-                                <button type="submit" class="btn small">↓</button>
+                                <button type="submit" class="btn small">↓ پایین</button>
                             </form>
                             <?= (int) $cc['sort_order'] ?>
                         </td>
                         <td><?= $cc['is_active'] ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
-                            <a class="btn small" href="admin.php?page=categories&edit_id=<?= (int) $cc['id'] ?>">ویرایش</a>
+                            <a class="btn small edit" href="admin.php?page=categories&edit_id=<?= (int) $cc['id'] ?>">ویرایش</a>
                             <form method="post" class="inline" onsubmit="return confirm('این دسته حذف شود؟ (اگر محصول یا زیردسته داشته باشد حذف نمی‌شود)')">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete_category">
@@ -739,7 +753,13 @@ function catalog_render_products(array $d): void
     ?>            <h1>محصولات</h1>
             <p class="muted">قیمت‌ها «متری» و به تومان هستند. آپشن‌ها (مثل سنسور) از بخش «ویژگی‌های محصول» تعریف می‌شوند و به قیمت متری اضافه می‌شوند. پیش‌نمایش زنده: <a href="products.php" target="_blank">کاتالوگ عمومی</a></p>
 
-            <h2><?= $editProduct !== null ? 'ویرایش محصول' : 'محصول تازه' ?></h2>
+            <?php if ($editProduct === null): ?>
+            <div class="crud-toolbar">
+                <button type="button" class="btn add" data-toggle-panel="product-form-panel" aria-expanded="false">+ افزودن محصول</button>
+            </div>
+            <?php endif; ?>
+            <div class="crud-panel" id="product-form-panel" <?= $editProduct !== null ? 'data-open="1"' : 'hidden' ?>>
+            <h2><?= $editProduct !== null ? 'ویرایش محصول: ' . e($editProduct['name'] ?? '') : 'محصول تازه' ?></h2>
             <form method="post" enctype="multipart/form-data" class="card wide" id="product-form">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editProduct !== null ? 'update_product' : 'add_product' ?>">
@@ -936,9 +956,10 @@ function catalog_render_products(array $d): void
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
-                <button type="submit" class="btn primary"><?= $editProduct !== null ? 'ذخیره تغییرات' : 'ثبت محصول' ?></button>
+                <button type="submit" class="btn <?= $editProduct !== null ? 'edit' : 'add' ?>"><?= $editProduct !== null ? 'ذخیره تغییرات' : 'ثبت محصول' ?></button>
                 <?php if ($editProduct !== null): ?><a class="btn" href="admin.php?page=products">انصراف</a><?php endif; ?>
             </form>
+            </div>
             <script>
             (function(){
                 var discount = <?= json_encode(partner_discount_percent()) ?>;
@@ -977,7 +998,7 @@ function catalog_render_products(array $d): void
 
             <h2>فهرست محصولات (<?= count($productsList) ?>)</h2>
             <?php if ($productsList === []): ?>
-                <div class="card wide"><p class="muted">هنوز محصولی ثبت نشده است. اولین محصول را با فرم بالا بسازید تا در کاتالوگ عمومی سایت نمایش داده شود.</p></div>
+                <div class="card wide"><p class="muted">هنوز محصولی ثبت نشده است. اولین محصول را با دکمه «+ افزودن محصول» بسازید تا در کاتالوگ عمومی سایت نمایش داده شود.</p></div>
             <?php else: ?>
             <table>
                 <thead><tr><th>نام محصول</th><th>دسته</th><th>قیمت متری مشتری</th><th>قیمت متری همکار</th><th>بهای مواد (هر متر)</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
@@ -995,21 +1016,21 @@ function catalog_render_products(array $d): void
                                 <input type="hidden" name="action" value="move_product">
                                 <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
                                 <input type="hidden" name="direction" value="up">
-                                <button type="submit" class="btn small">↑</button>
+                                <button type="submit" class="btn small">↑ بالا</button>
                             </form>
                             <form method="post" class="inline">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="move_product">
                                 <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
                                 <input type="hidden" name="direction" value="down">
-                                <button type="submit" class="btn small">↓</button>
+                                <button type="submit" class="btn small">↓ پایین</button>
                             </form>
                             <?= (int) $p['sort_order'] ?>
                         </td>
                         <td><?= $p['is_active'] ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
                             <a class="btn small" href="products.php?id=<?= (int) $p['id'] ?>" target="_blank">مشاهده</a>
-                            <a class="btn small" href="admin.php?page=products&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
+                            <a class="btn small edit" href="admin.php?page=products&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
                             <form method="post" class="inline" onsubmit="return confirm('این محصول حذف شود؟')">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete_product">
@@ -1033,7 +1054,13 @@ function catalog_render_attributes(array $d): void
     ?>            <h1>ویژگی‌های محصول</h1>
             <p class="muted">ویژگی‌ها روی همه محصولات قابل استفاده‌اند؛ مثلاً «رنگ نور» یا «سنسور». برای ویژگی‌های انتخابی، هر گزینه می‌تواند مبلغی به قیمت متری اضافه یا از آن کم کند (آپشن پولی/رایگان).</p>
 
-            <h2><?= $editAttribute !== null ? 'ویرایش ویژگی' : 'ویژگی تازه' ?></h2>
+            <?php if ($editAttribute === null): ?>
+            <div class="crud-toolbar">
+                <button type="button" class="btn add" data-toggle-panel="attribute-form-panel" aria-expanded="false">+ افزودن ویژگی</button>
+            </div>
+            <?php endif; ?>
+            <div class="crud-panel" id="attribute-form-panel" <?= $editAttribute !== null ? 'data-open="1"' : 'hidden' ?>>
+            <h2><?= $editAttribute !== null ? 'ویرایش ویژگی: ' . e($editAttribute['title'] ?? '') : 'ویژگی تازه' ?></h2>
             <form method="post" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="<?= $editAttribute !== null ? 'update_attribute' : 'add_attribute' ?>">
@@ -1061,9 +1088,10 @@ function catalog_render_attributes(array $d): void
                     <input type="checkbox" name="is_active" value="1" <?= ($editAttribute['is_active'] ?? 1) ? 'checked' : '' ?>>
                     فعال
                 </label>
-                <button type="submit" class="btn primary"><?= $editAttribute !== null ? 'ذخیره تغییرات' : 'ساخت ویژگی' ?></button>
+                <button type="submit" class="btn <?= $editAttribute !== null ? 'edit' : 'add' ?>"><?= $editAttribute !== null ? 'ذخیره تغییرات' : 'ساخت ویژگی' ?></button>
                 <?php if ($editAttribute !== null): ?><a class="btn" href="admin.php?page=attributes">ویژگی تازه</a><?php endif; ?>
             </form>
+            </div>
 
             <?php if ($editAttribute !== null && $editAttribute['input_type'] === 'select'): ?>
                 <h2>گزینه‌های «<?= e($editAttribute['title']) ?>»</h2>
@@ -1082,7 +1110,7 @@ function catalog_render_attributes(array $d): void
                     <label>ترتیب
                         <input type="number" name="sort_order" value="<?= (int) ($editOption['sort_order'] ?? 0) ?>">
                     </label>
-                    <button type="submit" class="btn primary"><?= $editOption !== null ? 'ذخیره گزینه' : 'افزودن گزینه' ?></button>
+                    <button type="submit" class="btn <?= $editOption !== null ? 'edit' : 'add' ?>"><?= $editOption !== null ? 'ذخیره گزینه' : 'افزودن گزینه' ?></button>
                     <?php if ($editOption !== null): ?><a class="btn" href="admin.php?page=attributes&edit_id=<?= (int) $editAttribute['id'] ?>">انصراف</a><?php endif; ?>
                 </form>
                 <?php if ($editAttributeOptions === []): ?>
@@ -1102,7 +1130,7 @@ function catalog_render_attributes(array $d): void
                                     <input type="hidden" name="id" value="<?= (int) $opt['id'] ?>">
                                     <input type="hidden" name="attribute_id" value="<?= (int) $editAttribute['id'] ?>">
                                     <input type="hidden" name="direction" value="up">
-                                    <button type="submit" class="btn small">↑</button>
+                                    <button type="submit" class="btn small">↑ بالا</button>
                                 </form>
                                 <form method="post" class="inline">
                                     <?= csrf_field() ?>
@@ -1110,12 +1138,12 @@ function catalog_render_attributes(array $d): void
                                     <input type="hidden" name="id" value="<?= (int) $opt['id'] ?>">
                                     <input type="hidden" name="attribute_id" value="<?= (int) $editAttribute['id'] ?>">
                                     <input type="hidden" name="direction" value="down">
-                                    <button type="submit" class="btn small">↓</button>
+                                    <button type="submit" class="btn small">↓ پایین</button>
                                 </form>
                                 <?= (int) $opt['sort_order'] ?>
                             </td>
                             <td class="actions">
-                                <a class="btn small" href="admin.php?page=attributes&edit_id=<?= (int) $editAttribute['id'] ?>&edit_option=<?= (int) $opt['id'] ?>">ویرایش</a>
+                                <a class="btn small edit" href="admin.php?page=attributes&edit_id=<?= (int) $editAttribute['id'] ?>&edit_option=<?= (int) $opt['id'] ?>">ویرایش</a>
                                 <form method="post" class="inline" onsubmit="return confirm('این گزینه حذف شود؟')">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="delete_option">
@@ -1152,20 +1180,20 @@ function catalog_render_attributes(array $d): void
                                 <input type="hidden" name="action" value="move_attribute">
                                 <input type="hidden" name="id" value="<?= (int) $attr['id'] ?>">
                                 <input type="hidden" name="direction" value="up">
-                                <button type="submit" class="btn small">↑</button>
+                                <button type="submit" class="btn small">↑ بالا</button>
                             </form>
                             <form method="post" class="inline">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="move_attribute">
                                 <input type="hidden" name="id" value="<?= (int) $attr['id'] ?>">
                                 <input type="hidden" name="direction" value="down">
-                                <button type="submit" class="btn small">↓</button>
+                                <button type="submit" class="btn small">↓ پایین</button>
                             </form>
                             <?= (int) $attr['sort_order'] ?>
                         </td>
                         <td><?= $attr['is_active'] ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
-                            <a class="btn small" href="admin.php?page=attributes&edit_id=<?= (int) $attr['id'] ?>">ویرایش<?= $attr['input_type'] === 'select' ? ' و گزینه‌ها' : '' ?></a>
+                            <a class="btn small edit" href="admin.php?page=attributes&edit_id=<?= (int) $attr['id'] ?>">ویرایش<?= $attr['input_type'] === 'select' ? ' و گزینه‌ها' : '' ?></a>
                             <form method="post" class="inline" onsubmit="return confirm('این ویژگی با همه گزینه‌ها و مقادیرش از محصولات حذف شود؟')">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete_attribute">
