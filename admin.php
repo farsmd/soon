@@ -81,12 +81,8 @@ function flash(string $type, string $message): void
 
 function logout_admin(): void
 {
-    $_SESSION = [];
-    if (ini_get('session.use_cookies')) {
-        $p = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'] ?? '', (bool) ($p['secure'] ?? false), true);
-    }
-    session_destroy();
+    // نشست خودترمیم دیتابیسی (نسخه ۸٫۲٫۲): ردیف نشست حذف و کوکی از مرورگر پاک می‌شود
+    cms_session_destroy_current();
 }
 
 /** آیکون SVG منوی کناری پنل. */
@@ -140,7 +136,7 @@ if ($passwordHash === '') {
             $error = 'تکرار پسورد با پسورد یکسان نیست.';
         } else {
             set_setting('admin_password_hash', password_hash($pw, PASSWORD_DEFAULT));
-            session_regenerate_id(true);
+            cms_regenerate_session_id();
             $_SESSION['admin_logged_in'] = true;
             log_admin_event('setup', 'ساخت پسورد اولیه و ورود');
             redirect_admin();
@@ -185,7 +181,7 @@ if (!is_logged_in()) {
         check_csrf();
         $pw = (string) ($_POST['password'] ?? '');
         if (password_verify($pw, $passwordHash)) {
-            session_regenerate_id(true);
+            cms_regenerate_session_id();
             $_SESSION['admin_logged_in'] = true;
             log_admin_event('login', 'ورود موفق به پنل');
             redirect_admin();
@@ -518,7 +514,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // بعد از بازیابی، خروج اجباری تا با دیتابیس جدید وارد شوید
                 logout_admin();
                 // سشن تازه برای پیام
-                session_start();
+                cms_session_start();
                 flash('ok', 'بکاپ بازیابی شد. نسخه قبلی دیتابیس با نام database-backup-before-restore.sqlite نگه داشته شد. دوباره وارد شوید.');
                 redirect_admin();
                 // no break
@@ -540,7 +536,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException((string) $switch['error']);
                 }
                 logout_admin();
-                session_start();
+                cms_session_start();
                 flash('ok', 'دیتابیس تغییر کرد. نسخه قبلی با نام database-backup-before-switch.sqlite نگه داشته شد. با پسورد دیتابیس جدید دوباره وارد شوید.');
                 redirect_admin();
                 // no break
@@ -570,7 +566,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException((string) $switch['error']);
                 }
                 logout_admin();
-                session_start();
+                cms_session_start();
                 flash('ok', 'دیتابیس آپلودی فعال شد. نسخه قبلی با نام database-backup-before-switch.sqlite نگه داشته شد. با پسورد دیتابیس جدید دوباره وارد شوید.');
                 redirect_admin();
                 // no break
