@@ -1,6 +1,6 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۶
-// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی ، مشتری‌ها و کاتالوگ محصول (فاز ۲) و تنظیمات
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۷
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی ، مشتری‌ها و کاتالوگ محصول (فاز ۲)، مواد اولیه و انبار (فاز ۲٫۵) و تنظیمات
 
 declare(strict_types=1);
 
@@ -9,6 +9,8 @@ require __DIR__ . '/config.php';
 // صفحات و اکشن‌های کاتالوگ فاز ۲ در فایل جدا هستند تا admin.php برای آپدیت گیت‌هاب کوچک بماند
 define('CMS_ADMIN_PANEL', true);
 require_once __DIR__ . '/admin_catalog.php';
+// صفحات و اکشن‌های انبار و مواد اولیه فاز ۲٫۵ (نسخه ۷) هم در فایل جدا هستند
+require_once __DIR__ . '/admin_inventory.php';
 
 // ---------- سشن امن نسبی ----------
 session_set_cookie_params([
@@ -85,6 +87,8 @@ function nav_icon(string $name): string
         'database'  => '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
         'archive'   => '<path d="M3 3h18v5H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>',
         'refresh'   => '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
+        'box'       => '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+        'swap'      => '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -209,6 +213,8 @@ $pageTitles = [
     'categories' => 'دسته‌بندی‌های محصولات',
     'products'   => 'محصولات',
     'attributes' => 'ویژگی‌های محصول',
+    'materials'  => 'مواد اولیه و انبار',
+    'stock'      => 'گردش انبار',
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
@@ -233,6 +239,10 @@ $navGroups = [
         ['admin.php?page=categories', 'folder', 'دسته‌بندی‌ها', 'categories'],
         ['admin.php?page=products', 'bag', 'محصولات', 'products'],
         ['admin.php?page=attributes', 'list', 'ویژگی‌های محصول', 'attributes'],
+    ]],
+    'inventory' => ['انبار', [
+        ['admin.php?page=materials', 'box', 'مواد اولیه', 'materials'],
+        ['admin.php?page=stock', 'swap', 'گردش انبار', 'stock'],
     ]],
     'system' => ['سیستم', [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
@@ -276,6 +286,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۲ (مشتری‌ها و کاتالوگ) در admin_catalog.php پردازش می‌شوند
         if (in_array($action, catalog_post_actions(), true)) {
             catalog_handle_post($action);
+        }
+        // اکشن‌های فاز ۲٫۵ (مواد اولیه و انبار) در admin_inventory.php پردازش می‌شوند
+        if (in_array($action, inventory_post_actions(), true)) {
+            inventory_handle_post($action);
         }
         switch ($action) {
             case 'add_section':
@@ -740,6 +754,10 @@ if ($page === 'pages' && isset($_GET['edit_id'])) {
 $catalogData = catalog_load_data($page);
 extract($catalogData);
 
+// ---------- داده‌های فاز ۲٫۵ (مواد اولیه و انبار) — بارگذاری در admin_inventory.php ----------
+$inventoryData = inventory_load_data($page);
+extract($inventoryData);
+
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
 $dashCounts = ['customers' => 0, 'products' => 0];
 if ($page === 'dashboard') {
@@ -824,7 +842,7 @@ if ($page === 'design') {
         <details class="nav-group" data-group="<?= $gKey ?>"<?= $activeNavGroup === $gKey ? ' open' : '' ?>>
             <summary><?= e($gData[0]) ?></summary>
             <?php foreach ($gData[1] as $it): ?>
-            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
+            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
             <?php endforeach; ?>
         </details>
         <?php endforeach; ?>
@@ -845,7 +863,19 @@ if ($page === 'design') {
                 <a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong><?= (int) $dashCounts['products'] ?></strong></a>
                 <a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong><?= count($messages) ?></strong></a>
                 <a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr"><?= e(APP_VERSION) ?></strong></a>
+                <?php if ($lowStockCount > 0): ?>
+                <a class="stat-card" href="admin.php?page=materials" style="border-color:#dc2626;background:#fef2f2"><span style="color:#b91c1c">⚠ مواد رو به اتمام</span><strong style="color:#b91c1c"><?= $lowStockCount ?> ماده</strong></a>
+                <?php endif; ?>
             </div>
+            <?php if ($lowStockCount > 0): ?>
+            <div class="alert error">
+                موجودی این مواد به حد هشدار رسیده است:
+                <?php foreach ($lowStockList as $lm): ?>
+                    <strong><?= e($lm['name']) ?></strong> (<?= e(format_qty((float) $lm['stock_qty'])) ?> <?= e($lm['unit']) ?>)
+                <?php endforeach; ?>
+                — <a href="admin.php?page=materials">رفتن به انبار</a>
+            </div>
+            <?php endif; ?>
 
         <?php elseif ($page === 'sections'): ?>
             <h1>بخش‌های صفحه اصلی</h1>
@@ -1253,6 +1283,12 @@ if ($page === 'design') {
 
         <?php elseif ($page === 'attributes'): ?>
             <?php catalog_render_attributes($catalogData); ?>
+
+        <?php elseif ($page === 'materials'): ?>
+            <?php inventory_render_materials($inventoryData); ?>
+
+        <?php elseif ($page === 'stock'): ?>
+            <?php inventory_render_stock($inventoryData); ?>
         <?php elseif ($page === 'tools'): ?>
             <h1>ابزار و بکاپ</h1>
 
