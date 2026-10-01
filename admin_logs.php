@@ -256,12 +256,12 @@ function logs_render(?array $d): void
         <?php if ($d['tab'] === 'visits'): ?>
         <form method="post" class="inline" onsubmit="return confirm('همه لاگ بازدید پاک شود؟')" style="float:left">
             <?= csrf_field() ?><input type="hidden" name="action" value="clear_visit_logs">
-            <button type="submit" class="danger">پاک‌کردن لاگ بازدید</button>
+            <button type="submit" class="btn danger-btn">پاک‌کردن لاگ بازدید</button>
         </form>
         <?php else: ?>
         <form method="post" class="inline" onsubmit="return confirm('همه لاگ مدیریت پاک شود؟')" style="float:left">
             <?= csrf_field() ?><input type="hidden" name="action" value="clear_admin_logs">
-            <button type="submit" class="danger">پاک‌کردن لاگ مدیریت</button>
+            <button type="submit" class="btn danger-btn">پاک‌کردن لاگ مدیریت</button>
         </form>
         <?php endif; ?>
         <div style="clear:both"></div>
