@@ -330,7 +330,8 @@ button{font-family:inherit}
     .container{max-width:100%}
 }
 CSS
-    . "\n" . catalog_css_block();
+    . "\n" . catalog_css_block()
+    . "\n" . order_form_css();
 }
 
 /** CSS کاتالوگ محصولات: در نصب تازه داخل CSS پیش‌فرض است و در مهاجرت فقط اگر نشانگر نباشد، یک بار به site_css افزوده می‌شود */
@@ -380,18 +381,8 @@ function catalog_css_block(): string
 @media print{
     .catalog-nav,.estimator{display:none!important}
 }
-/* === ثبت سفارش سایت (فاز ۳ / نسخه ۸) === */
-.site-order{margin-top:26px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:18px}
-.site-order h2{margin-top:0;font-size:20px}
-.site-order .field{margin-bottom:12px}
-.site-order label{display:block;margin-bottom:5px;font-size:14px;font-weight:600}
-.site-order input,.site-order select,.site-order textarea{width:100%;padding:11px 12px;min-height:44px;border:1px solid var(--input-border);border-radius:var(--radius);background:var(--input-bg);color:var(--text);font:inherit;font-size:16px}
-.site-order textarea{min-height:88px}
-.site-order .check{display:flex;align-items:center;gap:8px;font-weight:400}
-.site-order .check input{width:auto;min-height:0}
+/* استایل فرم ثبت سفارش از order_form_css() می‌آید (در ادامه همین فایل) */
 .hp-field{position:absolute!important;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
-.so-estimate{margin:14px 0;font-size:16px}
-.so-estimate strong{color:var(--primary);font-size:19px}
 @media print{
     .site-order{display:none!important}
 }
@@ -561,7 +552,9 @@ function site_order_state(?array $set = null): array
 /**
  * پردازش ثبت سفارش از صفحه محصول — قبل از هر خروجی و بعد از شروع سشن صدا زده شود.
  * CSRF سشنی + honeypot + محدودیت نرخ (حداکثر ۵ سفارش در ساعت و حداقل ۳۰ ثانیه فاصله).
- * مشتری با موبایل تازه ساخته می‌شود (نوع «مشتری»)؛ سفارش با منبع site و وضعیت «جدید».
+ * مشتری با موبایل تازه ساخته می‌شود (نوع خرده)؛ سفارش با منبع site و وضعیت «جدید».
+ * ورودی ردیف‌ها: so_lines[i][product_id/length_cm/qty/wire_cm/options/endcap/note]؛
+ * برای سازگاری، فیلدهای تکی قدیمی (product_id, so_length_cm, ...) هم به‌عنوان یک ردیف پذیرفته می‌شوند.
  */
 function process_site_order(): void
 {
@@ -587,36 +580,34 @@ function process_site_order(): void
 
     $name   = trim((string) ($_POST['so_name'] ?? ''));
     $mobile = preg_replace('/\D+/', '', (string) ($_POST['so_mobile'] ?? ''));
-    $pid    = (int) ($_POST['product_id'] ?? 0);
-    $lenCm  = round((float) ($_POST['so_length_cm'] ?? 0), 1);
-    $qty    = max(1, (int) ($_POST['so_qty'] ?? 1));
-    $note   = trim((string) ($_POST['so_note'] ?? ''));
-    $product = $pid > 0 ? get_product($pid) : null;
+    $orderNote = trim((string) ($_POST['so_order_note'] ?? ''));
 
-    if (!$tokenOk) {
-        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'درخواست نامعتبر است؛ صفحه را تازه کنید.']);
-    } elseif (!$honeyOk || !$rateOk) {
-        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'ارسال انجام نشد؛ کمی صبر کنید و دوباره تلاش کنید.']);
-    } elseif ($name === '' || strlen($mobile) < 10) {
-        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'نام و شماره موبایل معتبر را وارد کنید.']);
-    } elseif ($product === null || (int) ($product['is_active'] ?? 0) !== 1) {
-        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'محصول انتخابی معتبر نیست.']);
-    } elseif ($lenCm <= 0) {
-        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول چراغ را وارد کنید.']);
-    } else {
-        $wire = (float) ($_POST['so_wire_cm'] ?? order_setting('wire_default_cm', 20));
-        $step = (int) order_setting('wire_step_cm', 5);
-        if ($wire < 0 || ($step > 0 && abs($wire / $step - round($wire / $step)) > 0.0001)) {
-            site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول سیم باید مضربی از ' . $step . ' سانت باشد.']);
-            return;
+    $step = max(1, (int) order_setting('wire_step_cm', 5));
+    $wireMax = (int) order_setting('wire_max_cm', 100);
+    $wireDef = (float) order_setting('wire_default_cm', 20);
+    $lineNoteOn = order_setting('order_line_note', '1') === '1';
+
+    // یک ردیف را از روی آرایه ورودی اعتبارسنجی و نرمال می‌کند؛ [ردیف|null, پیام خطا]
+    $parseLine = function (array $src) use ($step, $wireMax, $wireDef, $lineNoteOn): array {
+        $pid = (int) ($src['product_id'] ?? 0);
+        $lenCm = round((float) ($src['length_cm'] ?? 0), 1);
+        $qty = max(1, (int) ($src['qty'] ?? 1));
+        if ($pid <= 0 || $lenCm <= 0) {
+            return [null, '']; // ردیف خالی → نادیده گرفته می‌شود
         }
-        $wireMax = (int) order_setting('wire_max_cm', 100);
+        $product = get_product($pid);
+        if ($product === null || (int) ($product['is_active'] ?? 0) !== 1) {
+            return [null, 'محصول انتخابی معتبر نیست.'];
+        }
+        $wire = (isset($src['wire_cm']) && $src['wire_cm'] !== '') ? (float) $src['wire_cm'] : $wireDef;
+        if ($wire < 0 || ($step > 0 && abs($wire / $step - round($wire / $step)) > 0.0001)) {
+            return [null, 'طول سیم باید مضربی از ' . $step . ' سانت باشد.'];
+        }
         if ($wire > $wireMax) {
-            site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول سیم نمی‌تواند بیشتر از ' . $wireMax . ' سانت باشد.']);
-            return;
+            return [null, 'طول سیم نمی‌تواند بیشتر از ' . $wireMax . ' سانت باشد.'];
         }
         $opts = [];
-        $rawOpts = $_POST['so_options'] ?? [];
+        $rawOpts = $src['options'] ?? [];
         if (is_array($rawOpts)) {
             foreach ($rawOpts as $aidRaw => $oidRaw) {
                 $oid = (int) $oidRaw;
@@ -625,6 +616,64 @@ function process_site_order(): void
                 }
             }
         }
+        $note = trim((string) ($src['note'] ?? ''));
+        return [[
+            'product_id' => $pid,
+            'length_cm' => $lenCm,
+            'qty' => $qty,
+            'wire_length_cm' => $wire,
+            'has_endcap' => !empty($src['endcap']),
+            'options' => $opts,
+            'note' => ($lineNoteOn && $note !== '') ? mb_substr($note, 0, 500) : '',
+        ], ''];
+    };
+
+    $lines = [];
+    $lineErr = '';
+    $rawLines = $_POST['so_lines'] ?? null;
+    if (is_array($rawLines)) {
+        foreach ($rawLines as $rl) {
+            if (!is_array($rl)) {
+                continue;
+            }
+            [$ln, $e] = $parseLine($rl);
+            if ($e !== '') {
+                $lineErr = $e;
+                break;
+            }
+            if ($ln !== null) {
+                $lines[] = $ln;
+            }
+        }
+    } else {
+        // مسیر قدیمی تک‌ردیفه (سازگاری با فرم‌های کش‌شده و ارسال‌های دستی)
+        [$ln, $e] = $parseLine([
+            'product_id' => $_POST['product_id'] ?? 0,
+            'length_cm' => $_POST['so_length_cm'] ?? 0,
+            'qty' => $_POST['so_qty'] ?? 1,
+            'wire_cm' => $_POST['so_wire_cm'] ?? '',
+            'options' => $_POST['so_options'] ?? [],
+            'endcap' => $_POST['so_endcap'] ?? '',
+            'note' => $_POST['so_note'] ?? '',
+        ]);
+        if ($e !== '') {
+            $lineErr = $e;
+        } elseif ($ln !== null) {
+            $lines[] = $ln;
+        }
+    }
+
+    if (!$tokenOk) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'درخواست نامعتبر است؛ صفحه را تازه کنید.']);
+    } elseif (!$honeyOk || !$rateOk) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'ارسال انجام نشد؛ کمی صبر کنید و دوباره تلاش کنید.']);
+    } elseif ($name === '' || strlen($mobile) < 10) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'نام و شماره موبایل معتبر را وارد کنید.']);
+    } elseif ($lineErr !== '') {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => $lineErr]);
+    } elseif ($lines === []) {
+        site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'حداقل یک چراغ با طول معتبر وارد کنید.']);
+    } else {
         $pdo = db();
         $pdo->beginTransaction();
         try {
@@ -636,18 +685,15 @@ function process_site_order(): void
                     ->execute([':n' => $name, ':m' => $mobile, ':t' => 'retail']);
                 $customer = get_customer((int) $pdo->lastInsertId());
             }
-            $lines = [[
-                'product_id' => $pid,
-                'length_cm' => $lenCm,
-                'qty' => $qty,
-                'wire_length_cm' => $wire,
-                'has_endcap' => !empty($_POST['so_endcap']),
-                'options' => $opts,
-            ]];
             $tot = compute_order_totals($lines, false);
-            $tl = $tot['lines'][0];
             $orderNo = (int) order_setting('next_order_no', 1001);
-            $prepDays = max((int) order_setting('default_prep_days', 3), (int) ($product['prep_days'] ?? 0));
+            $prepDays = (int) order_setting('default_prep_days', 3);
+            foreach ($lines as $ln) {
+                $pp = get_product((int) $ln['product_id']);
+                if ($pp !== null) {
+                    $prepDays = max($prepDays, (int) ($pp['prep_days'] ?? 0));
+                }
+            }
             $pdo->prepare('INSERT INTO orders (order_no, customer_id, customer_type, source, status, subtotal, discount_percent, discount_amount, total, total_meters, total_fixtures, prep_days, notes, created_by)
                 VALUES (:no, :cid, :ct, :src, :st, :sub, :dp, :da, :tot, :m, :f, :prep, :notes, :by)')
                 ->execute([
@@ -655,29 +701,38 @@ function process_site_order(): void
                     ':src' => 'site', ':st' => 'new',
                     ':sub' => $tot['subtotal'], ':dp' => $tot['discount_percent'], ':da' => $tot['discount_amount'],
                     ':tot' => $tot['total'], ':m' => $tot['total_meters'], ':f' => $tot['total_fixtures'],
-                    ':prep' => $prepDays, ':notes' => $note !== '' ? ('ثبت از سایت: ' . $note) : 'ثبت از سایت',
+                    ':prep' => $prepDays,
+                    ':notes' => $orderNote !== '' ? ('ثبت از سایت: ' . mb_substr($orderNote, 0, 500)) : 'ثبت از سایت',
                     ':by' => 'site',
                 ]);
             $oid = (int) $pdo->lastInsertId();
-            $optSnap = [];
-            foreach ($opts as $aid => $opid) {
-                $a = get_attribute((int) $aid);
-                $oo = get_attribute_option((int) $opid);
-                if ($a !== null && $oo !== null) {
-                    $optSnap[] = ['attr' => (string) $a['title'], 'option' => (string) $oo['title'], 'delta' => (float) ($oo['price_delta_per_meter'] ?? 0)];
+            $sort = 10;
+            foreach ($tot['lines'] as $idx => $tl) {
+                $ln = $lines[$idx] ?? null;
+                if ($ln === null) {
+                    continue;
                 }
+                $optSnap = [];
+                foreach ((array) ($ln['options'] ?? []) as $aid => $opid) {
+                    $a = get_attribute((int) $aid);
+                    $oo = get_attribute_option((int) $opid);
+                    if ($a !== null && $oo !== null) {
+                        $optSnap[] = ['attr' => (string) $a['title'], 'option' => (string) $oo['title'], 'delta' => (float) ($oo['price_delta_per_meter'] ?? 0)];
+                    }
+                }
+                $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, line_subtotal, line_total, sort_order)
+                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :ls, :lt, :so)')
+                    ->execute([
+                        ':o' => $oid, ':p' => (int) $tl['product_id'], ':pn' => (string) ($tl['product_id'] ? (string) (get_product((int) $tl['product_id'])['name'] ?? '') : ''),
+                        ':len' => $tl['length_cm'], ':q' => $tl['qty'], ':bm' => $tl['billable_m'],
+                        ':up' => $tl['unit_price_per_m'], ':oj' => $optSnap === [] ? null : json_encode($optSnap, JSON_UNESCAPED_UNICODE),
+                        ':oe' => $tl['options_extra_per_m'], ':w' => $tl['wire_length_cm'], ':ws' => $tl['wire_steps'],
+                        ':we' => $tl['wire_extra_total'], ':ec' => !empty($ln['has_endcap']) ? 1 : 0,
+                        ':note' => ($ln['note'] !== '' ? $ln['note'] : null),
+                        ':ls' => $tl['line_subtotal'], ':lt' => $tl['line_total'], ':so' => $sort,
+                    ]);
+                $sort += 10;
             }
-            $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, line_subtotal, line_total, sort_order)
-                VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :ls, :lt, 10)')
-                ->execute([
-                    ':o' => $oid, ':p' => $pid, ':pn' => (string) $product['name'],
-                    ':len' => $lenCm, ':q' => $qty, ':bm' => $tl['billable_m'],
-                    ':up' => $tl['unit_price_per_m'], ':oj' => $optSnap === [] ? null : json_encode($optSnap, JSON_UNESCAPED_UNICODE),
-                    ':oe' => $tl['options_extra_per_m'], ':w' => $wire, ':ws' => $tl['wire_steps'],
-                    ':we' => $tl['wire_extra_total'], ':ec' => !empty($_POST['so_endcap']) ? 1 : 0,
-                    ':note' => (order_setting('order_line_note', '1') === '1' && $note !== '') ? mb_substr($note, 0, 500) : null,
-                    ':ls' => $tl['line_subtotal'], ':lt' => $tl['line_total'],
-                ]);
             $pdo->prepare("INSERT INTO order_status_history (order_id, from_status, to_status, note) VALUES (:o, NULL, 'new', :n)")
                 ->execute([':o' => $oid, ':n' => 'ثبت سفارش از سایت']);
             set_setting('next_order_no', (string) ($orderNo + 1));
@@ -689,14 +744,93 @@ function process_site_order(): void
         }
         $times[] = time();
         $_SESSION['site_order_times'] = array_values($times);
-        site_order_state(['submitted' => true, 'ok' => true, 'msg' => 'سفارش شما با شماره ' . $orderNo . ' ثبت شد (' . format_price($tot['total']) . ' تومان). به‌زودی با شما تماس می‌گیریم.', 'err' => '']);
+        site_order_state(['submitted' => true, 'ok' => true, 'msg' => 'سفارش شما با شماره ' . $orderNo . ' ثبت شد (' . format_price($tot['total']) . ' تومان، ' . $tot['total_fixtures'] . ' چراغ). به‌زودی با شما تماس می‌گیریم.', 'err' => '']);
     }
 }
 
-/** فرم «ثبت سفارش» زیر صفحه محصول (فقط وقتی orders_public=1) */
+/** استایل فرم ثبت سفارش — منبع واحد؛ هم در CSS پیش‌فرض می‌نشیند هم مهاجرت ۸٫۲٫۳ آن را به CSS دیتابیس اضافه می‌کند */
+function order_form_css(): string
+{
+    return <<<'CSS'
+/* ===== فرم ثبت سفارش (بازطراحی نسخه ۸٫۲٫۳) ===== v8.2.3-order-form */
+.site-order{margin:26px 0 120px;background:var(--surface);border:1px solid var(--surface-border);border-radius:calc(var(--radius) + 6px);padding:20px;box-shadow:0 8px 28px rgba(15,23,42,.07)}
+.site-order h2{margin:0;font-size:21px;line-height:1.5}
+.site-order .alert{max-width:none;margin:0 0 16px}
+.so-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--surface-border);margin-bottom:18px}
+.so-product{display:flex;align-items:center;gap:12px;min-width:0}
+.so-thumb{width:58px;height:58px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--surface-border);flex:none}
+.so-product-name{font-weight:700;font-size:16px}
+.so-price{margin:0;font-size:13px;color:var(--muted);text-align:end}
+.so-price strong{display:block;color:var(--primary);font-size:18px;line-height:1.6}
+.so-body{display:grid;gap:22px}
+.so-section h3{margin:0 0 12px;font-size:15px}
+.so-grid{display:grid;grid-template-columns:1fr;gap:14px}
+.so-field{min-width:0}
+.so-grid .so-full{grid-column:1/-1}
+.site-order .so-field>label,.site-order .so-label{display:block;margin-bottom:6px;font-size:13.5px;font-weight:600}
+.site-order input[type=text],.site-order input[type=tel],.site-order input[type=number],.site-order textarea,.site-order select{width:100%;padding:11px 12px;min-height:48px;border:1px solid var(--input-border);border-radius:var(--radius);background:var(--input-bg);color:var(--text);font:inherit;font-size:16px}
+.site-order select{appearance:auto}
+.site-order textarea{min-height:84px;resize:vertical}
+.site-order input:focus,.site-order textarea:focus,.site-order select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.18);outline:none}
+.so-help{color:var(--muted);font-size:12.5px;margin:5px 0 0;line-height:1.8}
+.so-input-unit{position:relative}
+.so-input-unit input{padding-inline-end:72px}
+.so-unit{position:absolute;inset-inline-end:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
+.so-stepper{display:flex;border:1px solid var(--input-border);border-radius:var(--radius);background:var(--input-bg);overflow:hidden}
+.so-stepper button{width:48px;min-height:48px;border:0;background:var(--surface);color:var(--text);font-size:22px;line-height:1;cursor:pointer;flex:none;padding:0}
+.so-stepper button:active{background:var(--surface-border)}
+.site-order .so-stepper input{border:0;box-shadow:none;text-align:center;padding-right:4px;padding-left:4px}
+.so-range{display:flex;align-items:center;gap:12px}
+.site-order input[type=range]{flex:1;width:auto;min-height:48px;padding:0;border:0;background:transparent;accent-color:var(--primary);cursor:pointer;box-shadow:none}
+.so-range-val{flex:none;min-width:84px;text-align:center;background:var(--bg);border:1px solid var(--surface-border);border-radius:99px;padding:7px 10px;font-weight:700;font-size:14px}
+.so-chips{display:flex;flex-wrap:wrap;gap:8px}
+.so-chip{position:relative;display:inline-block;margin:0}
+.site-order .so-chip input{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;border:0;opacity:0;cursor:pointer}
+.so-chip span{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:8px 14px;border:1.5px solid var(--input-border);border-radius:99px;background:var(--input-bg);font-size:14px;line-height:1.6;transition:border-color .15s ease,background .15s ease,color .15s ease}
+.so-chip small{font-size:11.5px;opacity:.8}
+.so-chip:hover span{border-color:var(--primary)}
+.so-chip input:checked+span{border-color:var(--primary);background:var(--primary);color:#fff}
+.so-chip input:focus-visible+span{outline:2px solid var(--primary);outline-offset:2px}
+.so-lines{display:grid;gap:14px}
+.so-line{border:1px solid var(--surface-border);border-radius:var(--radius);padding:14px;background:var(--bg);display:grid;gap:12px}
+.so-line-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.so-line-title{font-weight:700;font-size:14.5px}
+.so-line-remove{border:1px solid var(--input-border);background:var(--input-bg);color:var(--muted);border-radius:99px;padding:6px 14px;font:inherit;font-size:12.5px;cursor:pointer;min-height:38px}
+.so-line-remove:hover{color:#dc2626;border-color:#dc2626}
+.so-line-total{font-size:13.5px;color:var(--muted);border-top:1px dashed var(--surface-border);padding-top:8px}
+.so-line-total strong{color:var(--primary);font-size:16px}
+.so-add{width:100%;margin-top:2px;border:1.5px dashed var(--input-border);background:transparent;color:var(--primary);border-radius:var(--radius);padding:12px;min-height:52px;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.so-add:hover{border-color:var(--primary);background:rgba(37,99,235,.05)}
+.so-summary{position:sticky;bottom:10px;z-index:5;background:var(--bg);border:1px solid var(--surface-border);border-radius:calc(var(--radius) + 4px);padding:12px 16px 14px;box-shadow:var(--shadow)}
+.so-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:2px 0 8px;min-height:36px}
+.so-toggle svg{transition:transform .2s ease;flex:none}
+.so-summary.open .so-toggle svg{transform:rotate(180deg)}
+.so-meta{display:none}
+.so-summary.open .so-meta{display:block}
+.so-sum-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;color:var(--muted);padding:3px 0}
+.so-sum-row strong{color:var(--text);font-weight:700}
+.so-sum-total{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px dashed var(--surface-border);margin-top:6px;padding-top:10px;font-size:15px}
+.so-sum-total strong{color:var(--primary);font-size:20px;white-space:nowrap}
+.so-minbill{color:var(--muted);font-size:12.5px;margin:8px 0 0;line-height:1.8}
+.so-submit{width:100%;margin-top:12px;padding:13px 20px;min-height:52px;border:1px solid var(--primary);border-radius:var(--radius);background:var(--primary);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+.so-submit:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
+.so-submit[disabled]{opacity:.65;cursor:wait}
+@media (min-width:720px){
+    .site-order{padding:26px;margin-bottom:26px}
+    .so-grid{grid-template-columns:1fr 1fr}
+    .so-meta{display:block}
+    .so-toggle{display:none}
+}
+@media print{
+    .site-order{display:none!important}
+}
+CSS;
+}
+
+/** فرم «ثبت سفارش» زیر صفحه محصول (فقط وقتی orders_public=1) — چندردیفی، نسخه ۸٫۲٫۳ */
 function site_order_form_html(array $product): string
 {
-    if (order_setting('orders_public', '1') !== '1') {
+    if (order_setting('orders_public', '1') !== '1' || (int) ($product['id'] ?? 0) <= 0) {
         return '';
     }
     $state = site_order_state();
@@ -707,64 +841,119 @@ function site_order_form_html(array $product): string
     $step = max(1, (int) order_setting('wire_step_cm', 5));
     $wireDef = (int) order_setting('wire_default_cm', 20);
     $wireMax = (int) order_setting('wire_max_cm', 100);
-    $lineNoteOn = order_setting('order_line_note', '1') === '1';
     $minBill = (float) order_setting('min_billable_m', 0.5);
-    $retailBase = product_base_price_per_meter($product, false);
+    $lineNoteOn = order_setting('order_line_note', '1') === '1';
+    $img = uploaded_image_url($product['image'] ?? '');
+
+    // کاتالوگ محصولات فعال + گزینه‌های قابل‌ارائه هر محصول (برای انتخاب محصول هر ردیف و چیپ‌ها)
+    $catalog = [];
+    foreach (get_products(true) as $p) {
+        $cpid = (int) $p['id'];
+        $attrs = [];
+        foreach (product_offered_attributes($cpid) as $item) {
+            if ($item['default_option_id'] === null) {
+                continue;
+            }
+            $ao = ['id' => (int) $item['attribute']['id'], 'title' => (string) $item['attribute']['title'], 'def' => (int) $item['default_option_id'], 'options' => []];
+            foreach ($item['options'] as $op) {
+                $ao['options'][] = ['id' => (int) $op['id'], 'title' => (string) $op['title'], 'delta' => (float) ($op['price_delta_per_meter'] ?? 0)];
+            }
+            $attrs[] = $ao;
+        }
+        $catalog[$cpid] = ['name' => (string) $p['name'], 'price' => (float) product_base_price_per_meter($p, false), 'attrs' => $attrs];
+    }
+
+    $optHtml = function (?int $sel) use ($catalog): string {
+        $s = '';
+        foreach ($catalog as $cpid => $c) {
+            $s .= '<option value="' . $cpid . '"' . ($sel !== null && $cpid === $sel ? ' selected' : '') . '>' . e($c['name']) . ' — ' . e(format_price($c['price'])) . ' تومان/متر</option>';
+        }
+        return $s;
+    };
+    $chipsHtml = function (?int $cpid, $idx) use ($catalog): string {
+        if ($cpid === null || !isset($catalog[$cpid])) {
+            return '';
+        }
+        $h = '';
+        foreach ($catalog[$cpid]['attrs'] as $a) {
+            $h .= '<div class="so-field" data-attr-group><span class="so-label">' . e($a['title']) . '</span><div class="so-chips" role="radiogroup" data-attrs>';
+            foreach ($a['options'] as $op) {
+                $d = (float) $op['delta'];
+                $h .= '<label class="so-chip"><input type="radio" class="so-option" name="so_lines[' . $idx . '][options][' . $a['id'] . ']" value="' . $op['id'] . '" data-delta="' . $d . '"' . ($op['id'] === $a['def'] ? ' checked' : '') . '><span>' . e($op['title']);
+                if ($d != 0.0) {
+                    $h .= ' <small>(' . ($d > 0 ? '+' : '') . e(format_price($d)) . ' تومان/متر)</small>';
+                }
+                $h .= '</span></label>';
+            }
+            $h .= '</div></div>';
+        }
+        return $h;
+    };
+    $lineHtml = function ($idx, ?int $selPid, bool $removable) use ($optHtml, $chipsHtml, $step, $wireDef, $wireMax, $lineNoteOn): string {
+        $h = '<div class="so-line" data-line data-idx="' . $idx . '">';
+        $h .= '<div class="so-line-head"><span class="so-line-title">چراغ <span data-num>۱</span></span>';
+        if ($removable) {
+            $h .= '<button type="button" class="so-line-remove" data-remove>حذف این چراغ</button>';
+        }
+        $h .= '</div>';
+        $h .= '<div class="so-field"><label for="so-prod-' . $idx . '">محصول *</label><select id="so-prod-' . $idx . '" name="so_lines[' . $idx . '][product_id]" class="so-product-sel" required>' . $optHtml($selPid) . '</select></div>';
+        $h .= $chipsHtml($selPid, $idx);
+        $h .= '<div class="so-grid">';
+        $h .= '<div class="so-field"><label for="so-len-' . $idx . '">طول هر چراغ *</label><div class="so-input-unit"><input type="number" id="so-len-' . $idx . '" name="so_lines[' . $idx . '][length_cm]" step="0.1" min="0.1" required inputmode="decimal" data-len><span class="so-unit">سانتی‌متر</span></div><p class="so-help" data-meters>طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.</p></div>';
+        $h .= '<div class="so-field"><label>تعداد چراغ *</label><div class="so-stepper"><button type="button" data-step="-1" aria-label="کاهش تعداد">−</button><input type="number" name="so_lines[' . $idx . '][qty]" value="1" min="1" step="1" required inputmode="numeric" data-qty><button type="button" data-step="1" aria-label="افزایش تعداد">+</button></div></div>';
+        $h .= '</div>';
+        $h .= '<div class="so-field"><label>طول سیم هر چراغ</label><div class="so-range"><input type="range" name="so_lines[' . $idx . '][wire_cm]" min="0" max="' . $wireMax . '" step="' . $step . '" value="' . $wireDef . '" data-wire><output class="so-range-val" data-wire-val>' . $wireDef . ' سانت</output></div><p class="so-help">پیش‌فرض ' . $wireDef . ' سانت است؛ سیمِ بیشتر از پیش‌فرض در فاکتور حساب می‌شود.</p></div>';
+        $h .= '<div class="so-field"><span class="so-label" id="so-ec-' . $idx . '">درپوش دو سر چراغ</span><div class="so-chips" role="radiogroup" aria-labelledby="so-ec-' . $idx . '">'
+            . '<label class="so-chip"><input type="radio" name="so_lines[' . $idx . '][endcap]" value="1"><span>با درپوش</span></label>'
+            . '<label class="so-chip"><input type="radio" name="so_lines[' . $idx . '][endcap]" value="0" checked><span>بدون درپوش</span></label></div>'
+            . '<p class="so-help">درپوش، دو سر پروفیل را می‌بندد و ظاهر چراغ را تمیز و کامل می‌کند.</p></div>';
+        if ($lineNoteOn) {
+            $h .= '<div class="so-field"><label for="so-note-' . $idx . '">توضیح این چراغ</label><textarea id="so-note-' . $idx . '" name="so_lines[' . $idx . '][note]" rows="2" maxlength="500" placeholder="مثلاً: یونیت زیر گاز"></textarea></div>';
+        }
+        $h .= '<div class="so-line-total">برآورد این چراغ: <strong data-line-total>۰ تومان</strong></div>';
+        $h .= '</div>';
+        return $h;
+    };
 
     $html = '<div class="site-order" id="site-order">';
-    $html .= '<h2>ثبت سفارش</h2>';
+    $html .= '<div class="so-head"><div class="so-product">';
+    if ($img !== '') {
+        $html .= '<img class="so-thumb" src="' . e($img) . '" alt="" loading="lazy" decoding="async">';
+    }
+    $html .= '<div><h2>ثبت سفارش</h2><div class="so-product-name">' . e((string) ($product['name'] ?? '')) . '</div></div></div>';
+    $html .= '<p class="so-price">ثبت چند چراغ با ابعاد مختلف در یک سفارش</p></div>';
     if ((string) ($state['msg'] ?? '') !== '') {
-        $html .= '<div class="alert ok" role="status">' . e($state['msg']) . '</div>';
+        $html .= '<div class="alert ok" role="status">' . e((string) $state['msg']) . '</div>';
     }
     if ((string) ($state['err'] ?? '') !== '') {
-        $html .= '<div class="alert error" role="alert">' . e($state['err']) . '</div>';
+        $html .= '<div class="alert error" role="alert">' . e((string) $state['err']) . '</div>';
     }
-    $html .= '<form method="post" action="products.php?id=' . $pid . '#site-order" data-retail-base="' . (float) $retailBase . '" data-min-bill="' . (float) $minBill . '">';
-    $html .= '<input type="hidden" name="site_order" value="1">';
-    $html .= '<input type="hidden" name="product_id" value="' . $pid . '">';
-    $html .= '<input type="hidden" name="csrf" value="' . e((string) ($_SESSION['csrf'] ?? '')) . '">';
-    $html .= '<div class="hp-field" aria-hidden="true"><label>وب‌سایت<input type="text" name="website2" tabindex="-1" autocomplete="off"></label></div>';
-    $html .= '<div class="field"><label for="so-name">نام و نام خانوادگی *</label><input type="text" id="so-name" name="so_name" required maxlength="120" autocomplete="name"></div>';
-    $html .= '<div class="field"><label for="so-mobile">شماره موبایل *</label><input type="text" id="so-mobile" name="so_mobile" required dir="ltr" inputmode="numeric" maxlength="15"></div>';
-    $html .= '<div class="field"><label for="so-len">طول هر چراغ (سانتی‌متر، یک رقم اعشار) *</label><input type="number" id="so-len" name="so_length_cm" step="0.1" min="0.1" required inputmode="decimal"></div>';
-    $html .= '<div class="field"><label for="so-qty">تعداد چراغ</label><input type="number" id="so-qty" name="so_qty" min="1" value="1"></div>';
-    $html .= '<div class="field"><label for="so-wire">طول سیم هر چراغ</label><select id="so-wire" name="so_wire_cm">';
-    for ($w = 0; $w <= $wireMax; $w += $step) {
-        $html .= '<option value="' . $w . '"' . ($w === $wireDef ? ' selected' : '') . '>' . $w . ' سانت</option>';
-    }
-    $html .= '</select></div>';
-    $offered = product_offered_attributes($pid);
-    foreach ($offered as $item) {
-        if ($item['default_option_id'] === null) {
-            continue;
-        }
-        $attr = $item['attribute'];
-        $html .= '<div class="field"><label for="so-opt-' . (int) $attr['id'] . '">' . e($attr['title']) . '</label>';
-        $html .= '<select id="so-opt-' . (int) $attr['id'] . '" name="so_options[' . (int) $attr['id'] . ']" class="so-option">';
-        foreach ($item['options'] as $o) {
-            $delta = (float) ($o['price_delta_per_meter'] ?? 0);
-            $html .= '<option value="' . (int) $o['id'] . '" data-delta="' . $delta . '"' . ((int) $o['id'] === $item['default_option_id'] ? ' selected' : '') . '>'
-                . e($o['title']) . ($delta != 0.0 ? ' (' . ($delta > 0 ? '+' : '') . e(format_price($delta)) . ' تومان/متر)' : '') . '</option>';
-        }
-        $html .= '</select></div>';
-    }
-    $html .= '<div class="field"><label class="check"><input type="checkbox" name="so_endcap" value="1"> درپوش انتهایی برای هر چراغ</label></div>';
-    if ($lineNoteOn) {
-        $html .= '<div class="field"><label for="so-note">توضیحات این محصول (اختیاری، مثلاً محل نصب)</label><textarea id="so-note" name="so_note" rows="3" maxlength="500"></textarea></div>';
-    }
-    $html .= '<p class="so-estimate">برآورد مبلغ: <strong id="so-total">۰</strong> تومان <span class="muted">(طول کمتر از ' . e(format_qty($minBill)) . ' متر، ' . e(format_qty($minBill)) . ' متر حساب می‌شود)</span></p>';
-    $html .= '<button type="submit" class="btn">ثبت سفارش</button>';
+    $html .= '<form method="post" action="products.php?id=' . $pid . '#site-order" id="so-form">';
+    $html .= '<input type="hidden" name="site_order" value="1"><input type="hidden" name="product_id" value="' . $pid . '"><input type="hidden" name="csrf" value="' . e((string) ($_SESSION['csrf'] ?? '')) . '">';
+    $html .= '<div class="hp-field" aria-hidden="true"><label>این فیلد را خالی بگذارید<input type="text" name="website2" tabindex="-1" autocomplete="off"></label></div>';
+
+    $html .= '<div class="so-body"><section class="so-section" aria-label="چراغ‌ها"><h3>چراغ‌ها</h3>';
+    $html .= '<div class="so-lines" id="so-lines">' . $lineHtml(0, $pid, false) . '</div>';
+    $html .= '<button type="button" class="so-add" id="so-add">+ افزودن چراغ دیگر</button>';
+    $html .= '<template id="so-line-tpl">' . $lineHtml('__I__', null, true) . '</template>';
+    $html .= '</section>';
+    $html .= '<section class="so-section" aria-label="اطلاعات تماس"><h3>اطلاعات تماس</h3><div class="so-grid">';
+    $html .= '<div class="so-field"><label for="so-name">نام و نام خانوادگی *</label><input type="text" id="so-name" name="so_name" required autocomplete="name" maxlength="120"></div>';
+    $html .= '<div class="so-field"><label for="so-mobile">شماره موبایل *</label><input type="text" id="so-mobile" name="so_mobile" required inputmode="numeric" autocomplete="tel" dir="ltr" maxlength="15"><p class="so-help">برای هماهنگی و پیگیری سفارش، با این شماره در تماسیم.</p></div>';
+    $html .= '<div class="so-field so-full"><label for="so-order-note">توضیحات سفارش (اختیاری)</label><textarea id="so-order-note" name="so_order_note" rows="2" maxlength="500" placeholder="توضیحی که به کل سفارش مربوط است"></textarea></div>';
+    $html .= '</div></section></div>';
+    $html .= '<div class="so-summary" id="so-summary">'
+        . '<button type="button" class="so-toggle" id="so-toggle" aria-expanded="false"><span>جزئیات سفارش</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+        . '<div class="so-meta"><div class="so-sum-row"><span>متراژ قابل صورتحساب</span><strong id="so-billm">—</strong></div>'
+        . '<div class="so-sum-row"><span>تعداد چراغ</span><strong id="so-qtyv">—</strong></div></div>'
+        . '<div class="so-sum-total"><span>برآورد مبلغ</span><strong><span id="so-total">۰</span> تومان</strong></div>'
+        . '<p class="so-minbill">طول کمتر از ' . e(format_qty($minBill)) . ' متر، ' . e(format_qty($minBill)) . ' متر حساب می‌شود. این برآورد اولیه است؛ مبلغ نهایی (با احتساب سیم اضافه و تخفیف) در پیش‌فاکتور مشخص می‌شود.</p>'
+        . '<button type="submit" class="so-submit" id="so-submit">ثبت سفارش</button></div>';
     $html .= '</form>';
-    $html .= '<script>(function(){var f=document.querySelector(\'#site-order form\');if(!f)return;'
-        . 'var len=document.getElementById("so-len"),qty=document.getElementById("so-qty"),out=document.getElementById("so-total");'
-        . 'function fmt(n){return Math.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g,",");}'
-        . 'function calc(){var L=(parseFloat(len.value)||0)/100,Q=parseInt(qty.value)||0;'
-        . 'var bill=Math.max(L,parseFloat(f.getAttribute("data-min-bill")||"0.5"));'
-        . 'var d=0;f.querySelectorAll(".so-option").forEach(function(s){var o=s.options[s.selectedIndex];d+=o?parseFloat(o.getAttribute("data-delta")||"0"):0;});'
-        . 'var unit=parseFloat(f.getAttribute("data-retail-base")||"0")+d;'
-        . 'out.textContent=(L>0&&Q>0)?fmt(Math.round(bill*unit*Q)):"۰";}'
-        . 'len.addEventListener("input",calc);qty.addEventListener("input",calc);'
-        . 'f.querySelectorAll(".so-option").forEach(function(s){s.addEventListener("change",calc);});calc();})();</script>';
+    $html .= '<script>window.SO_CATALOG=' . json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) . ';window.SO_CFG=' . json_encode(['wireStep' => $step, 'wireDef' => $wireDef, 'wireMax' => $wireMax, 'minBill' => $minBill], JSON_UNESCAPED_UNICODE) . ';window.SO_DEF_PID=' . $pid . ';</script>';
+    $html .= <<<'JS'
+<script>(function(){var f=document.getElementById('so-form');if(!f)return;var CAT=window.SO_CATALOG||{},CFG=window.SO_CFG||{},DEF=window.SO_DEF_PID||0;var wrap=document.getElementById('so-lines'),tpl=document.getElementById('so-line-tpl'),counter=1;function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}function fa(n,d){return Number(n).toLocaleString('fa-IR',{maximumFractionDigits:d});}function money(n){return Math.round(n).toLocaleString('fa-IR');}function attrsHtml(pid,idx){var p=CAT[pid];if(!p||!p.attrs||!p.attrs.length)return'';var h='';p.attrs.forEach(function(a){h+='<div class="so-field" data-attr-group><span class="so-label">'+esc(a.title)+'</span><div class="so-chips" role="radiogroup" data-attrs>';a.options.forEach(function(o){var d=parseFloat(o.delta)||0;h+='<label class="so-chip"><input type="radio" class="so-option" name="so_lines['+idx+'][options]['+a.id+']" value="'+o.id+'" data-delta="'+d+'"'+(o.id===a.def?' checked':'')+'><span>'+esc(o.title)+(d!==0?(' <small>('+(d>0?'+':'')+fa(d,0)+' تومان/متر)</small>'):'')+'</span></label>';});h+='</div></div>';});return h;}function paintAttrs(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var idx=line.getAttribute('data-idx');line.querySelectorAll('[data-attr-group]').forEach(function(g){g.remove();});var holder=document.createElement('div');holder.innerHTML=attrsHtml(sel.value,idx);var ref=sel.closest('.so-field');while(holder.firstChild){ref.parentNode.insertBefore(holder.firstChild,ref.nextSibling);}calc();}function renumber(){var ls=wrap.querySelectorAll('[data-line]');ls.forEach(function(el,k){var n=el.querySelector('[data-num]');if(n)n.textContent=fa(k+1,0);var rm=el.querySelector('[data-remove]');if(rm)rm.style.display=(ls.length>1)?'':'none';});}function lineVals(line){var sel=line.querySelector('.so-product-sel');var pid=sel?sel.value:'0';var p=CAT[pid];var price=p?parseFloat(p.price):0;var d=0;line.querySelectorAll('.so-option:checked').forEach(function(s){d+=parseFloat(s.getAttribute('data-delta')||'0');});var lenEl=line.querySelector('[data-len]');var qtyEl=line.querySelector('[data-qty]');var L=(parseFloat(lenEl?lenEl.value:'')||0)/100;var Q=parseInt(qtyEl?qtyEl.value:'10',10);if(!(Q>0))Q=0;var minB=parseFloat(CFG.minBill||'0.5');var billOne=Math.max(L,minB);return{L:L,Q:Q,billOne:billOne,unit:price+d,lineTotal:billOne*(price+d)*Q};}function calc(){var totM=0,totQ=0,totP=0;wrap.querySelectorAll('[data-line]').forEach(function(line){var v=lineVals(line);var lenEl=line.querySelector('[data-len]');var mEl=line.querySelector('[data-meters]');if(mEl)mEl.textContent=v.L>0?('≈ '+fa(v.L,2)+' متر'):'طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.';var wEl=line.querySelector('[data-wire]');var wv=line.querySelector('[data-wire-val]');if(wEl&&wv)wv.textContent=fa(parseInt(wEl.value,10)||0,0)+' سانت';var lt=line.querySelector('[data-line-total]');if(lt)lt.textContent=(v.L>0&&v.Q>0)?(money(v.lineTotal)+' تومان'):'۰ تومان';if(v.L>0&&v.Q>0){totM+=v.billOne*v.Q;totQ+=v.Q;totP+=v.lineTotal;}});document.getElementById('so-billm').textContent=(totQ>0)?(fa(totM,2)+' متر'):'—';document.getElementById('so-qtyv').textContent=(totQ>0)?(fa(totQ,0)+' چراغ'):'—';document.getElementById('so-total').textContent=money(totP);}function addLine(){var html=tpl.innerHTML.replace(/__I__/g,String(counter));var d=document.createElement('div');d.innerHTML=html;var line=d.firstElementChild;line.setAttribute('data-idx',String(counter));counter++;wrap.appendChild(line);var sel=line.querySelector('.so-product-sel');if(sel&&DEF)sel.value=String(DEF);paintAttrs(line);renumber();calc();if(line.scrollIntoView)line.scrollIntoView({behavior:'smooth',block:'nearest'});}document.getElementById('so-add').addEventListener('click',addLine);f.addEventListener('click',function(e){var rm=e.target.closest('[data-remove]');if(rm){var ls=wrap.querySelectorAll('[data-line]');if(ls.length>1){rm.closest('[data-line]').remove();renumber();calc();}return;}var st=e.target.closest('[data-step]');if(st){var q=st.closest('.so-stepper').querySelector('[data-qty]');var v=parseInt(q.value,10)||1;v=Math.max(1,v+parseInt(st.getAttribute('data-step'),10));q.value=v;calc();return;}if(e.target.closest('#so-toggle')){var s=document.getElementById('so-summary');var open=s.classList.toggle('open');document.getElementById('so-toggle').setAttribute('aria-expanded',open?'true':'false');}});f.addEventListener('input',function(e){calc();});f.addEventListener('change',function(e){var sel=e.target.closest?e.target.closest('.so-product-sel'):null;if(sel){paintAttrs(sel.closest('[data-line]'));}else{calc();}});f.addEventListener('submit',function(){var b=document.getElementById('so-submit');if(b){b.disabled=true;b.textContent='در حال ثبت…';}});wrap.querySelectorAll('[data-line]').forEach(function(line){paintAttrs(line);});renumber();calc();})();</script>
+JS;
     $html .= '</div>';
     return $html;
 }
