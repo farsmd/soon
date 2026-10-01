@@ -44,11 +44,18 @@ function orders_handle_post(string $action): void
                 'wire_default_cm'  => ['min' => 0, 'max' => 500, 'float' => false],
                 'wire_step_cm'     => ['min' => 1, 'max' => 100, 'float' => false],
                 'wire_price_per_step' => ['min' => 0, 'max' => 100000000, 'float' => false],
+                'wire_max_cm'      => ['min' => 0, 'max' => 1000, 'float' => false],
                 'remnant_min_cm'   => ['min' => 0, 'max' => 500, 'float' => false],
                 'default_prep_days' => ['min' => 0, 'max' => 365, 'float' => false],
                 'deposit_percent'  => ['min' => 0, 'max' => 100, 'float' => false],
                 'next_order_no'    => ['min' => 1, 'max' => 1000000000, 'float' => false],
             ];
+            // سازگاری طول پیش‌فرض و سقف سیم — قبل از ذخیره بررسی می‌شود تا مقدار ناسازگار ذخیره نشود
+            $newDef = trim((string) ($_POST['wire_default_cm'] ?? '')) !== '' ? (int) $_POST['wire_default_cm'] : (int) order_setting('wire_default_cm', 20);
+            $newMax = trim((string) ($_POST['wire_max_cm'] ?? '')) !== '' ? (int) $_POST['wire_max_cm'] : (int) order_setting('wire_max_cm', 100);
+            if ($newDef > $newMax) {
+                throw new RuntimeException('طول پیش‌فرض سیم نمی‌تواند از حداکثر طول سیم بیشتر باشد؛ اول حداکثر را بالا ببرید.');
+            }
             foreach ($nums as $k => $rule) {
                 $raw = trim((string) ($_POST[$k] ?? ''));
                 if ($raw === '') {
@@ -64,6 +71,7 @@ function orders_handle_post(string $action): void
                 set_setting($k, trim((string) ($_POST[$k] ?? '')));
             }
             set_setting('orders_public', isset($_POST['orders_public']) ? '1' : '0');
+            set_setting('order_line_note', isset($_POST['order_line_note']) ? '1' : '0');
             $emp = (string) ($_POST['enforce_min_partner'] ?? 'warn');
             set_setting('enforce_min_partner', in_array($emp, ['warn', 'block'], true) ? $emp : 'warn');
             flash('ok', 'تنظیمات سفارش ذخیره شد.');
@@ -228,6 +236,10 @@ function orders_handle_post(string $action): void
                 if ($wire < 0 || ($step > 0 && abs($wire / $step - round($wire / $step)) > 0.0001)) {
                     throw new RuntimeException('طول سیم ردیف «' . (string) $product['name'] . '» باید مضربی از ' . $step . ' سانت باشد.');
                 }
+                $wireMax = (int) order_setting('wire_max_cm', 100);
+                if ($wire > $wireMax) {
+                    throw new RuntimeException('طول سیم ردیف «' . (string) $product['name'] . '» نمی‌تواند بیشتر از ' . $wireMax . ' سانت باشد (از «قوانین قیمت‌گذاری» قابل‌تغییر است).');
+                }
                 $opts = [];
                 $rawOpts = $ri['options'] ?? [];
                 if (is_array($rawOpts)) {
@@ -244,6 +256,7 @@ function orders_handle_post(string $action): void
                     'qty' => $qty,
                     'wire_length_cm' => $wire,
                     'has_endcap' => !empty($ri['endcap']),
+                    'note' => mb_substr(trim((string) ($ri['note'] ?? '')), 0, 500),
                     'options' => $opts,
                 ];
                 $pp = (int) ($product['prep_days'] ?? 0);
@@ -291,8 +304,8 @@ function orders_handle_post(string $action): void
                     ':by' => 'admin',
                 ]);
                 $oid = (int) $pdo->lastInsertId();
-                $insItem = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, line_subtotal, line_total, sort_order)
-                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :ls, :lt, :s)');
+                $insItem = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, line_subtotal, line_total, sort_order)
+                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :ls, :lt, :s)');
                 $so = 0;
                 foreach ($tot['lines'] as $li => $tl) {
                     $src = $lines[$li];
@@ -312,6 +325,7 @@ function orders_handle_post(string $action): void
                         ':up' => $tl['unit_price_per_m'], ':oj' => $optSnap === [] ? null : json_encode($optSnap, JSON_UNESCAPED_UNICODE),
                         ':oe' => $tl['options_extra_per_m'], ':w' => $src['wire_length_cm'], ':ws' => $tl['wire_steps'],
                         ':we' => $tl['wire_extra_total'], ':ec' => $src['has_endcap'] ? 1 : 0,
+                        ':note' => ($tl['note'] ?? '') !== '' ? $tl['note'] : null,
                         ':ls' => $tl['line_subtotal'], ':lt' => $tl['line_total'], ':s' => $so,
                     ]);
                 }
@@ -478,6 +492,8 @@ function orders_load_data(string $page): array
             'wire_default_cm' => order_setting('wire_default_cm', 20),
             'wire_step_cm' => order_setting('wire_step_cm', 5),
             'wire_price_per_step' => order_setting('wire_price_per_step', 0),
+            'wire_max_cm' => order_setting('wire_max_cm', 100),
+            'order_line_note' => order_setting('order_line_note', '1'),
             'remnant_min_cm' => order_setting('remnant_min_cm', 20),
             'default_prep_days' => order_setting('default_prep_days', 3),
             'deposit_percent' => order_setting('deposit_percent', 50),
@@ -686,6 +702,8 @@ function orders_render_new(array $d): void
         var WIRE_DEFAULT = <?= json_encode((int) $s['wire_default_cm']) ?>;
         var WIRE_DEF = <?= json_encode((int) $s['wire_default_cm']) ?>;
         var WIRE_PRICE = <?= json_encode((int) $s['wire_price_per_step']) ?>;
+        var WIRE_MAX = <?= json_encode((int) $s['wire_max_cm']) ?>;
+        var LINE_NOTE = <?= json_encode((string) $s['order_line_note'] === '1') ?>;
         var MIN_METERS = <?= json_encode((float) $s['partner_min_bars'] * (float) $s['bar_length_m']) ?>;
         var box = document.getElementById('order-rows');
         var addBtn = document.getElementById('or-add');
@@ -712,7 +730,7 @@ function orders_render_new(array $d): void
         }
         function wireOptions(sel){
             var h = '';
-            for (var w = 0; w <= 100; w += WIRE_STEP) {
+            for (var w = 0; w <= WIRE_MAX; w += WIRE_STEP) {
                 h += '<option value="' + w + '"' + (w === WIRE_DEF ? ' selected' : '') + '>' + w + ' سانت</option>';
             }
             sel.innerHTML = h;
@@ -752,6 +770,9 @@ function orders_render_new(array $d): void
             ph += '<label class="check" style="align-self:end"><input type="checkbox" name="items[' + cur + '][endcap]" value="1" class="or-endcap"> درپوش انتهایی</label>';
             ph += '<button type="button" class="btn small danger-btn or-remove" style="align-self:end">حذف</button>';
             ph += '</div><div class="inline-fields or-opts"></div>';
+            if (LINE_NOTE) {
+                ph += '<div class="inline-fields"><label style="flex:1">توضیح این محصول (اختیاری)<input type="text" name="items[' + cur + '][note]" maxlength="500" placeholder="مثلاً یونیت زیر گاز"></label></div>';
+            }
             ph += '<div class="or-line muted"></div>';
             div.innerHTML = ph;
             box.appendChild(div);
@@ -953,6 +974,9 @@ function orders_render_view(array $d): void
                         <?php $oj = json_decode((string) ($it['options_json'] ?? ''), true); if (is_array($oj) && $oj !== []): ?>
                             <br><small class="muted"><?php foreach ($oj as $osnap): ?><?= e($osnap['attr']) ?>: <?= e($osnap['option']) ?>؛ <?php endforeach; ?></small>
                         <?php endif; ?>
+                        <?php if (!empty($it['note'])): ?>
+                            <br><small>توضیح: <?= e($it['note']) ?></small>
+                        <?php endif; ?>
                     </td>
                     <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
@@ -1015,6 +1039,7 @@ function orders_render_rules(array $d): void
             <label>طول پیش‌فرض سیم هر چراغ (سانت)<input type="number" name="wire_default_cm" min="0" step="1" value="<?= e($s['wire_default_cm']) ?>"></label>
             <label>گام تنظیم سیم (سانت)<input type="number" name="wire_step_cm" min="1" step="1" value="<?= e($s['wire_step_cm']) ?>"></label>
             <label>قیمت هر گام سیم (تومان)<input type="number" name="wire_price_per_step" min="0" step="any" value="<?= e($s['wire_price_per_step']) ?>"></label>
+            <label>حداکثر طول سیم هر چراغ (سانت)<input type="number" name="wire_max_cm" min="0" step="1" value="<?= e($s['wire_max_cm']) ?>"></label>
             <label>حداقل طول پرت برگشتی به انبار (سانت)<input type="number" name="remnant_min_cm" min="0" step="1" value="<?= e($s['remnant_min_cm']) ?>"></label>
             <label>زمان آماده‌سازی پیش‌فرض (روز)<input type="number" name="default_prep_days" min="0" step="1" value="<?= e($s['default_prep_days']) ?>"></label>
             <label>درصد بیعانه پیش‌فاکتور<input type="number" name="deposit_percent" min="0" max="100" step="any" value="<?= e($s['deposit_percent']) ?>"></label>
@@ -1028,6 +1053,7 @@ function orders_render_rules(array $d): void
                 </select>
             </label>
             <label class="check"><input type="checkbox" name="orders_public" value="1"<?= $s['orders_public'] === '1' ? ' checked' : '' ?>> فرم «ثبت سفارش» در صفحه محصول سایت نمایش داده شود</label>
+            <label class="check"><input type="checkbox" name="order_line_note" value="1"<?= $s['order_line_note'] === '1' ? ' checked' : '' ?>> برای هر محصول در سفارش، فیلد «توضیح» فعال باشد (مثلاً محل نصب: یونیت زیر گاز)</label>
         </div>
         <label>شرایط پرداخت (در پیش‌فاکتور چاپ می‌شود)<textarea name="payment_terms" rows="3"><?= e($s['payment_terms']) ?></textarea></label>
         <label>متن گارانتی<textarea name="warranty_text" rows="3"><?= e($s['warranty_text']) ?></textarea></label>
