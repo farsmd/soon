@@ -17,6 +17,8 @@ require_once __DIR__ . '/admin_orders.php';
 require_once __DIR__ . '/admin_production.php';
 // صفحات و اکشن‌های مالی: فاکتور، دریافتی، هزینه و صورتحساب (فاز ۵ / نسخه ۸٫۴) هم در فایل جدا هستند
 require_once __DIR__ . '/admin_finance.php';
+// گزارش‌های مدیریتی (فاز ۶ / نسخه ۸٫۶): فروش، محصولات، مصرف مواد، مشتریان و تولید
+require_once __DIR__ . '/admin_reports.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
 
@@ -108,6 +110,7 @@ function nav_icon(string $name): string
         'database'  => '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
         'archive'   => '<path d="M3 3h18v5H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>',
         'refresh'   => '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
+        'chart'     => '<path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-8"/>',
         'box'       => '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
         'swap'      => '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
         'receipt'   => '<path d="M5 2h14a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-2 2-2-2-1 1V3a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
@@ -364,6 +367,7 @@ $pageTitles = [
     'expenses'   => 'هزینه‌ها',
     'statements' => 'صورتحساب مشتریان',
     'finance_rules' => 'قوانین مالی',
+    'reports'    => 'گزارش‌ها',
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
@@ -412,6 +416,9 @@ $navGroups = [
         ['admin.php?page=expenses', 'bag', 'هزینه‌ها', 'expenses'],
         ['admin.php?page=statements', 'users', 'صورتحساب مشتریان', 'statements'],
         ['admin.php?page=finance_rules', 'sliders', 'قوانین مالی', 'finance_rules'],
+    ]],
+    'reports' => ['گزارش‌ها', [
+        ['admin.php?page=reports', 'chart', 'گزارش‌ها', 'reports'],
     ]],
     'system' => ['سیستم', [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
@@ -507,6 +514,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۵ (مالی) در admin_finance.php پردازش می‌شوند
         if (in_array($action, finance_post_actions(), true)) {
             finance_handle_post($action);
+        }
+        // اکشن‌های فاز ۶ (گزارش‌ها) در admin_reports.php پردازش می‌شوند
+        if (in_array($action, reports_post_actions(), true)) {
+            reports_handle_post($action);
         }
         // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
         if (in_array($action, logs_post_actions(), true)) {
@@ -1016,6 +1027,10 @@ extract($productionData);
 // داده‌های فاز ۵ (مالی): فاکتور، دریافتی، هزینه و صورتحساب
 $financeData = finance_load_data($page);
 extract($financeData);
+
+// داده‌های فاز ۶ (گزارش‌ها): فروش، محصولات، مصرف مواد، مشتریان و تولید
+$reportsData = reports_load_data($page);
+extract($reportsData);
 
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
 $dashCounts = ['customers' => 0, 'products' => 0, 'orders' => 0, 'new_orders' => 0];
@@ -1808,6 +1823,8 @@ if ($page === 'design') {
             <?php finance_render_statements($financeData); ?>
         <?php elseif ($page === 'finance_rules'): ?>
             <?php finance_render_rules($financeData); ?>
+        <?php elseif ($page === 'reports'): ?>
+            <?php reports_render($reportsData); ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
