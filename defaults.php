@@ -610,6 +610,11 @@ function process_site_order(): void
             site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول سیم باید مضربی از ' . $step . ' سانت باشد.']);
             return;
         }
+        $wireMax = (int) order_setting('wire_max_cm', 100);
+        if ($wire > $wireMax) {
+            site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'طول سیم نمی‌تواند بیشتر از ' . $wireMax . ' سانت باشد.']);
+            return;
+        }
         $opts = [];
         $rawOpts = $_POST['so_options'] ?? [];
         if (is_array($rawOpts)) {
@@ -662,14 +667,15 @@ function process_site_order(): void
                     $optSnap[] = ['attr' => (string) $a['title'], 'option' => (string) $oo['title'], 'delta' => (float) ($oo['price_delta_per_meter'] ?? 0)];
                 }
             }
-            $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, line_subtotal, line_total, sort_order)
-                VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :ls, :lt, 10)')
+            $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, line_subtotal, line_total, sort_order)
+                VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :ls, :lt, 10)')
                 ->execute([
                     ':o' => $oid, ':p' => $pid, ':pn' => (string) $product['name'],
                     ':len' => $lenCm, ':q' => $qty, ':bm' => $tl['billable_m'],
                     ':up' => $tl['unit_price_per_m'], ':oj' => $optSnap === [] ? null : json_encode($optSnap, JSON_UNESCAPED_UNICODE),
                     ':oe' => $tl['options_extra_per_m'], ':w' => $wire, ':ws' => $tl['wire_steps'],
                     ':we' => $tl['wire_extra_total'], ':ec' => !empty($_POST['so_endcap']) ? 1 : 0,
+                    ':note' => (order_setting('order_line_note', '1') === '1' && $note !== '') ? mb_substr($note, 0, 500) : null,
                     ':ls' => $tl['line_subtotal'], ':lt' => $tl['line_total'],
                 ]);
             $pdo->prepare("INSERT INTO order_status_history (order_id, from_status, to_status, note) VALUES (:o, NULL, 'new', :n)")
@@ -700,6 +706,8 @@ function site_order_form_html(array $product): string
     $pid = (int) $product['id'];
     $step = max(1, (int) order_setting('wire_step_cm', 5));
     $wireDef = (int) order_setting('wire_default_cm', 20);
+    $wireMax = (int) order_setting('wire_max_cm', 100);
+    $lineNoteOn = order_setting('order_line_note', '1') === '1';
     $minBill = (float) order_setting('min_billable_m', 0.5);
     $retailBase = product_base_price_per_meter($product, false);
 
@@ -721,7 +729,7 @@ function site_order_form_html(array $product): string
     $html .= '<div class="field"><label for="so-len">طول هر چراغ (سانتی‌متر، یک رقم اعشار) *</label><input type="number" id="so-len" name="so_length_cm" step="0.1" min="0.1" required inputmode="decimal"></div>';
     $html .= '<div class="field"><label for="so-qty">تعداد چراغ</label><input type="number" id="so-qty" name="so_qty" min="1" value="1"></div>';
     $html .= '<div class="field"><label for="so-wire">طول سیم هر چراغ</label><select id="so-wire" name="so_wire_cm">';
-    for ($w = 0; $w <= 100; $w += $step) {
+    for ($w = 0; $w <= $wireMax; $w += $step) {
         $html .= '<option value="' . $w . '"' . ($w === $wireDef ? ' selected' : '') . '>' . $w . ' سانت</option>';
     }
     $html .= '</select></div>';
@@ -741,7 +749,9 @@ function site_order_form_html(array $product): string
         $html .= '</select></div>';
     }
     $html .= '<div class="field"><label class="check"><input type="checkbox" name="so_endcap" value="1"> درپوش انتهایی برای هر چراغ</label></div>';
-    $html .= '<div class="field"><label for="so-note">توضیحات (اختیاری)</label><textarea id="so-note" name="so_note" rows="3" maxlength="2000"></textarea></div>';
+    if ($lineNoteOn) {
+        $html .= '<div class="field"><label for="so-note">توضیحات این محصول (اختیاری، مثلاً محل نصب)</label><textarea id="so-note" name="so_note" rows="3" maxlength="500"></textarea></div>';
+    }
     $html .= '<p class="so-estimate">برآورد مبلغ: <strong id="so-total">۰</strong> تومان <span class="muted">(طول کمتر از ' . e(format_qty($minBill)) . ' متر، ' . e(format_qty($minBill)) . ' متر حساب می‌شود)</span></p>';
     $html .= '<button type="submit" class="btn">ثبت سفارش</button>';
     $html .= '</form>';
