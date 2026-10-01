@@ -1,10 +1,14 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۵
-// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی و تنظیمات
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۶
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی ، مشتری‌ها و کاتالوگ محصول (فاز ۲) و تنظیمات
 
 declare(strict_types=1);
 
 require __DIR__ . '/config.php';
+
+// صفحات و اکشن‌های کاتالوگ فاز ۲ در فایل جدا هستند تا admin.php برای آپدیت گیت‌هاب کوچک بماند
+define('CMS_ADMIN_PANEL', true);
+require_once __DIR__ . '/admin_catalog.php';
 
 // ---------- سشن امن نسبی ----------
 session_set_cookie_params([
@@ -60,6 +64,29 @@ function logout_admin(): void
         setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'] ?? '', (bool) ($p['secure'] ?? false), true);
     }
     session_destroy();
+}
+
+/** آیکون SVG منوی کناری پنل. */
+function nav_icon(string $name): string
+{
+    static $paths = [
+        'dashboard' => '<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
+        'menu'      => '<path d="M4 6h16M4 12h16M4 18h16"/>',
+        'eye'       => '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+        'file'      => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/>',
+        'layout'    => '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
+        'mail'      => '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+        'droplet'   => '<path d="M12 2.7 17.66 8.36a8 8 0 1 1-11.31 0z"/>',
+        'users'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
+        'folder'    => '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+        'bag'       => '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+        'list'      => '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+        'sliders'   => '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/>',
+        'database'  => '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+        'archive'   => '<path d="M3 3h18v5H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>',
+        'refresh'   => '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
+    ];
+    return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
 
 $pdo = db();
@@ -165,10 +192,63 @@ if (!is_logged_in()) {
 
 // ---------- از اینجا به بعد فقط ادمین واردشده ----------
 
-$page  = (string) ($_GET['page'] ?? 'sections');
+$page  = (string) ($_GET['page'] ?? 'dashboard');
 // نام قدیمی صفحه «قالب‌ها» به صفحه جدید «قالب و استایل» نگاشت می‌شود (قالب‌ها دیگر فایلی نیستند)
 if ($page === 'templates') {
     $page = 'design';
+}
+
+// عنوان صفحه‌ها
+$pageTitles = [
+    'dashboard'  => 'داشبورد',
+    'sections'   => 'بخش‌های صفحه اصلی',
+    'pages'      => 'صفحه‌ها',
+    'design'     => 'قالب و استایل',
+    'messages'   => 'پیام‌های تماس',
+    'customers'  => 'مشتری‌ها',
+    'categories' => 'دسته‌بندی‌های محصولات',
+    'products'   => 'محصولات',
+    'attributes' => 'ویژگی‌های محصول',
+    'tools'      => 'ابزار و بکاپ',
+    'database'   => 'اتصال دیتابیس',
+    'update'     => 'آپدیت سیستم',
+    'settings'   => 'تنظیمات سایت',
+];
+$currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
+
+// ساختار منوی کناری: کلید گروه => [برچسب، [ [نشانی، آیکون، برچسب، کلید صفحه، ویژگی اضافه] ]]
+$navGroups = [
+    'main' => ['اصلی', [
+        ['admin.php?page=dashboard', 'dashboard', 'داشبورد', 'dashboard'],
+        ['index.php', 'eye', 'مشاهده سایت', '', ' target="_blank" rel="noopener"'],
+    ]],
+    'content' => ['محتوا', [
+        ['admin.php?page=pages', 'file', 'صفحه‌ها', 'pages'],
+        ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
+        ['admin.php?page=messages', 'mail', 'پیام‌های تماس', 'messages'],
+        ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
+    ]],
+    'catalog' => ['کاتالوگ و مشتریان', [
+        ['admin.php?page=customers', 'users', 'مشتری‌ها', 'customers'],
+        ['admin.php?page=categories', 'folder', 'دسته‌بندی‌ها', 'categories'],
+        ['admin.php?page=products', 'bag', 'محصولات', 'products'],
+        ['admin.php?page=attributes', 'list', 'ویژگی‌های محصول', 'attributes'],
+    ]],
+    'system' => ['سیستم', [
+        ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
+        ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
+        ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
+        ['admin.php?page=update', 'refresh', 'آپدیت', 'update', ''],
+    ]],
+];
+$activeNavGroup = 'main';
+foreach ($navGroups as $gKey => $gData) {
+    foreach ($gData[1] as $gItem) {
+        if ($gItem[3] !== '' && $gItem[3] === $page) {
+            $activeNavGroup = $gKey;
+            break 2;
+        }
+    }
 }
 $error = '';
 
@@ -193,6 +273,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
+        // اکشن‌های فاز ۲ (مشتری‌ها و کاتالوگ) در admin_catalog.php پردازش می‌شوند
+        if (in_array($action, catalog_post_actions(), true)) {
+            catalog_handle_post($action);
+        }
         switch ($action) {
             case 'add_section':
             case 'update_section':
@@ -537,6 +621,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('site_description', trim((string) ($_POST['site_description'] ?? '')));
                 set_setting('seo_title', trim((string) ($_POST['seo_title'] ?? '')));
                 set_setting('seo_description', trim((string) ($_POST['seo_description'] ?? '')));
+                // فاز ۲: تنظیمات مشتری و کاتالوگ محصول
+                $discount = (int) ($_POST['partner_discount_percent'] ?? 10);
+                if ($discount < 0) { $discount = 0; }
+                if ($discount > 90) { $discount = 90; }
+                set_setting('partner_discount_percent', (string) $discount);
+                set_setting('catalog_public', isset($_POST['catalog_public']) ? '1' : '0');
+                set_setting('catalog_title', trim((string) ($_POST['catalog_title'] ?? '')) ?: 'کاتالوگ محصولات');
                 flash('ok', 'تنظیمات ذخیره شد.');
                 redirect_admin('admin.php?page=settings');
                 // no break
@@ -595,6 +686,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('ok', 'پسورد تغییر کرد.');
                 redirect_admin('admin.php?page=settings');
                 // no break
+
         }
     } catch (Throwable $ex) {
         $error = $ex->getMessage();
@@ -602,56 +694,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /**
- * پیش‌نمایش یک قالب دیتابیسی با داده نمونه، داخل سند کامل سایت (برای iframe سندباکس).
- * قالب فقط با پلیس‌هولدرهای امن رندر می‌شود؛ هیچ کدی از متن قالب اجرا نمی‌شود.
- */
-function design_preview_html(array $settings, string $key, string $content): string
-{
-    $sampleSection = [
-        'title'     => 'بخش نمونه',
-        'heading'   => 'تیتر نمایشی بخش',
-        'body'      => '<p>این یک متن نمونه برای پیش‌نمایش قالب است. متن واقعی هر بخش از پنل مدیریت می‌آید.</p><ul><li>نکته اول</li><li>نکته دوم</li></ul>',
-        'image'     => '',
-        'link_url'  => '#',
-        'link_text' => 'متن دکمه نمونه',
-    ];
-    $samplePage = [
-        'title'   => 'عنوان صفحه نمونه',
-        'content' => '<p>این متن نمونه‌ی محتوای یک صفحه است تا چیدمان قالب «صفحه تکی» را ببینید.</p>',
-    ];
-    $ctx = template_context($key, $settings, $sampleSection, $samplePage);
-    if (strpos($content, '{{slider_slides}}') !== false) {
-        $ctx['slider_slides'] = '<div class="slides" data-slider><figure class="slide is-active"><figcaption class="slide-caption"><h3>اسلاید نمونه</h3><div class="slide-text"><p>متن نمونه اسلاید</p></div></figcaption></figure></div>';
-    }
-    $rendered = tpl_render($content, $ctx);
-    $doc = skeleton_head($settings, 'پیش‌نمایش قالب: ' . $key, '');
-    if (in_array($key, ['header', 'footer'], true)) {
-        $doc .= $rendered . "\n";
-    } else {
-        $doc .= '<main id="main">' . "\n" . $rendered . "\n" . '</main>' . "\n";
-    }
-    $doc .= skeleton_foot();
-    return $doc;
-}
-
-/**
  * جابه‌جایی یک ردیف (بخش یا صفحه) به بالا/پایین با همسایه‌اش */
-function move_row(PDO $pdo, string $table, int $id, string $direction): void
-{
-    $rows = $pdo->query('SELECT id, sort_order FROM ' . $table . ' ORDER BY sort_order ASC, id ASC')->fetchAll();
-    $idx = null;
-    foreach ($rows as $i => $r) {
-        if ((int) $r['id'] === $id) { $idx = $i; break; }
-    }
-    if ($idx === null) return;
-    $swap = $direction === 'up' ? $idx - 1 : $idx + 1;
-    if ($swap < 0 || $swap >= count($rows)) return;
-    $a = $rows[$idx]; $b = $rows[$swap];
-    $upd = $pdo->prepare('UPDATE ' . $table . ' SET sort_order = :o WHERE id = :id');
-    $upd->execute([':o' => $b['sort_order'], ':id' => $a['id']]);
-    $upd->execute([':o' => $a['sort_order'], ':id' => $b['id']]);
-}
-
 $sections  = get_sections(false);
 $pages     = get_pages(false);
 $messages  = get_contact_messages();
@@ -690,6 +733,20 @@ $editPage = null;
 if ($page === 'pages' && isset($_GET['edit_id'])) {
     foreach ($pages as $p) {
         if ((int) $p['id'] === (int) $_GET['edit_id']) { $editPage = $p; break; }
+    }
+}
+
+// ---------- داده‌های فاز ۲ (مشتری‌ها، دسته‌ها، محصولات، ویژگی‌ها) — بارگذاری در admin_catalog.php ----------
+$catalogData = catalog_load_data($page);
+extract($catalogData);
+
+// ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
+$dashCounts = ['customers' => 0, 'products' => 0];
+if ($page === 'dashboard') {
+    try {
+        $dashCounts['customers'] = (int) $pdo->query('SELECT COUNT(*) FROM customers')->fetchColumn();
+        $dashCounts['products']  = (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
+    } catch (Throwable $ignored) {
     }
 }
 // عنوان‌های نمایشی قالب‌های دیتابیس (برای برچسب فهرست قالب در فرم بخش‌ها)
@@ -738,36 +795,59 @@ if ($page === 'design') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>پنل مدیریت</title>
+<title><?= e($currentPageTitle) ?> — پنل مدیریت</title>
 <style><?= admin_css() ?></style>
 </head>
 <body>
 <header class="topbar">
-    <strong>پنل مدیریت — <?= e($settings['site_title'] ?? '') ?></strong>
-    <nav>
-        <a href="index.php" target="_blank">مشاهده سایت</a>
+    <div class="topbar-start">
+        <button type="button" class="icon-btn" id="navToggle" aria-label="منوی کناری"><?= nav_icon('menu') ?></button>
+        <strong class="topbar-title"><?= e($currentPageTitle) ?></strong>
+    </div>
+    <nav class="topbar-actions">
+        <a href="admin.php?page=products" class="quick-add">محصول جدید</a>
+        <a href="admin.php?page=customers" class="quick-add">مشتری جدید</a>
+        <a href="index.php" target="_blank" rel="noopener">مشاهده سایت</a>
         <a href="admin.php?logout=1">خروج</a>
     </nav>
 </header>
 
 <div class="layout">
+    <div class="nav-overlay" id="navOverlay"></div>
     <aside class="sidebar">
-        <a href="admin.php?page=sections" class="<?= $page === 'sections' ? 'active' : '' ?>">بخش‌های صفحه اصلی</a>
-        <a href="admin.php?page=pages" class="<?= $page === 'pages' ? 'active' : '' ?>">صفحه‌ها</a>
-        <a href="admin.php?page=design" class="<?= $page === 'design' ? 'active' : '' ?>">قالب و استایل</a>
-        <a href="admin.php?page=messages" class="<?= $page === 'messages' ? 'active' : '' ?>">پیام‌های تماس<?php if ($messages !== []): ?> (<?= count($messages) ?>)<?php endif; ?></a>
-        <a href="admin.php?page=tools" class="<?= $page === 'tools' ? 'active' : '' ?>">ابزار و بکاپ</a>
-        <a href="admin.php?page=database" class="<?= $page === 'database' ? 'active' : '' ?>"><?php if ($databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?>اتصال دیتابیس</a>
-        <a href="admin.php?page=update" class="<?= $page === 'update' ? 'active' : '' ?>">آپدیت</a>
-        <a href="admin.php?page=settings" class="<?= $page === 'settings' ? 'active' : '' ?>">تنظیمات و پسورد</a>
-        <div class="sidebar-version">نسخه برنامه: <span dir="ltr"><?= e(APP_VERSION) ?></span></div>
+        <div class="sidebar-brand">
+            <span class="brand-avatar" aria-hidden="true"><?= e(mb_substr(trim((string) ($settings['site_title'] ?? '')), 0, 1) ?: 'م') ?></span>
+            <strong class="brand-name"><?= e($settings['site_title'] ?? '') ?></strong>
+        </div>
+
+        <?php foreach ($navGroups as $gKey => $gData): ?>
+        <details class="nav-group" data-group="<?= $gKey ?>"<?= $activeNavGroup === $gKey ? ' open' : '' ?>>
+            <summary><?= e($gData[0]) ?></summary>
+            <?php foreach ($gData[1] as $it): ?>
+            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
+            <?php endforeach; ?>
+        </details>
+        <?php endforeach; ?>
+
+        <div class="sidebar-version">نسخه برنامه <span class="version-badge" dir="ltr"><?= e(APP_VERSION) ?></span></div>
     </aside>
 
     <main class="content">
         <?php if ($flash): ?><div class="alert <?= e($flash['type']) ?>"><?= e($flash['message']) ?></div><?php endif; ?>
         <?php if ($error): ?><div class="alert error"><?= e($error) ?></div><?php endif; ?>
 
-        <?php if ($page === 'sections'): ?>
+        <?php if ($page === 'dashboard'): ?>
+            <h1>داشبورد</h1>
+            <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد.</p>
+
+            <div class="stat-grid dash-cards">
+                <a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong><?= (int) $dashCounts['customers'] ?></strong></a>
+                <a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong><?= (int) $dashCounts['products'] ?></strong></a>
+                <a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong><?= count($messages) ?></strong></a>
+                <a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr"><?= e(APP_VERSION) ?></strong></a>
+            </div>
+
+        <?php elseif ($page === 'sections'): ?>
             <h1>بخش‌های صفحه اصلی</h1>
             <p class="muted">صفحه اصلی (index.php) بخش‌های فعال را دقیقاً به همین ترتیب نمایش می‌دهد. هر بخش محتوای خودش (تیتر، متن، عکس، لینک) و یک قالب دارد که متن و چیدمانش داخل دیتابیس است و از صفحه «قالب و استایل» ویرایش می‌شود. برای فرم تماس، یک بخش با قالب «تماس با ما» بسازید. صفحه‌های جدا هم با قالب «صفحه تکی» نمایش داده می‌شوند.</p>
 
@@ -953,6 +1033,18 @@ if ($page === 'design') {
                         <li><code>{{section_link_url}}</code> آدرس دکمه بخش</li>
                         <li><code>{{section_link_text}}</code> متن دکمه بخش</li>
                         <li><code>{{page_title}}</code> و <code>{{page_content}}</code> عنوان و محتوای صفحه (در قالب صفحه تکی)</li>
+                        <li><code>{{catalog_title}}</code> عنوان کاتالوگ (قالب‌های کاتالوگ و محصول — فاز ۲)</li>
+                        <li><code>{{categories_nav}}</code> ناو دسته‌بندی‌های کاتالوگ (قالب کاتالوگ)</li>
+                        <li><code>{{products_grid}}</code> شبکه کارت‌های محصولات (قالب کاتالوگ)</li>
+                        <li><code>{{product_name}}</code> نام محصول (قالب محصول)</li>
+                        <li><code>{{product_image}}</code> آدرس عکس محصول (قالب محصول)</li>
+                        <li><code>{{product_description}}</code> توضیح محصول (قالب محصول)</li>
+                        <li><code>{{category_title}}</code> عنوان دسته محصول/فیلتر فعال</li>
+                        <li><code>{{price_per_meter_formatted}}</code> قیمت متری مشتری، قالب‌بندی‌شده (قالب محصول)</li>
+                        <li><code>{{partner_price_per_meter_formatted}}</code> قیمت متری همکار، قالب‌بندی‌شده (اگر با مشتری فرق داشته باشد)</li>
+                        <li><code>{{product_specs}}</code> جدول مشخصات محصول از ویژگی‌ها (قالب محصول)</li>
+                        <li><code>{{attributes_options}}</code> انتخاب‌های آپشن (قالب محصول)</li>
+                        <li><code>{{estimator}}</code> برآوردگر زنده قیمت: طول + آپشن‌ها (قالب محصول)</li>
                         <li><code>{{slider_slides}}</code> کاروسل عکس همه بخش‌های عکس‌دار</li>
                         <li><code>{{contact_form}}</code> فرم تماس آماده (فقط در قالب تماس)</li>
                         <li>بلوک شرطی: <code>{{#if section_image_url}}...{{else}}...{{/if}}</code> — اگر مقدار خالی نباشد بخش اول، وگرنه بخش دوم نشان داده می‌شود؛ شرط‌ها می‌توانند تو در تو باشند.</li>
@@ -1150,6 +1242,17 @@ if ($page === 'design') {
                 </tbody>
             </table>
 
+        <?php elseif ($page === 'customers'): ?>
+            <?php catalog_render_customers($catalogData); ?>
+
+        <?php elseif ($page === 'categories'): ?>
+            <?php catalog_render_categories($catalogData); ?>
+
+        <?php elseif ($page === 'products'): ?>
+            <?php catalog_render_products($catalogData); ?>
+
+        <?php elseif ($page === 'attributes'): ?>
+            <?php catalog_render_attributes($catalogData); ?>
         <?php elseif ($page === 'tools'): ?>
             <h1>ابزار و بکاپ</h1>
 
@@ -1374,6 +1477,18 @@ if ($page === 'design') {
                 <label>توضیح سئوی صفحه اصلی (meta description)
                     <textarea name="seo_description" rows="2"><?= e($settings['seo_description'] ?? '') ?></textarea>
                 </label>
+                <h3>مشتری‌ها و کاتالوگ محصول (فاز ۲)</h3>
+                <label>درصد تخفیف همکار (وقتی برای محصول قیمت همکار جداگانه ثبت نشده)
+                    <input type="number" name="partner_discount_percent" min="0" max="90" step="1" value="<?= e($settings['partner_discount_percent'] ?? '10') ?>">
+                </label>
+                <label>عنوان کاتالوگ محصولات
+                    <input type="text" name="catalog_title" value="<?= e($settings['catalog_title'] ?? 'کاتالوگ محصولات') ?>">
+                </label>
+                <label class="check">
+                    <input type="checkbox" name="catalog_public" value="1" <?= ($settings['catalog_public'] ?? '1') === '1' ? 'checked' : '' ?>>
+                    نمایش عمومی کاتالوگ محصولات در سایت (و لینک «محصولات» در منو)
+                </label>
+                <p class="muted">مشتری‌ها، دسته‌ها، محصولات و ویژگی‌ها از منوهای «مشتری‌ها»، «دسته‌بندی‌ها»، «محصولات» و «ویژگی‌های محصول» مدیریت می‌شوند.</p>
                 <button type="submit" class="btn primary">ذخیره تنظیمات</button>
             </form>
 
@@ -1395,6 +1510,18 @@ if ($page === 'design') {
         <?php endif; ?>
     </main>
 </div>
+<script>
+(function(){var b=document.body,t=document.getElementById('navToggle'),o=document.getElementById('navOverlay'),mq=window.matchMedia('(max-width:899px)'),gs=[].slice.call(document.querySelectorAll('.nav-group')),st={};
+try{st=JSON.parse(localStorage.getItem('adminNavGroups')||'{}')}catch(e){}
+gs.forEach(function(g){var k=g.getAttribute('data-group');if(g.querySelector('a.active')){g.open=true}else if(k in st){g.open=!!st[k]}g.addEventListener('toggle',function(){st[k]=g.open;try{localStorage.setItem('adminNavGroups',JSON.stringify(st))}catch(e){}})});
+function openAll(){gs.forEach(function(g){g.open=true})}
+try{if(localStorage.getItem('adminNavRail')==='1'&&!mq.matches){b.classList.add('nav-rail');openAll()}}catch(e){}
+function closeD(){b.classList.remove('nav-open');if(t){t.setAttribute('aria-expanded','false')}}
+if(t){t.addEventListener('click',function(){if(mq.matches){var op=b.classList.toggle('nav-open');t.setAttribute('aria-expanded',op?'true':'false')}else{var r=b.classList.toggle('nav-rail');try{localStorage.setItem('adminNavRail',r?'1':'0')}catch(e){}if(r){openAll()}}})}
+if(o){o.addEventListener('click',closeD)}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeD()}});
+if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){closeD()}})}})();
+</script>
 </body>
 </html>
 <?php
@@ -1413,12 +1540,6 @@ textarea[dir=ltr]{font-family:Consolas,monospace;font-size:13px}
 button{padding:6px 10px;border:1px solid #d1d5db;border-radius:7px;background:#fff;cursor:pointer;font-family:inherit}
 button.danger{color:#dc2626;border-color:#fecaca}
 .alert{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:14px}.alert.ok{background:#dcfce7}.alert.error{background:#fee2e2}
-.topbar{display:flex;justify-content:space-between;align-items:center;background:#111827;color:#fff;padding:12px 18px}
-.topbar a{color:#93c5fd;margin-inline-start:14px}
-.layout{display:flex;min-height:calc(100vh - 49px)}
-.sidebar{width:210px;background:#fff;border-inline-end:1px solid #e5e7eb;padding:14px;display:flex;flex-direction:column;gap:6px}
-.sidebar a{padding:9px 12px;border-radius:8px;color:#111827}.sidebar a.active{background:#eff6ff;color:#2563eb;font-weight:bold}
-.sidebar-version{margin-top:auto;padding:10px 12px 4px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px}
 .status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px #dcfce7;margin-inline-end:7px;vertical-align:middle}
 .status-pill{display:inline-flex;align-items:center;padding:5px 11px;border-radius:99px;font-size:13px;font-weight:bold}.status-pill.ok{background:#dcfce7;color:#166534}.status-pill.error{background:#fee2e2;color:#991b1b}.status-pill .status-dot{box-shadow:none;margin-inline-end:6px}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:14px}.stat-card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px}.stat-card span{display:block;color:#6b7280;font-size:13px;margin-bottom:6px}.stat-card strong{font-size:24px;color:#111827}
@@ -1439,13 +1560,65 @@ code{background:#f3f4f6;padding:1px 5px;border-radius:5px;direction:ltr;display:
 input[type=color]{width:72px;height:38px;padding:2px;border:1px solid #d1d5db;border-radius:8px;background:#fff;vertical-align:middle;cursor:pointer}
 @media (max-width:760px){
 .layout{flex-direction:column}
-.sidebar{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;border-inline-end:0;border-bottom:1px solid #e5e7eb}
-.sidebar a{padding:7px 10px;font-size:13px}
-.sidebar-version{margin-top:0;border-top:0;padding:7px 10px}
 .content{padding:14px}
 table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tpl-preview{height:320px}
-.topbar{flex-wrap:wrap;gap:8px}
 }
+/* منوی کناری */
+.topbar{position:sticky;top:0;z-index:70;display:flex;justify-content:space-between;align-items:center;background:#111827;color:#fff;padding:8px 14px;gap:10px;box-shadow:0 1px 10px rgba(17,24,39,.25)}
+body.nav-open .topbar{z-index:85}
+.topbar-start{display:flex;align-items:center;gap:10px;min-width:0}
+.topbar-title{font-size:16px;white-space:nowrap}
+.topbar-actions{display:flex;align-items:center;gap:6px}
+.topbar-actions a{margin-inline-start:0;color:#e5e7eb;padding:7px 11px;border-radius:8px;background:rgba(255,255,255,.07);white-space:nowrap}
+.topbar-actions a:hover{background:rgba(255,255,255,.16);color:#fff}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 auto;border-radius:8px;border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;cursor:pointer;padding:0}
+.icon-btn:hover{background:rgba(255,255,255,.12)}
+.nav-ico{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.layout{display:flex;min-height:calc(100vh - 54px)}
+.sidebar{width:232px;background:#fff;border-inline-end:1px solid #e5e7eb;display:flex;flex-direction:column;padding:0;overflow-y:auto}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid #eef0f3}
+.brand-avatar{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#2563eb;color:#fff;font-weight:bold;font-size:18px}
+.brand-name{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nav-group{border-bottom:1px solid #eef0f3;padding:4px 10px 10px}
+.nav-group summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 8px 6px;font-size:12px;font-weight:bold;color:#6b7280;border-radius:6px}
+.nav-group summary::-webkit-details-marker{display:none}
+.nav-group summary::after{content:"";width:7px;height:7px;border-inline-end:2px solid #9ca3af;border-bottom:2px solid #9ca3af;transform:rotate(-45deg);transition:transform .2s}
+.nav-group[open] summary::after{transform:rotate(45deg)}
+.sidebar a{position:relative;display:flex;align-items:center;gap:9px;padding:9px 10px;margin:2px 0;border-radius:8px;color:#111827}
+.sidebar a:hover{background:#f3f4f6}
+.sidebar a.active{background:#eff6ff;color:#2563eb;font-weight:bold}
+.sidebar a.active::before{content:"";position:absolute;inset-inline-start:-10px;top:8px;bottom:8px;width:3px;border-radius:99px;background:#2563eb}
+.nav-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-badge{margin-inline-start:auto;background:#2563eb;color:#fff;font-size:11px;font-weight:bold;min-width:20px;height:20px;padding:0 6px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center}
+.sidebar a .status-dot{margin-inline-start:auto}
+.sidebar-version{margin-top:auto;border-top:1px solid #eef0f3;padding:12px 16px;display:flex;align-items:center;gap:8px;color:#9ca3af;font-size:12px}
+.version-badge{background:#eef2ff;color:#2563eb;border:1px solid #dbeafe;padding:2px 8px;border-radius:99px;font-weight:bold;font-size:12px}
+.sidebar a:focus-visible,.icon-btn:focus-visible,.nav-group summary:focus-visible,.topbar-actions a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.dash-cards a.stat-card{display:block;color:inherit}
+.dash-cards a.stat-card:hover{box-shadow:0 4px 16px rgba(17,24,39,.10)}
+.nav-overlay{display:none}
+@media (min-width:900px){
+.sidebar{position:sticky;top:54px;height:calc(100vh - 54px)}
+body.nav-rail .sidebar{width:78px}
+body.nav-rail .brand-name,body.nav-rail .nav-label,body.nav-rail .nav-group summary,body.nav-rail .sidebar-version{display:none}
+body.nav-rail .sidebar-brand{justify-content:center;padding:14px 6px 10px}
+body.nav-rail .nav-group{padding:8px}
+body.nav-rail .sidebar a{justify-content:center;padding:10px 0}
+body.nav-rail .sidebar a.active::before{inset-inline-start:-8px}
+body.nav-rail .nav-badge{position:absolute;top:1px;inset-inline-end:1px;margin:0;min-width:16px;height:16px;font-size:10px;padding:0 4px}
+body.nav-rail .sidebar a .status-dot{position:absolute;bottom:3px;inset-inline-end:3px;margin:0}
+}
+@media (max-width:899px){
+.layout{flex-direction:column}
+.sidebar{position:fixed;top:0;bottom:0;inset-inline-start:0;width:min(300px,86vw);height:auto;z-index:80;align-items:stretch;transform:translateX(110%);transition:transform .25s ease;box-shadow:0 0 44px rgba(17,24,39,.35)}
+body.nav-open .sidebar{transform:none}
+.nav-overlay{display:block;position:fixed;inset:0;z-index:75;background:rgba(17,24,39,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
+.content{padding:14px}
+.topbar-actions .quick-add{display:none}
+}
+@media (max-width:480px){.topbar-title{font-size:14px}.topbar-actions a{padding:6px 8px}}
+@media (prefers-reduced-motion:reduce){.sidebar,.nav-overlay,.nav-group summary::after{transition:none}}
 CSS;
 }
