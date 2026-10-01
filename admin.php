@@ -15,6 +15,18 @@ require_once __DIR__ . '/admin_inventory.php';
 require_once __DIR__ . '/admin_orders.php';
 
 // ---------- سشن امن نسبی ----------
+// روی خیلی از هاست‌های اشتراکی مسیر پیش‌فرض ذخیرهٔ سشن هر ~۲۴ دقیقه پاک می‌شود و
+// فرمِ بازمانده روی صفحه با خطای CSRF می‌مرد؛ پس سشن را داخل پوشهٔ خود سیستم نگه
+// می‌داریم و عمرش را هم بلند می‌کنیم تا این اتفاق نیفتد. اگر پوشه ساخته نشد، همان
+// مسیر پیش‌فرض هاست استفاده می‌شود و سیستم مثل قبل کار می‌کند.
+$cmsSessionDir = __DIR__ . '/sessions';
+if (!is_dir($cmsSessionDir)) {
+    @mkdir($cmsSessionDir, 0700, true);
+}
+if (is_dir($cmsSessionDir) && is_writable($cmsSessionDir)) {
+    ini_set('session.save_path', $cmsSessionDir);
+}
+ini_set('session.gc_maxlifetime', '604800'); // یک هفته؛ فرم بازمانده روی صفحه نمی‌میرد
 session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
@@ -43,10 +55,22 @@ function csrf_field(): string
 
 function check_csrf(): void
 {
-    if (!hash_equals($_SESSION['csrf'] ?? '', (string) ($_POST['csrf'] ?? ''))) {
-        http_response_code(400);
-        exit('درخواست نامعتبر است (CSRF). لطفاً دوباره تلاش کنید.');
+    if (hash_equals((string) ($_SESSION['csrf'] ?? ''), (string) ($_POST['csrf'] ?? ''))) {
+        return;
     }
+    // نشست منقضی یا صفحهٔ خیلی بازمانده نباید بن‌بست باشد: درخواست مثل قبل رد می‌شود،
+    // ولی مدیرِ واردشده با یک پیام روشن برمی‌گردد به همان صفحه تا دوباره تلاش کند.
+    if (!empty($_SESSION['admin_logged_in'])) {
+        $back = (string) ($_GET['page'] ?? '');
+        if (!preg_match('/^[a-z_]+$/', $back)) {
+            $back = 'dashboard';
+        }
+        $_SESSION['flash'] = ['type' => 'error', 'message' => 'نشستت منقضی شده بود یا این صفحه خیلی باز مانده بود، برای همین فرمت ثبت نشد. حالا دوباره تلاش کن.'];
+        header('Location: admin.php?page=' . $back);
+        exit;
+    }
+    http_response_code(400);
+    exit('درخواست نامعتبر است (CSRF). لطفاً دوباره تلاش کنید.');
 }
 
 function redirect_admin(string $url = 'admin.php'): void
