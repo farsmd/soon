@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.1.0');
+define('APP_VERSION', '8.2.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -291,6 +291,7 @@ function init_db(PDO $pdo): void
             wire_steps          INTEGER NOT NULL DEFAULT 0,
             wire_extra_total    INTEGER NOT NULL DEFAULT 0,
             has_endcap          INTEGER NOT NULL DEFAULT 0,
+            note                TEXT,
             line_subtotal       INTEGER NOT NULL DEFAULT 0,
             line_total          INTEGER NOT NULL DEFAULT 0,
             sort_order          INTEGER NOT NULL DEFAULT 0
@@ -323,6 +324,52 @@ function init_db(PDO $pdo): void
     // ستون‌های تازه فاز ۳ روی جدول‌های قدیمی (ارتقای خودکار، بدون حذف داده)
     db_add_column_if_missing($pdo, 'products', 'prep_days', 'INTEGER NOT NULL DEFAULT 0');
     db_add_column_if_missing($pdo, 'product_materials', 'apply_condition', "TEXT NOT NULL DEFAULT 'always'");
+    // ستون و تنظیمات نسخه ۸٫۲ (توضیح هر ردیف سفارش + سقف طول سیم)
+    db_add_column_if_missing($pdo, 'order_items', 'note', 'TEXT');
+    if (get_setting('wire_max_cm', '') === '') {
+        set_setting('wire_max_cm', '100');
+    }
+    // جدول‌های لاگ (نسخه ۸٫۲): بازدید سایت و فعالیت مدیریت + تنظیمات نشست و لاگ
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS visit_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            kind        TEXT NOT NULL DEFAULT 'visit',
+            ip          TEXT NOT NULL DEFAULT '',
+            user_agent  TEXT NOT NULL DEFAULT '',
+            referer     TEXT NOT NULL DEFAULT '',
+            path        TEXT NOT NULL DEFAULT '',
+            target      TEXT NOT NULL DEFAULT '',
+            session_key TEXT NOT NULL DEFAULT ''
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visit_logs_id ON visit_logs (id DESC)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS admin_logs (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ip         TEXT NOT NULL DEFAULT '',
+            action     TEXT NOT NULL DEFAULT '',
+            page       TEXT NOT NULL DEFAULT '',
+            detail     TEXT NOT NULL DEFAULT '',
+            ok         INTEGER NOT NULL DEFAULT 1
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_admin_logs_id ON admin_logs (id DESC)");
+    foreach ([
+        'session_lifetime_hours' => '168',
+        'visit_log_enabled'      => '1',
+        'admin_log_enabled'      => '1',
+        'log_retention_days'     => '90',
+        'log_skip_bots'          => '1',
+    ] as $logKey => $logDef) {
+        if (get_setting($logKey, '') === '') {
+            set_setting($logKey, $logDef);
+        }
+    }
+    if (get_setting('order_line_note', '') === '') {
+        set_setting('order_line_note', '1');
+    }
 
     // --- جدول قالب‌های داخل دیتابیس (نسخه ۵) ---
     $pdo->exec("
@@ -1623,7 +1670,7 @@ function skeleton_head(array $settings, string $title, string $description): str
 /** پایان سند: اسکریپت سبک منوی موبایل، تغییر تم و اسلایدر + بستن body و html */
 function skeleton_foot(): string
 {
-    return <<<'HTML'
+    $html = <<<'HTML'
 <script>
 (function(){
     var navToggle=document.querySelector('.nav-toggle');
@@ -1684,6 +1731,146 @@ function skeleton_foot(): string
 </body>
 </html>
 HTML;
+    // اسکریپت ردیابی کلیک بازدیدکننده (فقط وقتی لاگ بازدید فعال است)
+    $track = tracking_script_html();
+    if ($track !== '') {
+        $html = str_replace('</body>', $track . "\n</body>", $html);
+    }
+    return $html;
+}
+
+// ---------- نشست، لاگ بازدید و لاگ مدیریت (نسخه ۸٫۲) ----------
+
+/** عمر نشست (ثانیه) از تنظیم پنل؛ پیش‌فرض ۱۶۸ ساعت (یک هفته)، بین ۱ ساعت تا ۳۰ روز. */
+function session_lifetime_seconds(): int
+{
+    try {
+        $h = (int) get_setting('session_lifetime_hours', '168');
+    } catch (Throwable $ignored) {
+        $h = 168;
+    }
+    if ($h < 1) { $h = 1; }
+    if ($h > 720) { $h = 720; }
+    return $h * 3600;
+}
+
+/** آی‌پی واقعی بازدیدکننده (با احترام به هدر پراکسی هاست‌های اشتراکی). */
+function client_ip(): string
+{
+    $xff = (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
+    if ($xff !== '') {
+        $first = trim(explode(',', $xff)[0]);
+        if (filter_var($first, FILTER_VALIDATE_IP)) {
+            return $first;
+        }
+    }
+    return (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+}
+
+/** تشخیص ساده ربات از روی User-Agent (برای لاگ بازدید تمیزتر). */
+function ua_is_bot(string $ua): bool
+{
+    if ($ua === '') { return true; }
+    return (bool) preg_match('/bot|crawler|spider|crawl|slurp|headless|curl|wget|python-requests|scrapy|semrush|ahrefs/i', $ua);
+}
+
+/** پاک‌سازی دوره‌ای لاگ‌های قدیمی‌تر از مهلت نگهداری تنظیم‌شده (گاهی، نه هر درخواست). */
+function prune_logs_maybe(): void
+{
+    if (random_int(1, 50) !== 1) { return; }
+    try {
+        $days = (int) get_setting('log_retention_days', '90');
+        if ($days < 1) { $days = 1; }
+        if ($days > 3650) { $days = 3650; }
+        $cut = "datetime('now', '-" . $days . " days')";
+        db()->exec("DELETE FROM visit_logs WHERE created_at < $cut");
+        db()->exec("DELETE FROM admin_logs WHERE created_at < $cut");
+    } catch (Throwable $ignored) {
+    }
+}
+
+/**
+ * ردیابی درخواست‌های صفحات عمومی: بازدید صفحه (GET) و کلیک‌ها (بیکن JS).
+ * در ابتدای index.php و page.php و products.php صدا زده می‌شود؛ برای بیکن کلیک
+ * پاسخ 204 می‌دهد و همان‌جا تمام می‌شود تا رندر صفحه انجام نشود.
+ */
+function track_public_request(): void
+{
+    try {
+        if (get_setting('visit_log_enabled', '1') !== '1') { return; }
+        $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $ua = substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 300);
+        if (get_setting('log_skip_bots', '1') === '1' && ua_is_bot($ua)) { return; }
+        $sessionKey = '';
+        if (session_status() === PHP_SESSION_ACTIVE && session_id() !== '') {
+            $sessionKey = substr(md5(session_id()), 0, 10);
+        }
+        if ($method === 'POST' && isset($_POST['track_click'])) {
+            // بیکن کلیک: فقط از خود سایت قبول می‌شود
+            $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+            if ($origin !== '' && parse_url($origin, PHP_URL_HOST) !== ($_SERVER['HTTP_HOST'] ?? '')) {
+                http_response_code(204);
+                exit;
+            }
+            $path = substr((string) ($_POST['p'] ?? ($_SERVER['REQUEST_URI'] ?? '')), 0, 300);
+            $target = substr(trim((string) ($_POST['t'] ?? '')), 0, 200);
+            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key) VALUES ('click', ?, ?, ?, ?, ?, ?)")
+                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey]);
+            prune_logs_maybe();
+            http_response_code(204);
+            exit;
+        }
+        if ($method === 'GET') {
+            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key) VALUES ('visit', ?, ?, ?, ?, '', ?)")
+                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey]);
+            prune_logs_maybe();
+        }
+    } catch (Throwable $ignored) {
+        // لاگ نباید هیچ‌وقت سایت را از کار بیندازد
+    }
+}
+
+/** اسکریپت سبک ردیابی کلیک روی لینک‌ها و دکمه‌های صفحات عمومی. */
+function tracking_script_html(): string
+{
+    try {
+        if (get_setting('visit_log_enabled', '1') !== '1') { return ''; }
+    } catch (Throwable $ignored) {
+        return '';
+    }
+    return <<<'JS'
+<script>
+(function(){
+    document.addEventListener('click',function(ev){
+        var el=ev.target;
+        while(el&&el!==document.body&&!(el.tagName==='A'||el.tagName==='BUTTON'||(el.getAttribute&&el.getAttribute('role')==='button'))){el=el.parentElement;}
+        if(!el||el===document.body){return;}
+        var label='';
+        if(el.tagName==='A'){label=(el.textContent||'').trim().replace(/\s+/g,' ').slice(0,60);var href=el.getAttribute('href')||'';if(href){label=(label?label+' ← ':'')+href.slice(0,90);}}
+        else{label=((el.textContent||el.value||'').trim().replace(/\s+/g,' ').slice(0,60))||(el.getAttribute('aria-label')||'دکمه');}
+        if(!label){return;}
+        try{
+            var body=new URLSearchParams();body.set('track_click','1');body.set('t',label);body.set('p',location.pathname+location.search);
+            if(navigator.sendBeacon){navigator.sendBeacon(location.pathname,body);}
+            else{fetch(location.pathname,{method:'POST',body:body,keepalive:true}).catch(function(){});}
+        }catch(e){}
+    },true);
+})();
+</script>
+JS;
+}
+
+/** ثبت یک رویداد در لاگ فعالیت مدیریت (ورود، خروج، اکشن‌ها)؛ هرگز جریان پنل را مختل نمی‌کند. */
+function log_admin_event(string $action, string $detail = '', bool $ok = true, string $page = ''): void
+{
+    try {
+        if (get_setting('admin_log_enabled', '1') !== '1') { return; }
+        if ($page === '') { $page = (string) ($_GET['page'] ?? ''); }
+        db()->prepare('INSERT INTO admin_logs (ip, action, page, detail, ok) VALUES (?, ?, ?, ?, ?)')
+            ->execute([client_ip(), substr($action, 0, 60), substr($page, 0, 60), substr($detail, 0, 300), $ok ? 1 : 0]);
+        prune_logs_maybe();
+    } catch (Throwable $ignored) {
+    }
 }
 
 // ---------- CSS پایه کارخانه‌ای ----------
@@ -2449,6 +2636,7 @@ function compute_order_totals(array $lines, bool $isPartner): array
             'wire_steps' => $wireSteps,
             'wire_extra_total' => $wireExtra,
             'has_endcap' => !empty($ln['has_endcap']),
+            'note' => trim((string) ($ln['note'] ?? '')),
             'line_subtotal' => $lineSubtotal,
             'line_total' => $lineTotal,
         ];
@@ -2571,6 +2759,8 @@ function seed_order_rules_if_needed(PDO $pdo): void
         'wire_default_cm' => '20',
         'wire_step_cm' => '5',
         'wire_price_per_step' => '0',
+        'wire_max_cm' => '100',
+        'order_line_note' => '1',
         'remnant_min_cm' => '20',
         'default_prep_days' => '3',
         'deposit_percent' => '50',
