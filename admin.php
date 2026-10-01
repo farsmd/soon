@@ -348,6 +348,7 @@ $pageTitles = [
     'products'   => 'محصولات',
     'attributes' => 'ویژگی‌های محصول',
     'materials'  => 'مواد اولیه و انبار',
+    'material_prices' => 'لیست قیمت مواد اولیه',
     'stock'      => 'گردش انبار',
     'orders'     => 'سفارش‌ها',
     'order_new'  => 'سفارش تازه',
@@ -392,6 +393,7 @@ $navGroups = [
     ]],
     'inventory' => ['انبار', [
         ['admin.php?page=materials', 'box', 'مواد اولیه', 'materials'],
+        ['admin.php?page=material_prices', 'list', 'لیست قیمت مواد', 'material_prices'],
         ['admin.php?page=stock', 'swap', 'گردش انبار', 'stock'],
         ['admin.php?page=remnants', 'cut', 'انبار پرتی', 'remnants'],
     ]],
@@ -509,6 +511,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
         if (in_array($action, logs_post_actions(), true)) {
             logs_handle_post($action);
+        }
+        // شخصی‌سازی داشبورد (نسخه ۸٫۵٫۰): ترتیب و فعال‌بودن ویجت‌ها
+        if ($action === 'save_dashboard') {
+            $order = (array) ($_POST['w'] ?? []);
+            $onFlags = (array) ($_POST['on'] ?? []);
+            $enabled = [];
+            foreach ($order as $k) {
+                $k = (string) $k;
+                if ($k !== '' && !empty($onFlags[$k]) && !in_array($k, $enabled, true)) {
+                    $enabled[] = $k;
+                }
+            }
+            set_setting('dash_widgets', json_encode($enabled, JSON_UNESCAPED_UNICODE));
+            log_admin_event('dashboard', 'شخصی‌سازی داشبورد (' . count($enabled) . ' ویجت)');
+            flash('ok', 'چیدمان داشبورد ذخیره شد.');
+            redirect_admin('admin.php?page=dashboard');
         }
         switch ($action) {
             case 'add_section':
@@ -1001,12 +1019,62 @@ extract($financeData);
 
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
 $dashCounts = ['customers' => 0, 'products' => 0, 'orders' => 0, 'new_orders' => 0];
+// داده‌های نمودارهای پاستیلی داشبورد (۸٫۵٫۰)
+$chartIncome = [];      // [['month' => 'YYYY-MM', 'value' => int], ...] ۶ ماه اخیر
+$chartOrderStatus = []; // [['label' => string, 'value' => int, 'color' => string]]
+$chartExpenseCat = [];  // [['label' => string, 'value' => int, 'color' => string]]
+$chartProdStages = [];  // [['label' => string, 'value' => int, 'color' => string]]
 if ($page === 'dashboard') {
     try {
         $dashCounts['customers'] = (int) $pdo->query('SELECT COUNT(*) FROM customers')->fetchColumn();
         $dashCounts['products']  = (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
         $dashCounts['orders']     = (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn();
         $dashCounts['new_orders'] = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE status = 'new'")->fetchColumn();
+    } catch (Throwable $ignored) {
+    }
+    try {
+        // دریافتی ۶ ماه اخیر (ماه میلادی از paid_date)
+        $rows = $pdo->query("SELECT substr(paid_date, 1, 7) AS m, COALESCE(SUM(amount), 0) AS s FROM payments WHERE paid_date >= date('now', '-6 months') GROUP BY m")->fetchAll();
+        $byMonth = [];
+        foreach ($rows as $r) {
+            $byMonth[(string) $r['m']] = (int) $r['s'];
+        }
+        for ($i = 5; $i >= 0; $i--) {
+            $mk = date('Y-m', strtotime("-$i months"));
+            $chartIncome[] = ['month' => $mk, 'value' => $byMonth[$mk] ?? 0];
+        }
+    } catch (Throwable $ignored) {
+    }
+    try {
+        $rows = $pdo->query('SELECT status, COUNT(*) AS c FROM orders GROUP BY status ORDER BY c DESC')->fetchAll();
+        foreach ($rows as $r) {
+            $chartOrderStatus[] = [
+                'label' => function_exists('order_status_title') ? order_status_title((string) $r['status']) : (string) $r['status'],
+                'value' => (int) $r['c'],
+                'color' => function_exists('order_status_color') ? order_status_color((string) $r['status']) : '#a7b8e0',
+            ];
+        }
+    } catch (Throwable $ignored) {
+    }
+    try {
+        $rows = $pdo->query("SELECT c.title AS t, COALESCE(SUM(e.amount), 0) AS s FROM expenses e JOIN expense_categories c ON c.id = e.category_id WHERE e.status = 'approved' GROUP BY c.id ORDER BY s DESC LIMIT 8")->fetchAll();
+        $pastels = ['#f9a8d4', '#93c5fd', '#6ee7b7', '#fcd34d', '#c4b5fd', '#fda4af', '#7dd3fc', '#bef264'];
+        $ci = 0;
+        foreach ($rows as $r) {
+            $chartExpenseCat[] = ['label' => (string) $r['t'], 'value' => (int) $r['s'], 'color' => $pastels[$ci % count($pastels)]];
+            $ci++;
+        }
+    } catch (Throwable $ignored) {
+    }
+    try {
+        $rows = $pdo->query("SELECT stage_key, COUNT(*) AS c FROM production_orders WHERE state = 'open' GROUP BY stage_key")->fetchAll();
+        foreach ($rows as $r) {
+            $chartProdStages[] = [
+                'label' => function_exists('production_stage_title') ? production_stage_title((string) $r['stage_key']) : (string) $r['stage_key'],
+                'value' => (int) $r['c'],
+                'color' => function_exists('production_stage_color') ? production_stage_color((string) $r['stage_key']) : '#fde68a',
+            ];
+        }
     } catch (Throwable $ignored) {
     }
 }
@@ -1098,34 +1166,171 @@ if ($page === 'design') {
         <?php if ($error): ?><div class="alert error"><?= e($error) ?></div><?php endif; ?>
 
         <?php if ($page === 'dashboard'): ?>
+            <?php
+            // ----- سیستم ویجت‌های داشبورد (۸٫۵٫۰) — کاربر از همین صفحه فعال/غیرفعال و مرتبشان می‌کند -----
+            $dashWidgetDefs = [
+                'stat_customers'      => ['کارت آماری: مشتری‌ها', 'stat'],
+                'stat_products'       => ['کارت آماری: محصولات', 'stat'],
+                'stat_orders'         => ['کارت آماری: سفارش‌ها', 'stat'],
+                'stat_new_orders'     => ['کارت آماری: سفارش‌های جدید (فقط وقتی > ۰)', 'stat'],
+                'stat_production'     => ['کارت آماری: برگه‌های تولید در جریان (فقط وقتی > ۰)', 'stat'],
+                'stat_finance_month'  => ['کارت آماری: تراز مالی این ماه', 'stat'],
+                'stat_pending'        => ['کارت آماری: هزینه‌های در انتظار تأیید (فقط وقتی > ۰)', 'stat'],
+                'stat_debt'           => ['کارت آماری: بدهی مشتریان (فقط وقتی > ۰)', 'stat'],
+                'stat_messages'       => ['کارت آماری: پیام‌های تماس', 'stat'],
+                'stat_version'        => ['کارت آماری: نسخه برنامه', 'stat'],
+                'chart_income'        => ['نمودار دریافتی ۶ ماه اخیر', 'chart'],
+                'chart_orders'        => ['نمودار وضعیت سفارش‌ها', 'chart'],
+                'chart_expenses'      => ['نمودار هزینه‌ها برحسب دسته', 'chart'],
+                'chart_production'    => ['نمودار برگه‌های تولید برحسب مرحله', 'chart'],
+            ];
+            $dashEnabledRaw = json_decode((string) get_setting('dash_widgets', ''), true);
+            $dashEnabled = (is_array($dashEnabledRaw) && $dashEnabledRaw !== [])
+                ? array_values(array_filter(array_map('strval', $dashEnabledRaw), static fn ($k) => isset($dashWidgetDefs[$k])))
+                : array_keys($dashWidgetDefs);
+            if ($dashEnabled === []) {
+                $dashEnabled = array_keys($dashWidgetDefs);
+            }
+            $dashOn = array_fill_keys($dashEnabled, true);
+            // نمودار میله‌ای پاستیلی (SVG بدون کتابخانه)
+            $pastelPalette = ['#f9a8d4', '#93c5fd', '#6ee7b7', '#fcd34d', '#c4b5fd', '#fda4af', '#7dd3fc', '#bef264'];
+            $renderBarChart = static function (array $bars, string $unitLabel = '') use ($pastelPalette): string {
+                if ($bars === []) {
+                    return '<p class="muted">داده‌ای برای نمایش نیست.</p>';
+                }
+                $max = 1;
+                foreach ($bars as $b) {
+                    $max = max($max, (float) $b['value']);
+                }
+                $w = max(320, count($bars) * 74);
+                $h = 190;
+                $base = 160;
+                $bw = min(46, max(22, (int) (($w / max(1, count($bars))) * 0.55)));
+                $gap = $w / count($bars);
+                $out = '<svg viewBox="0 0 ' . $w . ' ' . $h . '" role="img" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">';
+                $out .= '<line x1="8" y1="' . $base . '" x2="' . ($w - 8) . '" y2="' . $base . '" stroke="#e5e7eb" stroke-width="2"/>';
+                $i = 0;
+                foreach ($bars as $b) {
+                    $val = (float) $b['value'];
+                    $bh = max(2, (int) round($val / $max * 118));
+                    $x = (int) round(8 + $i * $gap + ($gap - $bw) / 2);
+                    $y = $base - $bh;
+                    $color = (string) ($b['color'] ?? $pastelPalette[$i % count($pastelPalette)]);
+                    $label = (string) ($b['label'] ?? '');
+                    $disp = $unitLabel !== '' ? number_format((int) $val) . ' ' . $unitLabel : number_format((int) $val);
+                    $out .= '<rect x="' . $x . '" y="' . $y . '" width="' . $bw . '" height="' . $bh . '" rx="7" fill="' . e($color) . '"/>';
+                    $out .= '<text x="' . ($x + (int) ($bw / 2)) . '" y="' . ($y - 6) . '" font-size="11" font-weight="700" text-anchor="middle" fill="#374151">' . e($disp) . '</text>';
+                    $out .= '<text x="' . ($x + (int) ($bw / 2)) . '" y="' . ($base + 16) . '" font-size="10.5" text-anchor="middle" fill="#6b7280">' . e(mb_substr($label, 0, 14)) . '</text>';
+                    $i++;
+                }
+                $out .= '</svg>';
+                return $out;
+            };
+            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal): string {
+                switch ($key) {
+                    case 'stat_customers':
+                        return '<a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong>' . (int) $dashCounts['customers'] . '</strong></a>';
+                    case 'stat_products':
+                        return '<a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong>' . (int) $dashCounts['products'] . '</strong></a>';
+                    case 'stat_orders':
+                        return '<a class="stat-card" href="admin.php?page=orders"><span>سفارش‌ها</span><strong>' . (int) $dashCounts['orders'] . '</strong></a>';
+                    case 'stat_new_orders':
+                        return (int) $dashCounts['new_orders'] > 0 ? '<a class="stat-card" href="admin.php?page=orders&status=new" style="border-color:#93c5fd;background:#eff6ff"><span style="color:#1d4ed8">سفارش‌های جدید</span><strong style="color:#1d4ed8">' . (int) $dashCounts['new_orders'] . '</strong></a>' : '';
+                    case 'stat_production':
+                        return (int) ($productionActiveCount ?? 0) > 0 ? '<a class="stat-card" href="admin.php?page=production" style="border-color:#fcd34d;background:#fffbeb"><span style="color:#92400e">برگه‌های تولید در جریان</span><strong style="color:#92400e">' . (int) $productionActiveCount . '</strong></a>' : '';
+                    case 'stat_finance_month':
+                        return (isset($finPending) && is_array($finPending)) ? '<a class="stat-card" href="admin.php?page=finance"><span>تراز مالی این ماه</span><strong>' . e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) . ' تومان</strong></a>' : '';
+                    case 'stat_pending':
+                        return (isset($finPending) && is_array($finPending) && (int) ($finPending['count'] ?? 0) > 0) ? '<a class="stat-card" href="admin.php?page=expenses&status=pending" style="border-color:#fcd34d;background:#fffbeb"><span style="color:#92400e">⏳ هزینه‌های در انتظار تأیید</span><strong style="color:#92400e">' . (int) $finPending['count'] . ' مورد</strong></a>' : '';
+                    case 'stat_debt':
+                        return ((int) ($finDebtTotal ?? 0) > 0) ? '<a class="stat-card" href="admin.php?page=statements" style="border-color:#fda4af;background:#fef2f2"><span style="color:#b91c1c">بدهی مشتریان</span><strong style="color:#b91c1c">' . e(format_price((int) $finDebtTotal)) . ' تومان</strong></a>' : '';
+                    case 'stat_messages':
+                        return '<a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
+                    case 'stat_version':
+                        return '<a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
+                }
+                return '';
+            };
+            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $renderBarChart): string {
+                switch ($key) {
+                    case 'chart_income':
+                        $bars = [];
+                        foreach ($chartIncome as $r) {
+                            $bars[] = ['label' => $r['month'], 'value' => (int) $r['value']];
+                        }
+                        return $bars === [] ? '' : '<section class="card"><h3 style="margin-top:0">📈 دریافتی ۶ ماه اخیر (تومان)</h3>' . $renderBarChart($bars) . '</section>';
+                    case 'chart_orders':
+                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3 style="margin-top:0">🧾 سفارش‌ها برحسب وضعیت</h3>' . $renderBarChart($chartOrderStatus) . '</section>';
+                    case 'chart_expenses':
+                        return $chartExpenseCat === [] ? '' : '<section class="card"><h3 style="margin-top:0">💸 هزینه‌های تأییدشده برحسب دسته (تومان)</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
+                    case 'chart_production':
+                        return $chartProdStages === [] ? '' : '<section class="card"><h3 style="margin-top:0">🏭 برگه‌های تولید باز برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
+                }
+                return '';
+            };
+            ?>
             <h1>داشبورد</h1>
-            <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد.</p>
+            <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد. ویجت‌ها از دکمه «شخصی‌سازی داشبورد» قابل افزودن، حذف و جابه‌جایی‌اند.</p>
+
+            <div class="crud-toolbar">
+                <button type="button" class="btn" data-toggle-panel="dash-customize-panel" aria-expanded="false">⚙ شخصی‌سازی داشبورد</button>
+            </div>
+            <div class="crud-panel" id="dash-customize-panel" hidden>
+                <section class="card wide">
+                    <h2 style="margin-top:0">ویجت‌های داشبورد</h2>
+                    <p class="muted">تیک هر ویجت = نمایش آن؛ دکمه‌های ↑ و ↓ ترتیب نمایش را جابه‌جا می‌کنند. کارت‌های شرطی (مثل «در انتظار تأیید») فقط وقتی مقداری دارند نشان داده می‌شوند.</p>
+                    <form method="post" id="dash-widget-form">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="save_dashboard">
+                        <div id="dash-widget-rows">
+                        <?php $allKeysOrdered = array_merge($dashEnabled, array_values(array_diff(array_keys($dashWidgetDefs), $dashEnabled))); ?>
+                        <?php foreach ($allKeysOrdered as $wk): ?>
+                            <div class="dash-wrow" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed #e5e7eb">
+                                <label class="check" style="flex:1;margin:0"><input type="checkbox" name="on[<?= e($wk) ?>]" value="1"<?= isset($dashOn[$wk]) ? ' checked' : '' ?>> <?= e($dashWidgetDefs[$wk][0]) ?></label>
+                                <input type="hidden" name="w[]" value="<?= e($wk) ?>">
+                                <button type="button" class="btn small" data-move="up" title="بالا">↑</button>
+                                <button type="button" class="btn small" data-move="down" title="پایین">↓</button>
+                            </div>
+                        <?php endforeach; ?>
+                        </div>
+                        <button type="submit" class="btn add" style="margin-top:12px">💾 ذخیره چیدمان</button>
+                    </form>
+                    <script>
+                    (function(){
+                        var box = document.getElementById('dash-widget-rows');
+                        if (!box) return;
+                        box.addEventListener('click', function(ev){
+                            var btn = ev.target.closest('button[data-move]');
+                            if (!btn) return;
+                            var row = btn.closest('.dash-wrow');
+                            if (!row) return;
+                            if (btn.getAttribute('data-move') === 'up' && row.previousElementSibling) {
+                                box.insertBefore(row, row.previousElementSibling);
+                            }
+                            if (btn.getAttribute('data-move') === 'down' && row.nextElementSibling) {
+                                box.insertBefore(row.nextElementSibling, row);
+                            }
+                        });
+                    })();
+                    </script>
+                </section>
+            </div>
 
             <div class="stat-grid dash-cards">
-                <a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong><?= (int) $dashCounts['customers'] ?></strong></a>
-                <a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong><?= (int) $dashCounts['products'] ?></strong></a>
-                <a class="stat-card" href="admin.php?page=orders"><span>سفارش‌ها</span><strong><?= (int) $dashCounts['orders'] ?></strong></a>
-                <?php if ((int) ($productionActiveCount ?? 0) > 0): ?>
-                <a class="stat-card" href="admin.php?page=production" style="border-color:#d97706;background:#fffbeb"><span style="color:#92400e">برگه‌های تولید در جریان</span><strong style="color:#92400e"><?= (int) $productionActiveCount ?></strong></a>
+                <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat') { continue; } echo $renderStat($wk); ?>
+                <?php if ($wk === 'stat_orders' && $lowStockCount > 0): ?>
+                <a class="stat-card" href="admin.php?page=materials" style="border-color:#fda4af;background:#fef2f2"><span style="color:#b91c1c">⚠ مواد رو به اتمام</span><strong style="color:#b91c1c"><?= (int) $lowStockCount ?> ماده</strong></a>
                 <?php endif; ?>
-                <?php if ((int) $dashCounts['new_orders'] > 0): ?>
-                <a class="stat-card" href="admin.php?page=orders&status=new" style="border-color:#2563eb;background:#eff6ff"><span style="color:#1d4ed8">سفارش‌های جدید</span><strong style="color:#1d4ed8"><?= (int) $dashCounts['new_orders'] ?></strong></a>
-                <?php endif; ?>
-                <?php if (isset($finPending) && is_array($finPending)): ?>
-                <a class="stat-card" href="admin.php?page=finance"><span>تراز مالی این ماه</span><strong><?= e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) ?> تومان</strong></a>
-                <?php if ((int) $finPending['count'] > 0): ?>
-                <a class="stat-card" href="admin.php?page=expenses&status=pending" style="border-color:#fcd34d;background:#fffbeb"><span style="color:#92400e">⏳ هزینه‌های در انتظار تأیید</span><strong style="color:#92400e"><?= (int) $finPending['count'] ?> مورد</strong></a>
-                <?php endif; ?>
-                <?php if ((int) ($finDebtTotal ?? 0) > 0): ?>
-                <a class="stat-card" href="admin.php?page=statements" style="border-color:#fca5a5;background:#fef2f2"><span style="color:#b91c1c">بدهی مشتریان</span><strong style="color:#b91c1c"><?= e(format_price((int) $finDebtTotal)) ?> تومان</strong></a>
-                <?php endif; ?>
-                <?php endif; ?>
-                <a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong><?= count($messages) ?></strong></a>
-                <a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr"><?= e(APP_VERSION) ?></strong></a>
-                <?php if ($lowStockCount > 0): ?>
-                <a class="stat-card" href="admin.php?page=materials" style="border-color:#dc2626;background:#fef2f2"><span style="color:#b91c1c">⚠ مواد رو به اتمام</span><strong style="color:#b91c1c"><?= $lowStockCount ?> ماده</strong></a>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
+
+            <?php $hasChart = false; foreach ($dashEnabled as $wk) { if (($dashWidgetDefs[$wk][1] ?? '') === 'chart') { $hasChart = true; break; } } ?>
+            <?php if ($hasChart): ?>
+            <div class="stat-grid" style="margin-top:18px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">
+                <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'chart') { continue; } echo $renderChart($wk); endforeach; ?>
+            </div>
+            <?php endif; ?>
+
             <?php if ($lowStockCount > 0): ?>
             <div class="alert error">
                 موجودی این مواد به حد هشدار رسیده است:
@@ -1570,6 +1775,9 @@ if ($page === 'design') {
         <?php elseif ($page === 'materials'): ?>
             <?php inventory_render_materials($inventoryData); ?>
 
+        <?php elseif ($page === 'material_prices'): ?>
+            <?php inventory_render_price_list($inventoryData); ?>
+
         <?php elseif ($page === 'stock'): ?>
             <?php inventory_render_stock($inventoryData); ?>
         <?php elseif ($page === 'orders'): ?>
@@ -1691,7 +1899,7 @@ if ($page === 'design') {
                             <td><?= e($file['modified_formatted']) ?></td>
                             <td>
                                 <?php if ($file['is_active']): ?>
-                                    <button type="button" disabled>فایل فعال فعلی</button>
+                                    <button type="button" class="btn small" disabled>فایل فعال فعلی</button>
                                 <?php else: ?>
                                     <form method="post" class="inline" onsubmit="return confirm('دیتابیس فعال با این فایل جایگزین شود؟ قبل از تعویض نسخه امن ساخته می‌شود و باید دوباره وارد شوید.')">
                                         <?= csrf_field() ?>
@@ -1892,21 +2100,23 @@ a{color:#2563eb;text-decoration:none}.muted{color:#6b7280;font-size:13px}.center
 .auth-box{max-width:380px;margin:10vh auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
 label{display:block;margin:12px 0;font-size:14px}input[type=text],input[type=password],input[type=number],select,textarea,input[type=file]{width:100%;padding:9px;margin-top:6px;border:1px solid #d1d5db;border-radius:8px;font-family:inherit}
 textarea[dir=ltr]{font-family:Consolas,monospace;font-size:13px}
-.btn{display:inline-block;padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;cursor:pointer;font-family:inherit;font-size:14px}
-.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}.btn.small{padding:4px 10px;font-size:13px}.btn.block{width:100%}
-.btn.danger-btn{background:#dc2626;border-color:#dc2626;color:#fff}
+button{font-family:inherit;font-size:13px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;min-height:36px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;cursor:pointer;font-family:inherit;font-size:13px;line-height:1.6;text-decoration:none;white-space:nowrap;vertical-align:middle;box-sizing:border-box;-webkit-appearance:none;appearance:none}
+.btn:hover{border-color:#9ca3af;color:#111827}
+.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}.btn.primary:hover{background:#1d4ed8;color:#fff}.btn.small{padding:4px 10px;min-height:30px;font-size:12px;border-radius:7px}.btn.block{width:100%}
+.btn.danger-btn{background:#dc2626;border-color:#dc2626;color:#fff}.btn.danger-btn:hover{background:#b91c1c;color:#fff}
 .btn.add{background:#16a34a;border-color:#15803d;color:#fff;font-weight:bold}
 .btn.add:hover{background:#15803d;color:#fff}
 .btn.edit{background:#facc15;border-color:#ca8a04;color:#422006;font-weight:bold}
 .btn.edit:hover{background:#eab308;color:#422006}
-.btn.warn{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.btn.warn{background:#fef3c7;border-color:#f59e0b;color:#92400e}.btn.warn:hover{border-color:#d97706;color:#92400e}
+.btn[disabled],.btn.disabled{opacity:.55;cursor:default;pointer-events:none}
 .crud-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 4px}
 .crud-panel{border:1px dashed #86efac;background:#f0fdf4;border-radius:10px;padding:4px 14px 14px;margin:10px 0 16px}
 .crud-panel .card{margin:8px 0;box-shadow:none}
 .help-panel{border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:4px 16px 12px;margin:10px 0 16px}
-td.actions{white-space:normal;line-height:2}
-td.actions .btn,td.actions button{margin:1px 0}
-button{padding:6px 10px;border:1px solid #d1d5db;border-radius:7px;background:#fff;cursor:pointer;font-family:inherit}
+td.actions{white-space:normal;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+td.actions form{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
 button.danger{color:#dc2626;border-color:#fecaca}
 .alert{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:14px}.alert.ok{background:#dcfce7}.alert.error{background:#fee2e2}
 .status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px #dcfce7;margin-inline-end:7px;vertical-align:middle}
