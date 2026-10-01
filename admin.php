@@ -13,6 +13,8 @@ require_once __DIR__ . '/admin_catalog.php';
 require_once __DIR__ . '/admin_inventory.php';
 // صفحات و اکشن‌های سفارش‌ها و پیش‌فاکتور (فاز ۳ / نسخه ۸) هم در فایل جدا هستند
 require_once __DIR__ . '/admin_orders.php';
+// صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
+require_once __DIR__ . '/admin_logs.php';
 
 // ---------- سشن امن نسبی ----------
 // روی خیلی از هاست‌های اشتراکی مسیر پیش‌فرض ذخیرهٔ سشن هر ~۲۴ دقیقه پاک می‌شود و
@@ -26,7 +28,7 @@ if (!is_dir($cmsSessionDir)) {
 if (is_dir($cmsSessionDir) && is_writable($cmsSessionDir)) {
     ini_set('session.save_path', $cmsSessionDir);
 }
-ini_set('session.gc_maxlifetime', '604800'); // یک هفته؛ فرم بازمانده روی صفحه نمی‌میرد
+ini_set('session.gc_maxlifetime', (string) session_lifetime_seconds()); // مدت نشست از پنل قابل تنظیم است (پیش‌فرض یک هفته)
 session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
@@ -75,6 +77,13 @@ function check_csrf(): void
 
 function redirect_admin(string $url = 'admin.php'): void
 {
+    // لاگ فعالیت مدیریت: هر اکشن موفق POST که با ریدایرکت تمام می‌شود همین‌جا ثبت می‌شود
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !empty($_SESSION['admin_logged_in'])) {
+        $logAction = (string) ($_POST['action'] ?? '');
+        if ($logAction !== '' && $logAction !== 'login' && $logAction !== 'setup') {
+            log_admin_event($logAction, '', true, (string) ($_GET['page'] ?? ''));
+        }
+    }
     header('Location: ' . $url);
     exit;
 }
@@ -127,6 +136,7 @@ $passwordHash = get_setting('admin_password_hash', '');
 
 // ---------- خروج ----------
 if (isset($_GET['logout'])) {
+    log_admin_event('logout', 'خروج از پنل');
     logout_admin();
     redirect_admin();
 }
@@ -146,6 +156,7 @@ if ($passwordHash === '') {
             set_setting('admin_password_hash', password_hash($pw, PASSWORD_DEFAULT));
             session_regenerate_id(true);
             $_SESSION['admin_logged_in'] = true;
+            log_admin_event('setup', 'ساخت پسورد اولیه و ورود');
             redirect_admin();
         }
     }
@@ -190,8 +201,10 @@ if (!is_logged_in()) {
         if (password_verify($pw, $passwordHash)) {
             session_regenerate_id(true);
             $_SESSION['admin_logged_in'] = true;
+            log_admin_event('login', 'ورود موفق به پنل');
             redirect_admin();
         }
+        log_admin_event('login', 'تلاش ناموفق برای ورود (پسورد اشتباه)', false);
         $error = 'پسورد اشتباه است.';
     }
     ?>
@@ -252,6 +265,7 @@ $pageTitles = [
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
+    'logs'       => 'لاگ‌ها',
     'settings'   => 'تنظیمات سایت',
 ];
 $currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
@@ -287,6 +301,7 @@ $navGroups = [
     'system' => ['سیستم', [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
         ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
+        ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
         ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
         ['admin.php?page=update', 'refresh', 'آپدیت', 'update', ''],
     ]],
@@ -313,6 +328,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!@copy(DB_FILE, $tmp)) {
             $error = 'ساخت نسخه پشتیبان انجام نشد.';
         } else {
+            log_admin_event('download_backup', 'دانلود نسخه پشتیبان دیتابیس');
             header('Content-Type: application/octet-stream');
             header('Content-Disposition: attachment; filename="site-backup-' . date('Ymd-His') . '.sqlite"');
             header('Content-Length: ' . filesize($tmp));
@@ -334,6 +350,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۳ (سفارش‌ها) در admin_orders.php پردازش می‌شوند
         if (in_array($action, orders_post_actions(), true)) {
             orders_handle_post($action);
+        }
+        // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
+        if (in_array($action, logs_post_actions(), true)) {
+            logs_handle_post($action);
         }
         switch ($action) {
             case 'add_section':
@@ -686,6 +706,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('partner_discount_percent', (string) $discount);
                 set_setting('catalog_public', isset($_POST['catalog_public']) ? '1' : '0');
                 set_setting('catalog_title', trim((string) ($_POST['catalog_title'] ?? '')) ?: 'کاتالوگ محصولات');
+                // مدت نشست مدیریت (ساعت) — نسخه ۸٫۲؛ بین ۱ ساعت تا ۳۰ روز
+                $sessHours = (int) ($_POST['session_lifetime_hours'] ?? 168);
+                if ($sessHours < 1) { $sessHours = 1; }
+                if ($sessHours > 720) { $sessHours = 720; }
+                set_setting('session_lifetime_hours', (string) $sessHours);
                 flash('ok', 'تنظیمات ذخیره شد.');
                 redirect_admin('admin.php?page=settings');
                 // no break
@@ -747,6 +772,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         }
     } catch (Throwable $ex) {
+        // اکشن ناموفق هم در لاگ مدیریت ثبت می‌شود
+        log_admin_event((string) ($action ?? ''), (string) $ex->getMessage(), false, (string) ($_GET['page'] ?? ''));
         $error = $ex->getMessage();
     }
 }
@@ -776,6 +803,10 @@ if ($page === 'database') {
 }
 
 $updateCfg = update_repo_config();
+$logsData = null;
+if ($page === 'logs') {
+    $logsData = logs_prepare($_GET);
+}
 $updateInfo = null;
 if ($page === 'update' && (isset($_GET['check']) || isset($_GET['done']))) {
     $updateInfo = update_check($updateCfg);
@@ -1353,6 +1384,8 @@ if ($page === 'design') {
             <?php orders_render_rules($ordersData); ?>
         <?php elseif ($page === 'remnants'): ?>
             <?php orders_render_remnants($ordersData); ?>
+        <?php elseif ($page === 'logs'): ?>
+            <?php logs_render($logsData); ?>
         <?php elseif ($page === 'tools'): ?>
             <h1>ابزار و بکاپ</h1>
 
@@ -1588,6 +1621,11 @@ if ($page === 'design') {
                     <input type="checkbox" name="catalog_public" value="1" <?= ($settings['catalog_public'] ?? '1') === '1' ? 'checked' : '' ?>>
                     نمایش عمومی کاتالوگ محصولات در سایت (و لینک «محصولات» در منو)
                 </label>
+                <h3>نشست مدیریت</h3>
+                <label>مدت اعتبار نشست مدیریت (ساعت) — بعد از این مدت باید دوباره وارد شوید
+                    <input type="number" name="session_lifetime_hours" min="1" max="720" step="1" value="<?= e($settings['session_lifetime_hours'] ?? '168') ?>">
+                </label>
+                <p class="muted">پیش‌فرض ۱۶۸ ساعت (یک هفته) است. نشست‌ها داخل پوشه داخلی خود سیستم نگه داشته می‌شوند تا روی هاست اشتراکی زود پاک نشوند. لاگ بازدید سایت و فعالیت مدیریت از منوی «لاگ‌ها» در گروه سیستم قابل مشاهده است.</p>
                 <p class="muted">مشتری‌ها، دسته‌ها، محصولات و ویژگی‌ها از منوهای «مشتری‌ها»، «دسته‌بندی‌ها»، «محصولات» و «ویژگی‌های محصول» مدیریت می‌شوند.</p>
                 <button type="submit" class="btn primary">ذخیره تنظیمات</button>
             </form>
@@ -1650,6 +1688,7 @@ th{background:#f9fafb}.actions{white-space:nowrap}.inline{display:inline}
 .card{background:#fff;padding:16px;border-radius:10px;margin:14px 0;max-width:640px}
 .card.wide{max-width:820px}
 .badge{padding:2px 8px;border-radius:99px;font-size:12px}.badge.ok{background:#dcfce7}.badge.off{background:#e5e7eb}
+.tabs{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}.tabs .tab{padding:7px 14px;border:1px solid #d1d5db;border-radius:8px;color:#111827;background:#f9fafb}.tabs .tab.active{background:#2563eb;border-color:#2563eb;color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid #e5e7eb;border-radius:99px;background:#fff;font-size:13px;color:#374151}.chip:hover{border-color:#2563eb;color:#2563eb;text-decoration:none}.chip.active{background:#2563eb;border-color:#2563eb;color:#fff}.chip .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
 .check{display:flex;gap:8px;align-items:center}.file-input{direction:ltr;display:flex;align-items:center;gap:4px}
 code{background:#f3f4f6;padding:1px 5px;border-radius:5px;direction:ltr;display:inline-block}
