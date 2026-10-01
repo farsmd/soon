@@ -109,8 +109,106 @@ function nav_icon(string $name): string
         'receipt'   => '<path d="M5 2h14a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-2 2-2-2-1 1V3a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
         'plus'      => '<path d="M12 5v14M5 12h14"/>',
         'cut'       => '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.7 8.7 20 20M8.7 15.3 20 4"/>',
+        'key'       => '<circle cx="8" cy="15" r="4"/><path d="M11 12 21 2M16 7l3 3M13 10l2 2"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
+}
+
+/** صفحه «دسترسی API»: مدیریت توکن، دامنه‌ها و راهنمای اتصال عامل‌ها */
+function api_render(): void
+{
+    $enabled = get_setting('api_enabled', '0') === '1';
+    $scopes = array_filter(array_map('trim', explode(',', (string) get_setting('api_scopes', 'read'))));
+    $hasToken = get_setting('api_token_hash', '') !== '';
+    $created = get_setting('api_token_created', '');
+    $newToken = $_SESSION['api_new_token'] ?? null;
+    unset($_SESSION['api_new_token']);
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $base = $scheme . '://' . (string) ($_SERVER['HTTP_HOST'] ?? 'example.com') . rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/admin.php')), '/\\');
+    $apiUrl = $base . '/api.php';
+    $logs = db()->query("SELECT created_at, ip, action, detail, ok FROM admin_logs WHERE page = 'api' ORDER BY id DESC LIMIT 20")->fetchAll(PDO::FETCH_ASSOC);
+    ?>
+    <h1>دسترسی API</h1>
+    <p class="muted">با این API می‌توانید خواندن و تغییر محتوای سایت را به یک عامل (مثل ریکی) یا نرم‌افزار بسپارید. احراز هویت با توکن است؛ توکن فقط هنگام ساخت یک بار نمایش داده می‌شود و در دیتابیس فقط هش آن ذخیره می‌شود.</p>
+
+    <?php if ($newToken !== null): ?>
+        <div class="card wide">
+            <h3>توکن تازه — همین حالا کپی کنید</h3>
+            <p class="muted">این توکن دیگر نمایش داده نمی‌شود. آن را در جای امن نگه دارید.</p>
+            <p><code dir="ltr" style="user-select:all;word-break:break-all;font-size:15px"><?= e((string) $newToken) ?></code></p>
+            <button type="button" class="btn small" onclick="navigator.clipboard&&navigator.clipboard.writeText(this.previousElementSibling.textContent.trim());this.textContent='کپی شد'">کپی توکن</button>
+        </div>
+    <?php endif; ?>
+
+    <div class="card wide">
+        <h3>وضعیت</h3>
+        <p>API: <strong><?= $enabled ? 'فعال' : 'غیرفعال' ?></strong> ·
+           توکن: <strong><?= $hasToken ? 'صادر شده' . ($created !== '' ? ' (' . e($created) . ')' : '') : 'صادر نشده' ?></strong> ·
+           دامنه‌ها: <strong><?= e(implode('، ', $scopes) === '' ? '—' : implode('، ', $scopes)) ?></strong></p>
+        <form method="post">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="api_save">
+            <label class="check"><input type="checkbox" name="api_enabled" value="1" <?= $enabled ? 'checked' : '' ?>> API فعال باشد</label>
+            <label class="check"><input type="checkbox" name="scope_read" value="1" <?= in_array('read', $scopes, true) ? 'checked' : '' ?>> خواندن (read)</label>
+            <label class="check"><input type="checkbox" name="scope_write" value="1" <?= in_array('write', $scopes, true) ? 'checked' : '' ?>> نوشتن (write) — تغییر محتوا، محصول و وضعیت سفارش</label>
+            <p><button type="submit" class="btn primary">ذخیره تنظیمات</button></p>
+        </form>
+        <form method="post" class="inline" onsubmit="return confirm('توکن تازه ساخته می‌شود و توکن قبلی از کار می‌افتد. ادامه می‌دهید؟')">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="api_generate">
+            <button type="submit" class="btn">ساخت توکن تازه</button>
+        </form>
+        <?php if ($hasToken): ?>
+        <form method="post" class="inline" onsubmit="return confirm('توکن فعلی لغو می‌شود و همه اتصال‌های API قطع می‌شود. ادامه می‌دهید؟')">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="api_revoke">
+            <button type="submit" class="btn danger-btn">لغو توکن</button>
+        </form>
+        <?php endif; ?>
+    </div>
+
+    <div class="card wide">
+        <h3>راهنمای اتصال</h3>
+        <p class="muted">توکن را در هدر <code dir="ltr">Authorization: Bearer &lt;token&gt;</code> یا هدر <code dir="ltr">X-API-Token</code> بفرستید. همه پاسخ‌ها JSON هستند. نوشتن (POST) به دامنه write نیاز دارد. محدودیت نرخ: ۱۲۰ درخواست در دقیقه.</p>
+        <p><code dir="ltr" style="word-break:break-all"><?= e($apiUrl) ?>?res=pages</code></p>
+        <pre dir="ltr" style="text-align:left;overflow:auto">curl -H "Authorization: Bearer &lt;token&gt;" "<?= e($apiUrl) ?>?res=pages"
+curl -X POST -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"key":"value"}' "<?= e($apiUrl) ?>?res=settings"</pre>
+        <details>
+            <summary>فهرست endpointها</summary>
+            <ul>
+                <li><code dir="ltr">GET ?res=ping</code> — بررسی اتصال</li>
+                <li><code dir="ltr">GET ?res=pages</code> / <code dir="ltr">GET ?res=page&amp;id=1</code> یا <code dir="ltr">&amp;slug=about</code> — فهرست و متن صفحه‌ها</li>
+                <li><code dir="ltr">POST ?res=page</code> — ویرایش صفحه (id + فیلدها) [write]</li>
+                <li><code dir="ltr">GET ?res=sections</code> — بخش‌های صفحه اصلی</li>
+                <li><code dir="ltr">POST ?res=section</code> — ویرایش بخش (id + title/is_active/sort_order) [write]</li>
+                <li><code dir="ltr">GET ?res=settings</code> — تنظیمات محتوایی</li>
+                <li><code dir="ltr">POST ?res=settings</code> — ویرایش تنظیمات محتوایی [write]</li>
+                <li><code dir="ltr">GET ?res=products</code> / <code dir="ltr">GET ?res=product&amp;id=1</code> — محصولات</li>
+                <li><code dir="ltr">POST ?res=product</code> — ساخت/ویرایش محصول [write]</li>
+                <li><code dir="ltr">GET ?res=orders</code> / <code dir="ltr">GET ?res=order&amp;id=1</code> — سفارش‌ها</li>
+                <li><code dir="ltr">POST ?res=order</code> — تغییر وضعیت سفارش (id + status) [write]</li>
+            </ul>
+        </details>
+    </div>
+
+    <div class="card wide">
+        <h3>آخرین فعالیت‌های API</h3>
+        <?php if ($logs === []): ?>
+            <p class="muted">هنوز فعالیتی ثبت نشده است.</p>
+        <?php else: ?>
+            <div style="overflow-x:auto"><table>
+                <thead><tr><th>زمان</th><th>IP</th><th>عملیات</th><th>جزئیات</th><th>نتیجه</th></tr></thead>
+                <tbody>
+                <?php foreach ($logs as $l): ?>
+                    <tr><td dir="ltr"><?= e((string) $l['created_at']) ?></td><td dir="ltr"><?= e((string) $l['ip']) ?></td><td><?= e((string) $l['action']) ?></td><td><?= e((string) $l['detail']) ?></td><td><?= (int) $l['ok'] === 1 ? 'موفق' : 'ناموفق' ?></td></tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table></div>
+        <?php endif; ?>
+    </div>
+    <?php
 }
 
 $pdo = db();
@@ -256,6 +354,7 @@ $pageTitles = [
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
     'logs'       => 'لاگ‌ها',
+    'api'        => 'دسترسی API',
     'settings'   => 'تنظیمات سایت',
 ];
 $currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
@@ -292,6 +391,7 @@ $navGroups = [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
         ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
+        ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
         ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
         ['admin.php?page=update', 'refresh', 'آپدیت', 'update', ''],
     ]],
@@ -311,6 +411,39 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $action = (string) ($_POST['action'] ?? '');
+
+    // ---------- مدیریت توکن API ----------
+    if ($action === 'api_save') {
+        set_setting('api_enabled', isset($_POST['api_enabled']) ? '1' : '0');
+        $sc = [];
+        if (isset($_POST['scope_read'])) {
+            $sc[] = 'read';
+        }
+        if (isset($_POST['scope_write'])) {
+            $sc[] = 'write';
+        }
+        if ($sc === []) {
+            $sc[] = 'read';
+        }
+        set_setting('api_scopes', implode(',', $sc));
+        flash('ok', 'تنظیمات API ذخیره شد.');
+        redirect_admin('admin.php?page=api');
+    }
+    if ($action === 'api_generate') {
+        $token = bin2hex(random_bytes(32));
+        set_setting('api_token_hash', hash('sha256', $token));
+        set_setting('api_token_created', date('Y-m-d H:i:s'));
+        set_setting('api_enabled', '1');
+        $_SESSION['api_new_token'] = $token; // فقط همین یک بار نمایش داده می‌شود
+        flash('ok', 'توکن تازه ساخته شد و API فعال شد. آن را همین حالا کپی کنید؛ دیگر نمایش داده نمی‌شود.');
+        redirect_admin('admin.php?page=api');
+    }
+    if ($action === 'api_revoke') {
+        set_setting('api_token_hash', '');
+        set_setting('api_token_created', '');
+        flash('ok', 'توکن API لغو شد. توکن قبلی دیگر کار نمی‌کند.');
+        redirect_admin('admin.php?page=api');
+    }
 
     // دانلود بکاپ دیتابیس (فقط ادمین واردشده، با CSRF) — خروجی فایل است و همین‌جا تمام می‌شود
     if ($action === 'download_backup') {
@@ -1374,6 +1507,8 @@ if ($page === 'design') {
             <?php orders_render_rules($ordersData); ?>
         <?php elseif ($page === 'remnants'): ?>
             <?php orders_render_remnants($ordersData); ?>
+        <?php elseif ($page === 'api'): ?>
+            <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
             <?php logs_render($logsData); ?>
         <?php elseif ($page === 'tools'): ?>
