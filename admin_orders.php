@@ -606,7 +606,7 @@ function orders_render_list(array $d): void
     ?>
     <h1>سفارش‌ها</h1>
     <p class="muted">ثبت سفارش همکار/مشتری با طول دقیق هر چراغ، تخفیف پلکانی و پیش‌فاکتور چاپی.</p>
-    <p><a class="btn primary" href="admin.php?page=order_new">+ سفارش تازه</a></p>
+    <p><a class="btn add" href="admin.php?page=order_new">+ سفارش تازه</a></p>
     <div class="chips" style="margin:10px 0">
         <a class="chip<?= $orderStatusFilter === '' ? ' active' : '' ?>" href="admin.php?page=orders">همه</a>
         <?php foreach ($statusesList as $s): ?>
@@ -690,7 +690,7 @@ function orders_render_new(array $d): void
         <label>توضیحات سفارش
             <textarea name="notes" rows="2" placeholder="توضیح آزاد سفارش…"></textarea>
         </label>
-        <button type="submit" class="btn primary">ثبت سفارش</button>
+        <button type="submit" class="btn add">ثبت سفارش</button>
         <a class="btn" href="admin.php?page=orders">انصراف</a>
     </form>
     <script>
@@ -1169,7 +1169,13 @@ function orders_render_rules(array $d): void
 
     <h2>پلکان‌های تخفیف متراژ</h2>
     <p class="muted">تخفیف روی «متراژ کل سفارش» اعمال می‌شود. کف و سقف هر بازه شامل‌اند؛ در مرز مشترک دو پلکان، پلکان بالاتر اعمال می‌شود و پلکانِ بدون سقف فقط «بالای» کف خودش اعمال می‌شود (مثلاً دقیقاً ۳۰۰ متر همان پلکان ۱۲۰–۳۰۰ است).</p>
-    <h3><?= $editTier !== null ? 'ویرایش پلکان' : 'پلکان تازه' ?></h3>
+    <?php if ($editTier === null): ?>
+    <div class="crud-toolbar">
+        <button type="button" class="btn add" data-toggle-panel="tier-form-panel" aria-expanded="false">+ افزودن پلکان</button>
+    </div>
+    <?php endif; ?>
+    <div class="crud-panel" id="tier-form-panel" <?= $editTier !== null ? 'data-open="1"' : 'hidden' ?>>
+    <h3><?= $editTier !== null ? 'ویرایش پلکان: ' . e($editTier['title'] ?? '') : 'پلکان تازه' ?></h3>
     <form method="post" class="card wide">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="<?= $editTier !== null ? 'update_tier' : 'add_tier' ?>">
@@ -1188,9 +1194,10 @@ function orders_render_rules(array $d): void
             <label>ترتیب<input type="number" name="sort_order" value="<?= (int) ($editTier['sort_order'] ?? 0) ?>"></label>
             <label class="check"><input type="checkbox" name="is_active" value="1"<?= ($editTier['is_active'] ?? 1) ? ' checked' : '' ?>> فعال</label>
         </div>
-        <button type="submit" class="btn primary"><?= $editTier !== null ? 'ذخیره' : 'افزودن پلکان' ?></button>
+        <button type="submit" class="btn <?= $editTier !== null ? 'edit' : 'add' ?>"><?= $editTier !== null ? 'ذخیره' : 'افزودن پلکان' ?></button>
         <?php if ($editTier !== null): ?><a class="btn" href="admin.php?page=order_rules">انصراف</a><?php endif; ?>
     </form>
+    </div>
     <?php if ($tiers !== []): ?>
     <table>
         <thead><tr><th>عنوان</th><th>بازه (متر)</th><th>تخفیف</th><th>اعمال برای</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
@@ -1202,13 +1209,13 @@ function orders_render_rules(array $d): void
                 <td><?= e(format_price($t['discount_percent'])) ?>٪</td>
                 <td><?= $t['applies_to'] === 'all' ? 'همه' : 'همکار' ?></td>
                 <td>
-                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_tier"><input type="hidden" name="id" value="<?= (int) $t['id'] ?>"><input type="hidden" name="direction" value="up"><button class="btn small">↑</button></form>
-                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_tier"><input type="hidden" name="id" value="<?= (int) $t['id'] ?>"><input type="hidden" name="direction" value="down"><button class="btn small">↓</button></form>
+                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_tier"><input type="hidden" name="id" value="<?= (int) $t['id'] ?>"><input type="hidden" name="direction" value="up"><button class="btn small">↑ بالا</button></form>
+                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_tier"><input type="hidden" name="id" value="<?= (int) $t['id'] ?>"><input type="hidden" name="direction" value="down"><button class="btn small">↓ پایین</button></form>
                     <?= (int) $t['sort_order'] ?>
                 </td>
                 <td><?= (int) $t['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                 <td class="actions">
-                    <a class="btn small" href="admin.php?page=order_rules&edit_tier=<?= (int) $t['id'] ?>">ویرایش</a>
+                    <a class="btn small edit" href="admin.php?page=order_rules&edit_tier=<?= (int) $t['id'] ?>">ویرایش</a>
                     <form method="post" class="inline" onsubmit="return confirm('این پلکان حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_tier"><input type="hidden" name="id" value="<?= (int) $t['id'] ?>"><button class="btn small danger-btn">حذف</button></form>
                 </td>
             </tr>
@@ -1218,7 +1225,13 @@ function orders_render_rules(array $d): void
     <?php endif; ?>
 
     <h2>وضعیت‌های سفارش</h2>
-    <h3><?= $editStatus !== null ? 'ویرایش وضعیت' : 'وضعیت تازه' ?></h3>
+    <?php if ($editStatus === null): ?>
+    <div class="crud-toolbar">
+        <button type="button" class="btn add" data-toggle-panel="ostatus-form-panel" aria-expanded="false">+ افزودن وضعیت</button>
+    </div>
+    <?php endif; ?>
+    <div class="crud-panel" id="ostatus-form-panel" <?= $editStatus !== null ? 'data-open="1"' : 'hidden' ?>>
+    <h3><?= $editStatus !== null ? 'ویرایش وضعیت: ' . e($editStatus['title'] ?? '') : 'وضعیت تازه' ?></h3>
     <form method="post" class="card wide">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="<?= $editStatus !== null ? 'update_ostatus' : 'add_ostatus' ?>">
@@ -1230,9 +1243,10 @@ function orders_render_rules(array $d): void
             <label>ترتیب<input type="number" name="sort_order" value="<?= (int) ($editStatus['sort_order'] ?? 0) ?>"></label>
             <label class="check"><input type="checkbox" name="is_active" value="1"<?= ($editStatus['is_active'] ?? 1) ? ' checked' : '' ?>> فعال</label>
         </div>
-        <button type="submit" class="btn primary"><?= $editStatus !== null ? 'ذخیره' : 'افزودن وضعیت' ?></button>
+        <button type="submit" class="btn <?= $editStatus !== null ? 'edit' : 'add' ?>"><?= $editStatus !== null ? 'ذخیره' : 'افزودن وضعیت' ?></button>
         <?php if ($editStatus !== null): ?><a class="btn" href="admin.php?page=order_rules">انصراف</a><?php endif; ?>
     </form>
+    </div>
     <table>
         <thead><tr><th>عنوان</th><th>کلید</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
         <tbody>
@@ -1241,14 +1255,14 @@ function orders_render_rules(array $d): void
                 <td><span class="badge" style="background:<?= e($st['color']) ?>22;color:<?= e($st['color']) ?>"><?= e($st['title']) ?></span></td>
                 <td dir="ltr" class="muted"><?= e($st['status_key']) ?></td>
                 <td>
-                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><input type="hidden" name="direction" value="up"><button class="btn small">↑</button></form>
-                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><input type="hidden" name="direction" value="down"><button class="btn small">↓</button></form>
+                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><input type="hidden" name="direction" value="up"><button class="btn small">↑ بالا</button></form>
+                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><input type="hidden" name="direction" value="down"><button class="btn small">↓ پایین</button></form>
                     <?= (int) $st['sort_order'] ?>
                 </td>
                 <td><?= (int) $st['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                 <td class="actions">
-                    <a class="btn small" href="admin.php?page=order_rules&edit_status=<?= (int) $st['id'] ?>">ویرایش</a>
-                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><button class="btn small"><?= (int) $st['is_active'] === 1 ? 'غیرفعال' : 'فعال' ?></button></form>
+                    <a class="btn small edit" href="admin.php?page=order_rules&edit_status=<?= (int) $st['id'] ?>">ویرایش</a>
+                    <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><button class="btn small warn"><?= (int) $st['is_active'] === 1 ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?></button></form>
                     <form method="post" class="inline" onsubmit="return confirm('این وضعیت حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_ostatus"><input type="hidden" name="id" value="<?= (int) $st['id'] ?>"><button class="btn small danger-btn">حذف</button></form>
                 </td>
             </tr>
@@ -1265,6 +1279,10 @@ function orders_render_remnants(array $d): void
     ?>
     <h1>انبار پرتی</h1>
     <p class="muted">پرت‌های برش با طول <?= e(format_qty((float) order_setting('remnant_min_cm', 20))) ?> سانت و بیشتر به اینجا برمی‌گردند و در سفارش‌های بعدی قابل‌استفاده‌اند. ثبت خودکار پرت در فاز تولید (برش واقعی) انجام می‌شود؛ فعلاً ثبت دستی.</p>
+    <div class="crud-toolbar">
+        <button type="button" class="btn add" data-toggle-panel="remnant-form-panel" aria-expanded="false">+ ثبت پرت تازه</button>
+    </div>
+    <div class="crud-panel" id="remnant-form-panel" hidden>
     <h2>ثبت پرت تازه</h2>
     <form method="post" class="card wide">
         <?= csrf_field() ?>
@@ -1281,8 +1299,9 @@ function orders_render_remnants(array $d): void
             <label>تعداد<input type="number" name="qty" min="1" value="1"></label>
             <label>یادداشت<input type="text" name="note" placeholder="مثلاً پرت سفارش #1001"></label>
         </div>
-        <button type="submit" class="btn primary">ثبت پرت</button>
+        <button type="submit" class="btn add">ثبت پرت</button>
     </form>
+    </div>
     <h2>موجودی پرتی (<?= count($remnantsList) ?>)</h2>
     <?php if ($remnantsList === []): ?>
         <div class="card wide"><p class="muted">هنوز پرتی ثبت نشده است.</p></div>
