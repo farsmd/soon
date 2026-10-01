@@ -1,6 +1,6 @@
 <?php
-// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۴
-// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب‌های PHP، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی و تنظیمات
+// admin.php — پنل مدیریت محتوای ساده (پسورددار) — نسخه ۵
+// مدیریت بخش‌ها (با محتوای واقعی و آپلود عکس)، صفحه‌ها، قالب و CSS دیتابیسی، پیام‌های تماس، بکاپ، اتصال دیتابیس، آپدیت یک‌کلیکی و تنظیمات
 
 declare(strict_types=1);
 
@@ -166,6 +166,10 @@ if (!is_logged_in()) {
 // ---------- از اینجا به بعد فقط ادمین واردشده ----------
 
 $page  = (string) ($_GET['page'] ?? 'sections');
+// نام قدیمی صفحه «قالب‌ها» به صفحه جدید «قالب و استایل» نگاشت می‌شود (قالب‌ها دیگر فایلی نیستند)
+if ($page === 'templates') {
+    $page = 'design';
+}
 $error = '';
 
 // پردازش فرم‌ها (POST)
@@ -204,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('عنوان بخش را وارد کنید.');
                 }
                 if (!in_array($file, available_templates(), true)) {
-                    throw new RuntimeException('فایل قالب انتخاب‌شده معتبر نیست.');
+                    throw new RuntimeException('قالب انتخاب‌شده معتبر نیست.');
                 }
                 $id = (int) ($_POST['id'] ?? 0);
                 $oldImage = null;
@@ -415,52 +419,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin();
                 // no break
 
-            case 'create_template':
-                $slug = trim((string) ($_POST['slug'] ?? ''));
-                if (!preg_match('/^[A-Za-z0-9_]+$/', $slug)) {
-                    throw new RuntimeException('نام قالب فقط می‌تواند حروف انگلیسی، عدد و آندرلاین باشد.');
+            case 'save_db_template':
+                $key = trim((string) ($_POST['template_key'] ?? ''));
+                if (get_template_row($key) === null) {
+                    throw new RuntimeException('قالب پیدا نشد.');
                 }
-                $file = 'template_' . $slug . '.php';
-                $path = __DIR__ . '/' . $file;
-                if (is_file($path)) {
-                    throw new RuntimeException('قالبی با این نام از قبل وجود دارد.');
-                }
-                $starter = "<!-- قالب: " . e($slug) . " -->\n<section class=\"custom-section\">\n    <div class=\"container\">\n        <h2>{{site_title}}</h2>\n        <p>این متن قالب «" . e($slug) . "» است. از پنل مدیریت آن را ویرایش کنید.</p>\n    </div>\n</section>\n";
-                file_put_contents($path, $starter);
-                flash('ok', 'قالب «' . $file . '» ساخته شد.');
-                redirect_admin('admin.php?page=templates&edit=' . urlencode($file));
+                save_template_content($key, (string) ($_POST['content'] ?? ''));
+                flash('ok', 'قالب «' . $key . '» ذخیره شد. نسخه قبلی در تاریخچه نسخه‌ها نگه داشته شد و هر وقت خواستید برمی‌گردد.');
+                redirect_admin('admin.php?page=design&tab=templates&edit_tpl=' . urlencode($key));
                 // no break
 
-            case 'save_template':
-                $file = basename((string) ($_POST['template_file'] ?? ''));
-                if (!is_valid_template_file($file)) {
-                    throw new RuntimeException('نام فایل قالب معتبر نیست.');
+            case 'reset_db_template':
+                $key = trim((string) ($_POST['template_key'] ?? ''));
+                if (!reset_template_to_factory($key)) {
+                    throw new RuntimeException('بازنشانی انجام نشد؛ قالب پیدا نشد.');
                 }
-                $path = __DIR__ . '/' . $file;
-                if (!is_file($path)) {
-                    throw new RuntimeException('فایل قالب پیدا نشد.');
-                }
-                file_put_contents($path, (string) ($_POST['code'] ?? ''));
-                flash('ok', 'قالب «' . $file . '» ذخیره شد.');
-                redirect_admin('admin.php?page=templates&edit=' . urlencode($file));
+                flash('ok', 'قالب «' . $key . '» به نسخه کارخانه‌ای برگشت. نسخه قبلی در تاریخچه نگه داشته شد.');
+                redirect_admin('admin.php?page=design&tab=templates&edit_tpl=' . urlencode($key));
                 // no break
 
-            case 'delete_template':
-                $file = basename((string) ($_POST['template_file'] ?? ''));
-                if (!is_valid_template_file($file)) {
-                    throw new RuntimeException('نام فایل قالب معتبر نیست.');
+            case 'create_db_template':
+                $key = strtolower(trim((string) ($_POST['template_key'] ?? '')));
+                $tplTitle = trim((string) ($_POST['template_title'] ?? ''));
+                if ($tplTitle === '') {
+                    $tplTitle = $key;
                 }
-                $used = $pdo->prepare('SELECT COUNT(*) FROM sections WHERE template_file = :f');
-                $used->execute([':f' => $file]);
-                if ((int) $used->fetchColumn() > 0) {
-                    throw new RuntimeException('این قالب در یک یا چند بخش استفاده شده است؛ اول آن بخش‌ها را حذف یا قالبشان را عوض کنید.');
+                if (!create_template($key, $tplTitle)) {
+                    throw new RuntimeException('ساخت قالب انجام نشد: کلید فقط می‌تواند حروف کوچک انگلیسی، عدد و آندرلاین باشد و نباید تکراری باشد.');
                 }
-                $path = __DIR__ . '/' . $file;
-                if (is_file($path)) {
-                    unlink($path);
+                flash('ok', 'قالب سفارشی «' . $key . '» ساخته شد. حالا می‌توانید آن را به یک بخش بدهید.');
+                redirect_admin('admin.php?page=design&tab=templates&edit_tpl=' . urlencode($key));
+                // no break
+
+            case 'delete_db_template':
+                $key = trim((string) ($_POST['template_key'] ?? ''));
+                if (!delete_template($key)) {
+                    throw new RuntimeException('حذف انجام نشد: قالب پیدا نشد، قالب سیستمی است، یا در یک یا چند بخش استفاده شده است.');
                 }
-                flash('ok', 'قالب «' . $file . '» حذف شد.');
-                redirect_admin('admin.php?page=templates');
+                flash('ok', 'قالب «' . $key . '» حذف شد.');
+                redirect_admin('admin.php?page=design&tab=templates');
+                // no break
+
+            case 'restore_revision':
+                $id = (int) ($_POST['revision_id'] ?? 0);
+                if (!restore_design_revision($id)) {
+                    throw new RuntimeException('بازیابی این نسخه انجام نشد.');
+                }
+                flash('ok', 'نسخه انتخاب‌شده بازیابی شد. نسخه‌ای که قبل از بازیابی فعال بود هم در تاریخچه نگه داشته شد.');
+                if ((string) ($_POST['return_to'] ?? '') === 'css') {
+                    redirect_admin('admin.php?page=design&tab=css');
+                }
+                $rk = trim((string) ($_POST['template_key'] ?? ''));
+                redirect_admin('admin.php?page=design&tab=templates' . ($rk !== '' ? '&edit_tpl=' . urlencode($rk) : ''));
+                // no break
+
+            case 'save_visual_settings':
+                $font = (string) ($_POST['site_font'] ?? 'system');
+                if (!in_array($font, ['system', 'tahoma', 'vazirmatn'], true)) {
+                    $font = 'system';
+                }
+                $theme = (string) ($_POST['default_theme'] ?? 'light');
+                if (!in_array($theme, ['light', 'dark', 'system'], true)) {
+                    $theme = 'light';
+                }
+                set_setting('primary_color', valid_hex_color($_POST['primary_color'] ?? null, '#2563eb'));
+                set_setting('accent_color', valid_hex_color($_POST['accent_color'] ?? null, '#0d9488'));
+                set_setting('site_font', $font);
+                set_setting('container_width', (string) max(880, min(1600, (int) ($_POST['container_width'] ?? 1200))));
+                set_setting('border_radius', (string) max(0, min(32, (int) ($_POST['border_radius'] ?? 12))));
+                set_setting('default_theme', $theme);
+                set_setting('header_sticky', isset($_POST['header_sticky']) ? '1' : '0');
+                bump_css_updated();
+                flash('ok', 'تنظیمات ظاهری ذخیره شد و بلافاصله روی سایت اعمال می‌شود.');
+                redirect_admin('admin.php?page=design&tab=css');
+                // no break
+
+            case 'save_css':
+                $which = (string) ($_POST['which'] ?? 'site_css');
+                if (!in_array($which, ['site_css', 'custom_css'], true)) {
+                    throw new RuntimeException('هدف CSS معتبر نیست.');
+                }
+                save_css_content($which, (string) ($_POST['content'] ?? ''));
+                flash('ok', ($which === 'site_css' ? 'CSS اصلی' : 'CSS سفارشی') . ' ذخیره شد. نسخه قبلی در تاریخچه نگه داشته شد.');
+                redirect_admin('admin.php?page=design&tab=css');
+                // no break
+
+            case 'reset_css':
+                $which = (string) ($_POST['which'] ?? 'site_css');
+                if (!in_array($which, ['site_css', 'custom_css'], true)) {
+                    throw new RuntimeException('هدف CSS معتبر نیست.');
+                }
+                reset_css_content($which);
+                flash('ok', ($which === 'site_css' ? 'CSS اصلی به نسخه کارخانه‌ای برگشت.' : 'CSS سفارشی خالی شد.') . ' نسخه قبلی در تاریخچه نگه داشته شد.');
+                redirect_admin('admin.php?page=design&tab=css');
+                // no break
+
+            case 'delete_legacy_files':
+                if (trim((string) ($_POST['confirm_text'] ?? '')) !== 'حذف') {
+                    throw new RuntimeException('برای حذف فایل‌های قدیمی، کلمه «حذف» را دقیقاً تایپ کنید.');
+                }
+                if (all_templates() === []) {
+                    throw new RuntimeException('قالب‌های دیتابیس هنوز آماده نیستند؛ برای امنیت، حذف فایل‌های قدیمی انجام نشد.');
+                }
+                $deleted = [];
+                foreach (legacy_cleanup_candidates() as $name) {
+                    $path = __DIR__ . '/' . $name;
+                    if (is_file($path) && @unlink($path)) {
+                        $deleted[] = $name;
+                    }
+                }
+                flash('ok', $deleted !== [] ? 'فایل‌های قدیمی حذف شدند: ' . implode('، ', $deleted) . '. سایت از این به بعد فقط از قالب و CSS دیتابیس استفاده می‌کند.' : 'فایل قدیمی‌ای برای حذف پیدا نشد.');
+                redirect_admin('admin.php?page=design&tab=templates');
                 // no break
 
             case 'save_settings':
@@ -532,7 +601,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-/** جابه‌جایی یک ردیف (بخش یا صفحه) به بالا/پایین با همسایه‌اش */
+/**
+ * پیش‌نمایش یک قالب دیتابیسی با داده نمونه، داخل سند کامل سایت (برای iframe سندباکس).
+ * قالب فقط با پلیس‌هولدرهای امن رندر می‌شود؛ هیچ کدی از متن قالب اجرا نمی‌شود.
+ */
+function design_preview_html(array $settings, string $key, string $content): string
+{
+    $sampleSection = [
+        'title'     => 'بخش نمونه',
+        'heading'   => 'تیتر نمایشی بخش',
+        'body'      => '<p>این یک متن نمونه برای پیش‌نمایش قالب است. متن واقعی هر بخش از پنل مدیریت می‌آید.</p><ul><li>نکته اول</li><li>نکته دوم</li></ul>',
+        'image'     => '',
+        'link_url'  => '#',
+        'link_text' => 'متن دکمه نمونه',
+    ];
+    $samplePage = [
+        'title'   => 'عنوان صفحه نمونه',
+        'content' => '<p>این متن نمونه‌ی محتوای یک صفحه است تا چیدمان قالب «صفحه تکی» را ببینید.</p>',
+    ];
+    $ctx = template_context($key, $settings, $sampleSection, $samplePage);
+    if (strpos($content, '{{slider_slides}}') !== false) {
+        $ctx['slider_slides'] = '<div class="slides" data-slider><figure class="slide is-active"><figcaption class="slide-caption"><h3>اسلاید نمونه</h3><div class="slide-text"><p>متن نمونه اسلاید</p></div></figcaption></figure></div>';
+    }
+    $rendered = tpl_render($content, $ctx);
+    $doc = skeleton_head($settings, 'پیش‌نمایش قالب: ' . $key, '');
+    if (in_array($key, ['header', 'footer'], true)) {
+        $doc .= $rendered . "\n";
+    } else {
+        $doc .= '<main id="main">' . "\n" . $rendered . "\n" . '</main>' . "\n";
+    }
+    $doc .= skeleton_foot();
+    return $doc;
+}
+
+/**
+ * جابه‌جایی یک ردیف (بخش یا صفحه) به بالا/پایین با همسایه‌اش */
 function move_row(PDO $pdo, string $table, int $id, string $direction): void
 {
     $rows = $pdo->query('SELECT id, sort_order FROM ' . $table . ' ORDER BY sort_order ASC, id ASC')->fetchAll();
@@ -589,14 +692,45 @@ if ($page === 'pages' && isset($_GET['edit_id'])) {
         if ((int) $p['id'] === (int) $_GET['edit_id']) { $editPage = $p; break; }
     }
 }
-$editTemplate = null;
-$editTemplateCode = '';
-if ($page === 'templates' && isset($_GET['edit'])) {
-    $candidate = basename((string) $_GET['edit']);
-    if (is_valid_template_file($candidate) && is_file(__DIR__ . '/' . $candidate)) {
-        $editTemplate = $candidate;
-        $editTemplateCode = (string) file_get_contents(__DIR__ . '/' . $candidate);
+// عنوان‌های نمایشی قالب‌های دیتابیس (برای برچسب فهرست قالب در فرم بخش‌ها)
+$templateTitles = [];
+foreach (all_templates() as $tplRow) {
+    $templateTitles[(string) $tplRow['template_key']] = (string) $tplRow['title'];
+}
+
+// ---------- داده‌های صفحه «قالب و استایل» ----------
+$designTab = 'templates';
+$dbTemplates = [];
+$editTplRow = null;
+$editTplRevisions = [];
+$cssRevisions = [];
+$customCssRevisions = [];
+$legacyTplWarnings = [];
+$legacyCssWarnings = [];
+$cleanupCandidates = [];
+$tplUsedIn = [];
+$visual = validated_visual_settings($settings);
+if ($page === 'design') {
+    $designTab = (string) ($_GET['tab'] ?? 'templates');
+    if (!in_array($designTab, ['templates', 'css'], true)) {
+        $designTab = 'templates';
     }
+    $dbTemplates = all_templates();
+    foreach ($sections as $s) {
+        $tplUsedIn[section_template_key($s)][] = (string) $s['title'];
+    }
+    $legacyTplWarnings = legacy_archived_revisions('template');
+    $legacyCssWarnings = legacy_archived_revisions('css');
+    $cleanupCandidates = legacy_cleanup_candidates();
+    $editKey = trim((string) ($_GET['edit_tpl'] ?? ''));
+    if ($editKey !== '') {
+        $editTplRow = get_template_row($editKey);
+        if ($editTplRow !== null) {
+            $editTplRevisions = design_revisions_for('template', $editKey);
+        }
+    }
+    $cssRevisions = design_revisions_for('css', 'site_css');
+    $customCssRevisions = design_revisions_for('css', 'custom_css');
 }
 ?>
 <!DOCTYPE html>
@@ -620,7 +754,7 @@ if ($page === 'templates' && isset($_GET['edit'])) {
     <aside class="sidebar">
         <a href="admin.php?page=sections" class="<?= $page === 'sections' ? 'active' : '' ?>">بخش‌های صفحه اصلی</a>
         <a href="admin.php?page=pages" class="<?= $page === 'pages' ? 'active' : '' ?>">صفحه‌ها</a>
-        <a href="admin.php?page=templates" class="<?= $page === 'templates' ? 'active' : '' ?>">قالب‌ها</a>
+        <a href="admin.php?page=design" class="<?= $page === 'design' ? 'active' : '' ?>">قالب و استایل</a>
         <a href="admin.php?page=messages" class="<?= $page === 'messages' ? 'active' : '' ?>">پیام‌های تماس<?php if ($messages !== []): ?> (<?= count($messages) ?>)<?php endif; ?></a>
         <a href="admin.php?page=tools" class="<?= $page === 'tools' ? 'active' : '' ?>">ابزار و بکاپ</a>
         <a href="admin.php?page=database" class="<?= $page === 'database' ? 'active' : '' ?>"><?php if ($databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?>اتصال دیتابیس</a>
@@ -635,16 +769,16 @@ if ($page === 'templates' && isset($_GET['edit'])) {
 
         <?php if ($page === 'sections'): ?>
             <h1>بخش‌های صفحه اصلی</h1>
-            <p class="muted">صفحه اصلی (index.php) بخش‌های فعال را دقیقاً به همین ترتیب لود می‌کند. هر بخش محتوای خودش (تیتر، متن، عکس، لینک) را دارد. برای فرم تماس، یک بخش با قالب <code>template_contact.php</code> بسازید. برای ساخت یک صفحه تک‌قالبی، همه بخش‌ها را غیرفعال کنید و فقط یک بخش با قالب <code>template_single.php</code> فعال بگذارید.</p>
+            <p class="muted">صفحه اصلی (index.php) بخش‌های فعال را دقیقاً به همین ترتیب نمایش می‌دهد. هر بخش محتوای خودش (تیتر، متن، عکس، لینک) و یک قالب دارد که متن و چیدمانش داخل دیتابیس است و از صفحه «قالب و استایل» ویرایش می‌شود. برای فرم تماس، یک بخش با قالب «تماس با ما» بسازید. صفحه‌های جدا هم با قالب «صفحه تکی» نمایش داده می‌شوند.</p>
 
             <table>
-                <thead><tr><th>ترتیب</th><th>عنوان</th><th>فایل قالب</th><th>عکس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <thead><tr><th>ترتیب</th><th>عنوان</th><th>قالب</th><th>عکس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                 <tbody>
                 <?php foreach ($sections as $s): ?>
                     <tr>
                         <td><?= (int) $s['sort_order'] ?></td>
                         <td><?= e($s['title']) ?></td>
-                        <td><code><?= e($s['template_file']) ?></code></td>
+                        <td><?= e($templateTitles[section_template_key($s)] ?? section_template_key($s)) ?> <span class="muted">(<code><?= e(section_template_key($s)) ?></code>)</span></td>
                         <td><?= !empty($s['image']) ? 'دارد' : '<span class="muted">—</span>' ?></td>
                         <td><?= (int) $s['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
@@ -668,13 +802,18 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                 <label>عنوان بخش (داخلی، برای مدیریت)
                     <input type="text" name="title" required value="<?= e($editSection['title'] ?? '') ?>" placeholder="مثلاً اسلایدر اصلی">
                 </label>
-                <label>فایل قالب
+                <label>قالب بخش
                     <select name="template_file" required>
-                        <?php foreach ($templates as $t): ?>
-                            <option value="<?= e($t) ?>" <?= ($editSection && $editSection['template_file'] === $t) ? 'selected' : '' ?>><?= e($t) ?></option>
+                        <?php foreach ($templates as $t):
+                            $tKey = template_key_from_file($t);
+                        ?>
+                            <option value="<?= e($t) ?>" <?= ($editSection && $editSection['template_file'] === $t) ? 'selected' : '' ?>><?= e($templateTitles[$tKey] ?? $tKey) ?> (<?= e($tKey) ?>)</option>
                         <?php endforeach; ?>
                     </select>
                 </label>
+                <?php if ($editSection && !in_array($editSection['template_file'], $templates, true)): ?>
+                    <div class="alert error">قالب فعلی این بخش («<?= e($editSection['template_file']) ?>») در دیتابیس پیدا نشد؛ هنگام نمایش سایت، قالب «محتوا» جایگزینش می‌شود. یک قالب از فهرست بالا انتخاب و ذخیره کنید.</div>
+                <?php endif; ?>
                 <label>ترتیب نمایش
                     <input type="number" name="sort_order" value="<?= e($editSection['sort_order'] ?? '10') ?>">
                 </label>
@@ -758,56 +897,243 @@ if ($page === 'templates' && isset($_GET['edit'])) {
                 <?php if ($editPage): ?><a class="btn" href="admin.php?page=pages">انصراف</a><?php endif; ?>
             </form>
 
-        <?php elseif ($page === 'templates'): ?>
-            <h1>قالب‌ها</h1>
-            <p class="muted">قالب‌ها فایل‌های PHP کنار همین پنل هستند (با پیشوند <code>template_</code>). داخل قالب می‌توانید از کد PHP، متغیرهای <code>$site_title</code> و <code>$site_description</code> و <code>$section</code> (محتوای بخش جاری) و پلیس‌هولدرهای <code>{{site_title}}</code> ، <code>{{site_description}}</code> ، <code>{{current_year}}</code> ، <code>{{menu}}</code> ، <code>{{seo_title}}</code> و <code>{{seo_description}}</code> استفاده کنید. ویرایش کد قالب یعنی اجرای آن روی سایت؛ فقط وقتی وارد پنل هستید این کار را بکنید.</p>
+        <?php elseif ($page === 'design'): ?>
+            <h1>قالب و استایل</h1>
+            <p class="muted">از نسخه ۵، متن قالب‌ها و CSS سایت داخل دیتابیس نگه داشته می‌شوند و فقط اسکلت صفحه (سربرگ سند، منوی موبایل و اسکریپت‌های سبک) در فایل‌هاست؛ پس قالب و CSS با آپدیت یک‌کلیکی گیت‌هاب پاک نمی‌شوند و همه‌چیز از همین‌جا قابل ویرایش و بازیابی است. داخل قالب‌ها کد PHP هرگز اجرا نمی‌شود؛ فقط پلیس‌هولدرهای امن پشتیبانی می‌شوند. قبل از هر ذخیره یا بازنشانی، نسخه قبلی به‌صورت خودکار در «تاریخچه نسخه‌ها» می‌ماند تا اشتباه‌ها برگشت‌پذیر باشند.</p>
 
-            <table>
-                <thead><tr><th>فایل قالب</th><th>در بخش‌ها استفاده شده؟</th><th>عملیات</th></tr></thead>
-                <tbody>
-                <?php foreach ($templates as $t):
-                    $usedIn = [];
-                    foreach ($sections as $s) { if ($s['template_file'] === $t) $usedIn[] = $s['title']; }
-                ?>
-                    <tr>
-                        <td><code><?= e($t) ?></code></td>
-                        <td><?= $usedIn ? e(implode('، ', $usedIn)) : '<span class="muted">بلااستفاده</span>' ?></td>
-                        <td class="actions">
-                            <a class="btn small" href="admin.php?page=templates&edit=<?= urlencode($t) ?>">ویرایش کد</a>
-                            <?php if (!$usedIn): ?>
-                            <form method="post" class="inline" onsubmit="return confirm('این فایل قالب حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_template"><input type="hidden" name="template_file" value="<?= e($t) ?>"><button type="submit" class="danger">حذف</button></form>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
+            <?php foreach ($legacyTplWarnings as $w): ?>
+                <div class="alert error">قالب قدیمی «<?= e($w['item_key']) ?>» در نسخه فایل‌محور سفارشی بوده و برای امنیت به قالب دیتابیس تبدیل و فعال نشده است؛ الان نسخه کارخانه‌ای همین قالب در سایت فعال است و سورس خام فایل قدیمی فقط در جدول تاریخچه نگه داشته شده تا اگر خواستید دستی و امن تبدیلش کنید.</div>
+            <?php endforeach; ?>
+            <?php if ($legacyCssWarnings !== []): ?>
+                <div class="alert error">فایل <code>style.css</code> قدیمی سفارشی بوده است؛ محتوای آن بدون اجرا داخل «CSS سفارشی» قرار گرفت تا ظاهر سایت حفظ شود. از تب «CSS و ظاهر» می‌توانید بررسی، ویرایش یا حذفش کنید.</div>
+            <?php endif; ?>
 
-            <h2>ساخت قالب جدید</h2>
-            <form method="post" class="card">
-                <?= csrf_field() ?>
-                <input type="hidden" name="action" value="create_template">
-                <label>نام قالب (فقط حروف انگلیسی، عدد و آندرلاین)
-                    <span class="file-input">template_<input type="text" name="slug" required pattern="[A-Za-z0-9_]+" placeholder="promo">.php</span>
-                </label>
-                <button type="submit" class="btn primary">ساخت قالب</button>
-            </form>
+            <nav class="design-tabs">
+                <a href="admin.php?page=design&tab=templates" class="<?= $designTab === 'templates' ? 'active' : '' ?>">قالب‌ها</a>
+                <a href="admin.php?page=design&tab=css" class="<?= $designTab === 'css' ? 'active' : '' ?>">CSS و ظاهر</a>
+            </nav>
 
-            <?php if ($editTemplate): ?>
-                <h2>ویرایش کد: <code><?= e($editTemplate) ?></code></h2>
+            <?php if ($designTab === 'templates'): ?>
+                <table>
+                    <thead><tr><th>قالب</th><th>نوع</th><th>آخرین ویرایش</th><th>استفاده در بخش‌ها</th><th>عملیات</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($dbTemplates as $row):
+                        $k = (string) $row['template_key'];
+                    ?>
+                        <tr>
+                            <td><?= e($row['title']) ?><br><span class="muted">کلید: <code><?= e($k) ?></code></span></td>
+                            <td><?= (int) $row['is_system'] === 1 ? '<span class="badge ok">سیستمی</span>' : '<span class="badge off">سفارشی</span>' ?></td>
+                            <td><?= e($row['updated_at']) ?></td>
+                            <td><?= !empty($tplUsedIn[$k]) ? e(implode('، ', $tplUsedIn[$k])) : '<span class="muted">بلااستفاده</span>' ?></td>
+                            <td class="actions">
+                                <a class="btn small" href="admin.php?page=design&tab=templates&edit_tpl=<?= urlencode($k) ?>">ویرایش</a>
+                                <?php if ((int) $row['is_system'] !== 1 && empty($tplUsedIn[$k])): ?>
+                                <form method="post" class="inline" onsubmit="return confirm('این قالب سفارشی حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_db_template"><input type="hidden" name="template_key" value="<?= e($k) ?>"><button type="submit" class="danger">حذف</button></form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($dbTemplates === []): ?><tr><td colspan="5" class="muted">هنوز قالبی در دیتابیس ثبت نشده است.</td></tr><?php endif; ?>
+                    </tbody>
+                </table>
+
+                <div class="card wide">
+                    <h2>راهنمای پلیس‌هولدرها</h2>
+                    <p class="muted">متن قالب HTML ساده است و این نشانه‌ها هنگام نمایش با محتوای واقعی جایگزین می‌شوند؛ مقادیر متنی خودکار امن‌سازی (escape) می‌شوند:</p>
+                    <ul class="ph-list">
+                        <li><code>{{site_title}}</code> عنوان سایت</li>
+                        <li><code>{{site_description}}</code> توضیح سایت</li>
+                        <li><code>{{menu}}</code> منوی سایت (با دکمه موبایل و تغییر تم)</li>
+                        <li><code>{{current_year}}</code> سال جاری</li>
+                        <li><code>{{section_title}}</code> عنوان داخلی بخش</li>
+                        <li><code>{{section_heading}}</code> تیتر نمایشی بخش</li>
+                        <li><code>{{section_body}}</code> متن بخش (HTML ساده مجاز است)</li>
+                        <li><code>{{section_image}}</code> تگ عکس بخش (اگر عکس داشته باشد)</li>
+                        <li><code>{{section_image_url}}</code> آدرس عکس بخش</li>
+                        <li><code>{{section_link_url}}</code> آدرس دکمه بخش</li>
+                        <li><code>{{section_link_text}}</code> متن دکمه بخش</li>
+                        <li><code>{{page_title}}</code> و <code>{{page_content}}</code> عنوان و محتوای صفحه (در قالب صفحه تکی)</li>
+                        <li><code>{{slider_slides}}</code> کاروسل عکس همه بخش‌های عکس‌دار</li>
+                        <li><code>{{contact_form}}</code> فرم تماس آماده (فقط در قالب تماس)</li>
+                        <li>بلوک شرطی: <code>{{#if section_image_url}}...{{else}}...{{/if}}</code> — اگر مقدار خالی نباشد بخش اول، وگرنه بخش دوم نشان داده می‌شود؛ شرط‌ها می‌توانند تو در تو باشند.</li>
+                    </ul>
+                    <p class="muted">نکته امنیتی: کد PHP داخل متن قالب هیچ‌وقت اجرا نمی‌شود و مثل متن ساده چاپ می‌شود؛ پس با خیال راحت قالب را ویرایش کنید.</p>
+                </div>
+
+                <h2>ساخت قالب سفارشی</h2>
+                <form method="post" class="card">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="create_db_template">
+                    <label>کلید قالب (فقط حروف کوچک انگلیسی، عدد و آندرلاین)
+                        <input type="text" name="template_key" required pattern="[a-z0-9_]+" placeholder="promo" dir="ltr">
+                    </label>
+                    <label>عنوان نمایشی
+                        <input type="text" name="template_title" placeholder="مثلاً بنر تبلیغاتی">
+                    </label>
+                    <button type="submit" class="btn primary">ساخت قالب</button>
+                </form>
+
+                <?php if ($editTplRow !== null): ?>
+                    <h2>ویرایش قالب: <?= e($editTplRow['title']) ?> <span class="muted">(کلید: <code><?= e($editTplRow['template_key']) ?></code>)</span></h2>
+                    <form method="post" class="card wide">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="save_db_template">
+                        <input type="hidden" name="template_key" value="<?= e($editTplRow['template_key']) ?>">
+                        <textarea name="content" rows="20" dir="ltr" spellcheck="false"><?= e($editTplRow['content']) ?></textarea>
+                        <button type="submit" class="btn primary">ذخیره قالب</button>
+                        <a class="btn" href="index.php" target="_blank">مشاهده سایت</a>
+                    </form>
+                    <?php if ((int) $editTplRow['is_system'] === 1): ?>
+                    <form method="post" class="card" onsubmit="return confirm('قالب به نسخه کارخانه‌ای برگردد؟ نسخه فعلی در تاریخچه نگه داشته می‌شود.')">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="reset_db_template">
+                        <input type="hidden" name="template_key" value="<?= e($editTplRow['template_key']) ?>">
+                        <p class="muted">اگر قالب را خراب کرده‌اید، با این دکمه به نسخه پیش‌فرض کارخانه برمی‌گردد و جای نگرانی نیست.</p>
+                        <button type="submit" class="btn">بازنشانی به نسخه کارخانه‌ای</button>
+                    </form>
+                    <?php endif; ?>
+
+                    <h3>پیش‌نمایش (با داده نمونه و CSS ذخیره‌شده سایت)</h3>
+                    <iframe class="tpl-preview" title="پیش‌نمایش قالب" sandbox="allow-scripts" srcdoc="<?= e(design_preview_html($settings, (string) $editTplRow['template_key'], (string) $editTplRow['content'])) ?>"></iframe>
+                    <p class="muted">پیش‌نمایش از آخرین نسخه ذخیره‌شده ساخته می‌شود؛ برای دیدن تغییرات، اول «ذخیره قالب» را بزنید.</p>
+
+                    <?php if ($editTplRevisions !== []): ?>
+                        <h3>تاریخچه نسخه‌های این قالب</h3>
+                        <table>
+                            <thead><tr><th>تاریخ</th><th>یادداشت</th><th>عملیات</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($editTplRevisions as $rev): ?>
+                                <tr>
+                                    <td><?= e($rev['created_at']) ?></td>
+                                    <td><?= e($rev['note']) ?></td>
+                                    <td><form method="post" class="inline" onsubmit="return confirm('این نسخه جایگزین نسخه فعلی شود؟ نسخه فعلی هم در تاریخچه می‌ماند.')"><?= csrf_field() ?><input type="hidden" name="action" value="restore_revision"><input type="hidden" name="revision_id" value="<?= (int) $rev['id'] ?>"><input type="hidden" name="template_key" value="<?= e($editTplRow['template_key']) ?>"><button type="submit" class="btn small">بازیابی این نسخه</button></form></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <?php if ($cleanupCandidates !== []): ?>
+                    <section class="card wide">
+                        <h2>پاک‌سازی فایل‌های قدیمی قالب</h2>
+                        <p class="muted">این فایل‌های نسخه فایل‌محور هنوز روی هاست هستند، ولی سایت دیگر از آن‌ها استفاده نمی‌کند؛ قالب و CSS فقط از دیتابیس خوانده می‌شوند:</p>
+                        <ul>
+                            <?php foreach ($cleanupCandidates as $name): ?><li><code><?= e($name) ?></code></li><?php endforeach; ?>
+                        </ul>
+                        <form method="post" onsubmit="return confirm('فایل‌های قدیمی قالب و style.css حذف شوند؟ برگشت‌پذیر نیست، ولی سایت به آن‌ها نیازی ندارد.')">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="delete_legacy_files">
+                            <label>برای تأیید، کلمه «حذف» را تایپ کنید
+                                <input type="text" name="confirm_text" required placeholder="حذف">
+                            </label>
+                            <button type="submit" class="btn danger-btn">حذف فایل‌های قدیمی</button>
+                        </form>
+                    </section>
+                <?php endif; ?>
+
+            <?php else: ?>
+                <h2>تنظیمات ظاهری</h2>
+                <p class="muted">رنگ، فونت، عرض محتوا و گردی گوشه‌ها بدون ویرایش کد عوض می‌شوند و بلافاصله روی کل سایت اعمال می‌شوند.</p>
                 <form method="post" class="card wide">
                     <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="save_template">
-                    <input type="hidden" name="template_file" value="<?= e($editTemplate) ?>">
-                    <textarea name="code" rows="18" dir="ltr" spellcheck="false"><?= e($editTemplateCode) ?></textarea>
-                    <button type="submit" class="btn primary">ذخیره قالب</button>
-                    <a class="btn" href="index.php" target="_blank">مشاهده سایت</a>
+                    <input type="hidden" name="action" value="save_visual_settings">
+                    <label>رنگ اصلی
+                        <input type="color" name="primary_color" value="<?= e(valid_hex_color($settings['primary_color'] ?? null, '#2563eb')) ?>">
+                    </label>
+                    <label>رنگ تأکیدی (سر دیگر گرادیان اسلایدر)
+                        <input type="color" name="accent_color" value="<?= e(valid_hex_color($settings['accent_color'] ?? null, '#0d9488')) ?>">
+                    </label>
+                    <label>فونت سایت
+                        <select name="site_font">
+                            <option value="system" <?= $visual['site_font'] === 'system' ? 'selected' : '' ?>>فونت سیستم بازدیدکننده (سریع‌ترین، بدون دانلود)</option>
+                            <option value="tahoma" <?= $visual['site_font'] === 'tahoma' ? 'selected' : '' ?>>تاهوما</option>
+                            <option value="vazirmatn" <?= $visual['site_font'] === 'vazirmatn' ? 'selected' : '' ?>>وزیرمتن (بارگذاری از CDN)</option>
+                        </select>
+                    </label>
+                    <label>حداکثر عرض محتوای سایت (پیکسل، بین ۸۸۰ تا ۱۶۰۰)
+                        <input type="number" name="container_width" min="880" max="1600" step="10" value="<?= (int) $visual['container_width'] ?>">
+                    </label>
+                    <label>گردی گوشه‌ها (پیکسل، بین ۰ تا ۳۲)
+                        <input type="number" name="border_radius" min="0" max="32" step="1" value="<?= (int) $visual['border_radius'] ?>">
+                    </label>
+                    <label>تم پیش‌فرض برای بازدیدکننده تازه
+                        <select name="default_theme">
+                            <option value="light" <?= $visual['default_theme'] === 'light' ? 'selected' : '' ?>>روشن</option>
+                            <option value="dark" <?= $visual['default_theme'] === 'dark' ? 'selected' : '' ?>>تیره</option>
+                            <option value="system" <?= $visual['default_theme'] === 'system' ? 'selected' : '' ?>>مطابق تنظیم سیستم بازدیدکننده</option>
+                        </select>
+                    </label>
+                    <label class="check"><input type="checkbox" name="header_sticky" value="1" <?= $visual['header_sticky'] ? 'checked' : '' ?>> هدر چسبان باشد (هنگام اسکرول بالای صفحه بماند)</label>
+                    <button type="submit" class="btn primary">ذخیره تنظیمات ظاهری</button>
                 </form>
+
+                <h2>CSS اصلی سایت</h2>
+                <p class="muted">این CSS از مسیر عمومی <code>style.php</code> به مرورگرهای بازدیدکنندگان می‌رسد. اگر اینجا را کاملاً خالی کنید، نسخه کارخانه‌ای به‌صورت خودکار استفاده می‌شود. قبل از هر ذخیره، نسخه قبلی در تاریخچه می‌ماند. توجه: CSS داخل دیتابیس است و با آپدیت یک‌کلیکی پاک نمی‌شود.</p>
+                <form method="post" class="card wide">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="save_css">
+                    <input type="hidden" name="which" value="site_css">
+                    <textarea name="content" rows="24" dir="ltr" spellcheck="false"><?= e($settings['site_css'] ?? '') ?></textarea>
+                    <button type="submit" class="btn primary">ذخیره CSS اصلی</button>
+                </form>
+                <form method="post" class="card" onsubmit="return confirm('CSS اصلی به نسخه کارخانه‌ای برگردد؟ نسخه فعلی در تاریخچه می‌ماند.')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="reset_css">
+                    <input type="hidden" name="which" value="site_css">
+                    <button type="submit" class="btn">بازنشانی CSS اصلی به کارخانه‌ای</button>
+                </form>
+                <?php if ($cssRevisions !== []): ?>
+                    <h3>تاریخچه CSS اصلی</h3>
+                    <table>
+                        <thead><tr><th>تاریخ</th><th>یادداشت</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($cssRevisions as $rev): ?>
+                            <tr>
+                                <td><?= e($rev['created_at']) ?></td>
+                                <td><?= e($rev['note']) ?></td>
+                                <td><form method="post" class="inline" onsubmit="return confirm('این نسخه جایگزین نسخه فعلی شود؟ نسخه فعلی هم در تاریخچه می‌ماند.')"><?= csrf_field() ?><input type="hidden" name="action" value="restore_revision"><input type="hidden" name="revision_id" value="<?= (int) $rev['id'] ?>"><input type="hidden" name="return_to" value="css"><button type="submit" class="btn small">بازیابی این نسخه</button></form></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+
+                <h2>CSS سفارشی</h2>
+                <p class="muted">قانون‌هایی که اینجا بنویسید بعد از CSS اصلی اعمال می‌شوند؛ برای تغییرات کوچک و تست سریع بهترین جا همین‌جاست. این هم داخل دیتابیس است و در آپدیت‌ها حفظ می‌شود.</p>
+                <form method="post" class="card wide">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="save_css">
+                    <input type="hidden" name="which" value="custom_css">
+                    <textarea name="content" rows="12" dir="ltr" spellcheck="false"><?= e($settings['custom_css'] ?? '') ?></textarea>
+                    <button type="submit" class="btn primary">ذخیره CSS سفارشی</button>
+                </form>
+                <form method="post" class="card" onsubmit="return confirm('CSS سفارشی کاملاً خالی شود؟ نسخه فعلی در تاریخچه می‌ماند.')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="reset_css">
+                    <input type="hidden" name="which" value="custom_css">
+                    <button type="submit" class="btn">خالی‌کردن CSS سفارشی</button>
+                </form>
+                <?php if ($customCssRevisions !== []): ?>
+                    <h3>تاریخچه CSS سفارشی</h3>
+                    <table>
+                        <thead><tr><th>تاریخ</th><th>یادداشت</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($customCssRevisions as $rev): ?>
+                            <tr>
+                                <td><?= e($rev['created_at']) ?></td>
+                                <td><?= e($rev['note']) ?></td>
+                                <td><form method="post" class="inline" onsubmit="return confirm('این نسخه جایگزین نسخه فعلی شود؟ نسخه فعلی هم در تاریخچه می‌ماند.')"><?= csrf_field() ?><input type="hidden" name="action" value="restore_revision"><input type="hidden" name="revision_id" value="<?= (int) $rev['id'] ?>"><input type="hidden" name="return_to" value="css"><button type="submit" class="btn small">بازیابی این نسخه</button></form></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
             <?php endif; ?>
 
         <?php elseif ($page === 'messages'): ?>
             <h1>پیام‌های تماس</h1>
-            <p class="muted">پیام‌هایی که از فرم تماس سایت (بخش با قالب <code>template_contact.php</code>) فرستاده شده‌اند.</p>
+            <p class="muted">پیام‌هایی که از فرم تماس سایت (بخش با قالب «تماس با ما») فرستاده شده‌اند.</p>
             <table>
                 <thead><tr><th>تاریخ</th><th>نام</th><th>راه تماس</th><th>پیام</th><th>عملیات</th></tr></thead>
                 <tbody>
@@ -1105,5 +1431,21 @@ th{background:#f9fafb}.actions{white-space:nowrap}.inline{display:inline}
 .badge{padding:2px 8px;border-radius:99px;font-size:12px}.badge.ok{background:#dcfce7}.badge.off{background:#e5e7eb}
 .check{display:flex;gap:8px;align-items:center}.file-input{direction:ltr;display:flex;align-items:center;gap:4px}
 code{background:#f3f4f6;padding:1px 5px;border-radius:5px;direction:ltr;display:inline-block}
+.ph-list{line-height:2.1}.ph-list code{margin-inline-end:6px}
+.design-tabs{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}
+.design-tabs a{padding:8px 18px;border:1px solid #d1d5db;border-radius:99px;background:#fff;color:#111827}
+.design-tabs a.active{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:bold}
+.tpl-preview{width:100%;height:440px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+input[type=color]{width:72px;height:38px;padding:2px;border:1px solid #d1d5db;border-radius:8px;background:#fff;vertical-align:middle;cursor:pointer}
+@media (max-width:760px){
+.layout{flex-direction:column}
+.sidebar{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;border-inline-end:0;border-bottom:1px solid #e5e7eb}
+.sidebar a{padding:7px 10px;font-size:13px}
+.sidebar-version{margin-top:0;border-top:0;padding:7px 10px}
+.content{padding:14px}
+table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tpl-preview{height:320px}
+.topbar{flex-wrap:wrap;gap:8px}
+}
 CSS;
 }
