@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.4.1');
+define('APP_VERSION', '8.5.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -454,6 +454,8 @@ function init_db(PDO $pdo): void
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_expenses_order ON expenses (order_id, id)");
     // طول واحد تازه (شاخه/رول) بر حسب سانتی‌متر برای مواد برش‌خور؛ ۰ یعنی بدون برش
     db_add_column_if_missing($pdo, 'materials', 'cut_unit_cm', 'REAL NOT NULL DEFAULT 0');
+    // نام واحد تازه برای لیست برش (شاخه، رول، بسته…) — ۸٫۵٫۰؛ کاملاً از پنل قابل‌ویرایش
+    db_add_column_if_missing($pdo, 'materials', 'cut_unit_label', "TEXT NOT NULL DEFAULT 'واحد'");
     // ستون‌های تازه فاز ۳ روی جدول‌های قدیمی (ارتقای خودکار، بدون حذف داده)
     db_add_column_if_missing($pdo, 'products', 'prep_days', 'INTEGER NOT NULL DEFAULT 0');
     db_add_column_if_missing($pdo, 'product_materials', 'apply_condition', "TEXT NOT NULL DEFAULT 'always'");
