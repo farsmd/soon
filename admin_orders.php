@@ -955,6 +955,30 @@ function orders_render_view(array $d): void
             </table>
             <?php endif; ?>
         </section>
+        <section class="card wide">
+            <h2>تولید</h2>
+            <?php $prodOpen = production_open_for_order((int) $o['id']); $prodLatest = $prodOpen ?? production_latest_for_order((int) $o['id']); ?>
+            <?php if ($prodOpen !== null): ?>
+                <p>برگه تولید <strong>#<?= (int) $prodOpen['production_no'] ?></strong> در جریان است — مرحله فعلی:
+                    <span class="badge" style="background:<?= e(production_stage_color((string) $prodOpen['stage_key'])) ?>22;color:<?= e(production_stage_color((string) $prodOpen['stage_key'])) ?>"><?= e(production_stage_title((string) $prodOpen['stage_key'])) ?></span>
+                    <a class="btn small primary" href="admin.php?page=production_view&id=<?= (int) $prodOpen['id'] ?>">مشاهده برگه تولید</a>
+                </p>
+            <?php else: ?>
+                <?php if ($prodLatest !== null): ?>
+                    <p class="muted">آخرین برگه تولید این سفارش: <strong>#<?= (int) $prodLatest['production_no'] ?></strong> (<?= e(production_state_label((string) $prodLatest['state'])) ?>) — <a href="admin.php?page=production_view&id=<?= (int) $prodLatest['id'] ?>">مشاهده برگه</a></p>
+                <?php else: ?>
+                    <p class="muted">این سفارش هنوز به تولید فرستاده نشده است.</p>
+                <?php endif; ?>
+                <?php if ((string) $o['status'] !== 'cancelled'): ?>
+                <form method="post" class="inline">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="create_production">
+                    <input type="hidden" name="order_id" value="<?= (int) $o['id'] ?>">
+                    <button type="submit" class="btn small primary"><?= $prodLatest !== null ? 'تولید مجدد (برگه تازه)' : '📤 ارسال به تولید' ?></button>
+                </form>
+                <?php endif; ?>
+            <?php endif; ?>
+        </section>
     </div>
     <div class="proforma" id="proforma"<?= $print ? '' : ' style="display:none"' ?>>
         <h2>پیش‌فاکتور سفارش #<?= (int) $o['order_no'] ?></h2>
