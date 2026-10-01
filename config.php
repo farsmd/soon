@@ -4,10 +4,11 @@
 // نسخه ۵: محتوای قالب‌ها و CSS سایت داخل دیتابیس نگهداری می‌شود؛ فقط اسکلت صفحه در کد باقی مانده است.
 // نسخه ۶ (فاز ۲): مشتری‌ها، دسته‌بندی و کاتالوگ محصول با قیمت متری + آپشن + قیمت همکار و ماشین‌حساب قیمت.
 // نسخه ۷ (فاز ۲٫۵): مواد اولیه، انبار کارگاه، فرمول ساخت محصول (BOM) و بهای تمام‌شده بر پایه «آخرین قیمت خرید».
+// نسخه ۸ (فاز ۳): سفارش‌ها (همکار/مشتری) با ردیف‌های طول‌دار، تخفیف پلکانی متراژ، سیم و درپوش، پیش‌فاکتور چاپی، وضعیت‌ها و انبار پرتی.
 
 declare(strict_types=1);
 
-define('APP_VERSION', '7.0.0');
+define('APP_VERSION', '8.0.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -228,6 +229,101 @@ function init_db(PDO $pdo): void
         )
     ");
 
+    // --- فاز ۳ (نسخه ۸): سفارش‌ها، پلکان تخفیف، وضعیت‌ها و انبار پرتی ---
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS price_tiers (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            title            TEXT NOT NULL,
+            min_meters       REAL NOT NULL DEFAULT 0,
+            max_meters       REAL,
+            discount_percent REAL NOT NULL DEFAULT 0,
+            applies_to       TEXT NOT NULL DEFAULT 'partner',
+            is_active        INTEGER NOT NULL DEFAULT 1,
+            sort_order       INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS order_statuses (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            status_key TEXT NOT NULL UNIQUE,
+            title      TEXT NOT NULL,
+            color      TEXT NOT NULL DEFAULT '#6b7280',
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS orders (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_no         INTEGER NOT NULL UNIQUE,
+            customer_id      INTEGER NOT NULL,
+            customer_type    TEXT NOT NULL DEFAULT 'retail',
+            source           TEXT NOT NULL DEFAULT 'admin',
+            status           TEXT NOT NULL DEFAULT 'new',
+            subtotal         INTEGER NOT NULL DEFAULT 0,
+            discount_percent REAL NOT NULL DEFAULT 0,
+            discount_amount  INTEGER NOT NULL DEFAULT 0,
+            total            INTEGER NOT NULL DEFAULT 0,
+            total_meters     REAL NOT NULL DEFAULT 0,
+            total_fixtures   INTEGER NOT NULL DEFAULT 0,
+            prep_days        INTEGER NOT NULL DEFAULT 0,
+            notes            TEXT,
+            created_by       TEXT,
+            created_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders (customer_id, id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status, id)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS order_items (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id            INTEGER NOT NULL,
+            product_id          INTEGER NOT NULL,
+            product_name        TEXT NOT NULL DEFAULT '',
+            length_cm           REAL NOT NULL DEFAULT 0,
+            qty                 INTEGER NOT NULL DEFAULT 1,
+            billable_m          REAL NOT NULL DEFAULT 0,
+            unit_price_per_m    REAL NOT NULL DEFAULT 0,
+            options_json        TEXT,
+            options_extra_per_m REAL NOT NULL DEFAULT 0,
+            wire_length_cm      REAL NOT NULL DEFAULT 0,
+            wire_steps          INTEGER NOT NULL DEFAULT 0,
+            wire_extra_total    INTEGER NOT NULL DEFAULT 0,
+            has_endcap          INTEGER NOT NULL DEFAULT 0,
+            line_subtotal       INTEGER NOT NULL DEFAULT 0,
+            line_total          INTEGER NOT NULL DEFAULT 0,
+            sort_order          INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items (order_id, id)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS order_status_history (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id    INTEGER NOT NULL,
+            from_status TEXT,
+            to_status   TEXT NOT NULL,
+            note        TEXT,
+            created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history (order_id, id)");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS material_remnants (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            material_id INTEGER NOT NULL,
+            length_cm   REAL NOT NULL DEFAULT 0,
+            qty         INTEGER NOT NULL DEFAULT 1,
+            source      TEXT NOT NULL DEFAULT 'manual',
+            note        TEXT,
+            created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_material_remnants_material ON material_remnants (material_id, id)");
+    // ستون‌های تازه فاز ۳ روی جدول‌های قدیمی (ارتقای خودکار، بدون حذف داده)
+    db_add_column_if_missing($pdo, 'products', 'prep_days', 'INTEGER NOT NULL DEFAULT 0');
+    db_add_column_if_missing($pdo, 'product_materials', 'apply_condition', "TEXT NOT NULL DEFAULT 'always'");
+
     // --- جدول قالب‌های داخل دیتابیس (نسخه ۵) ---
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS site_templates (
@@ -323,6 +419,7 @@ function init_db(PDO $pdo): void
 
     // --- فاز ۲٫۵ (نسخه ۷): سید مواد اولیه نمونه (فقط یک بار و فقط وقتی جدول مواد خالی است) ---
     seed_inventory_if_needed($pdo);
+    seed_order_rules_if_needed($pdo);
 }
 
 /** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
@@ -2216,3 +2313,278 @@ function seed_inventory_if_needed(PDO $pdo): void
 
 // توابع آپدیت یک‌کلیکی گیت‌هاب (backups_dir و update_* و perform_update) در فایل admin_catalog.php هستند؛
 // فقط پنل مدیریت از آن‌ها استفاده می‌کند تا config.php کوچک بماند.
+
+// ---------- فاز ۳ (نسخه ۸): سفارش‌ها، پلکان تخفیف، وضعیت‌ها و انبار پرتی ----------
+// همه قواعد تجاری (پلکان‌ها، حداقل‌ها، گام سیم، درصد بیعانه و ...) در دیتابیس و از
+// پنل «قوانین قیمت‌گذاری» قابل‌ویرایش‌اند؛ در کد هیچ عدد تجاری ثابتی نیست.
+
+/** خواندن یک تنظیم سفارش با مقدار پیش‌فرض */
+function order_setting(string $key, $default = '')
+{
+    return get_setting($key, (string) $default);
+}
+
+/** پلکان‌های تخفیف فعال/غیرفعال به ترتیب */
+function price_tiers(bool $onlyActive = true): array
+{
+    $sql = 'SELECT * FROM price_tiers';
+    if ($onlyActive) {
+        $sql .= " WHERE is_active = 1";
+    }
+    $sql .= ' ORDER BY sort_order ASC, min_meters ASC, id ASC';
+    return db()->query($sql)->fetchAll();
+}
+
+/** وضعیت‌های سفارش به ترتیب */
+function order_statuses(bool $onlyActive = true): array
+{
+    $sql = 'SELECT * FROM order_statuses';
+    if ($onlyActive) {
+        $sql .= ' WHERE is_active = 1';
+    }
+    $sql .= ' ORDER BY sort_order ASC, id ASC';
+    return db()->query($sql)->fetchAll();
+}
+
+/** عنوان فارسی یک وضعیت سفارش */
+function order_status_title(string $key): string
+{
+    foreach (order_statuses(false) as $s) {
+        if ((string) $s['status_key'] === $key) {
+            return (string) $s['title'];
+        }
+    }
+    return $key;
+}
+
+/** رنگ یک وضعیت سفارش */
+function order_status_color(string $key): string
+{
+    foreach (order_statuses(false) as $s) {
+        if ((string) $s['status_key'] === $key) {
+            return (string) ($s['color'] ?? '#6b7280');
+        }
+    }
+    return '#6b7280';
+}
+
+/** طول قابل‌صورتحساب هر چراغ (متر) — کمتر از حداقل، همان حداقل حساب می‌شود */
+function billable_length_m(float $lengthCm): float
+{
+    $m = round($lengthCm, 1) / 100.0;
+    $min = (float) order_setting('min_billable_m', 0.5);
+    return max($m, $min);
+}
+
+/** درصد تخفیف پلکانی برای متراژ کل سفارش.
+ * قانون مرزها (طبق مثال‌های تأییدشده: 17.9→پلکان ۹–۱۸، 18→پلکان ۱۸–۳۰، 300→پلکان ۱۲۰–۳۰۰، 300.1→پلکان بالای ۳۰۰):
+ * کف بازه شامل است، سقف بازه هم شامل است؛ در مرز مشترک دو پلکان، پلکان بالاتر (کف بزرگ‌تر) اعمال می‌شود؛
+ * پلکان بدون سقف فقط «بالای» کف خودش اعمال می‌شود (نه روی خود عدد کف).
+ */
+function tier_for(float $totalMeters, bool $isPartner): float
+{
+    $best = 0.0;
+    $bestMin = -1.0;
+    foreach (price_tiers(true) as $t) {
+        if ((string) ($t['applies_to'] ?? 'partner') === 'partner' && !$isPartner) {
+            continue;
+        }
+        $min = (float) ($t['min_meters'] ?? 0);
+        $max = ($t['max_meters'] ?? null) === null ? null : (float) $t['max_meters'];
+        $hit = $totalMeters >= $min && ($max === null ? $totalMeters > $min : $totalMeters <= $max);
+        if ($hit && $min >= $bestMin) {
+            $bestMin = $min;
+            $best = (float) ($t['discount_percent'] ?? 0);
+        }
+    }
+    return $best;
+}
+
+/**
+ * محاسبه کامل یک سفارش.
+ * هر ردیف: ['product_id'=>int, 'length_cm'=>float, 'qty'=>int, 'wire_length_cm'=>float, 'has_endcap'=>bool, 'options'=>[attrId=>optionId]]
+ * قرارداد گردکردن (مستند): هر ردیف به نزدیک‌ترین تومان گرد می‌شود، جمع ردیف‌ها = جمع جزء،
+ * تخفیف پلکانی روی جمع ردیف‌ها گرد می‌شود، مبلغ نهایی = جمع − تخفیف + اضافه سیم.
+ */
+function compute_order_totals(array $lines, bool $isPartner): array
+{
+    $wireStepPrice = (int) order_setting('wire_price_per_step', 0);
+    $wireStepCm = (int) order_setting('wire_step_cm', 5);
+    $out = [];
+    $totalMeters = 0.0;
+    $subtotal = 0;
+    $wireExtraTotal = 0;
+    $fixtures = 0;
+    foreach ($lines as $ln) {
+        $product = get_product((int) ($ln['product_id'] ?? 0));
+        if ($product === null) {
+            continue;
+        }
+        $lengthCm = round((float) ($ln['length_cm'] ?? 0), 1);
+        $qty = max(1, (int) ($ln['qty'] ?? 1));
+        $billableM = billable_length_m($lengthCm);
+        $optIds = [];
+        foreach ((array) ($ln['options'] ?? []) as $oid) {
+            $oid = (int) $oid;
+            if ($oid > 0) {
+                $optIds[] = $oid;
+            }
+        }
+        $unit = product_unit_price($product, $optIds, $isPartner);
+        $wireCm = (float) ($ln['wire_length_cm'] ?? order_setting('wire_default_cm', 20));
+        $wireDefaultCm = (float) order_setting('wire_default_cm', 20);
+        // فقط گام‌های بالاتر از طول پیش‌فرض سیم هزینه دارند (سیم استاندارد داخل قیمت پایه است)
+        $wireSteps = $wireStepCm > 0 ? max(0, (int) round(($wireCm - $wireDefaultCm) / $wireStepCm)) : 0;
+        $wireExtra = $wireSteps * $wireStepPrice * $qty;
+        $lineSubtotal = (int) round($billableM * $unit * $qty);
+        $lineTotal = $lineSubtotal + $wireExtra;
+        $out[] = [
+            'product_id' => (int) $product['id'],
+            'length_cm' => $lengthCm,
+            'qty' => $qty,
+            'billable_m' => $billableM,
+            'unit_price_per_m' => $unit,
+            'options_extra_per_m' => $unit - product_base_price_per_meter($product, $isPartner),
+            'wire_length_cm' => $wireCm,
+            'wire_steps' => $wireSteps,
+            'wire_extra_total' => $wireExtra,
+            'has_endcap' => !empty($ln['has_endcap']),
+            'line_subtotal' => $lineSubtotal,
+            'line_total' => $lineTotal,
+        ];
+        $totalMeters += $billableM * $qty;
+        $subtotal += $lineSubtotal;
+        $wireExtraTotal += $wireExtra;
+        $fixtures += $qty;
+    }
+    $discountPercent = tier_for($totalMeters, $isPartner);
+    $discountAmount = (int) round($subtotal * $discountPercent / 100);
+    $total = $subtotal - $discountAmount + $wireExtraTotal;
+    return [
+        'lines' => $out,
+        'total_meters' => round($totalMeters, 4),
+        'total_fixtures' => $fixtures,
+        'subtotal' => $subtotal,
+        'discount_percent' => $discountPercent,
+        'discount_amount' => $discountAmount,
+        'wire_extra_total' => $wireExtraTotal,
+        'total' => $total,
+    ];
+}
+
+/**
+ * نیاز مواد یک سفارش (با طول واقعی، نه طول صورتحسابی).
+ * هر ردیف سفارش: ['product_id'=>int, 'length_cm'=>float, 'qty'=>int, 'has_endcap'=>bool]
+ * مواد با شرط endcap فقط وقتی شمرده می‌شوند که ردیف درپوش داشته باشد.
+ */
+function order_required_materials(array $orderLines): array
+{
+    $acc = [];
+    foreach ($orderLines as $ln) {
+        $pid = (int) ($ln['product_id'] ?? 0);
+        $qty = max(1, (int) ($ln['qty'] ?? 1));
+        $lengthM = round((float) ($ln['length_cm'] ?? 0), 1) / 100.0;
+        $hasEndcap = !empty($ln['has_endcap']);
+        foreach (product_bom_lines($pid) as $bom) {
+            if (($bom['apply_condition'] ?? 'always') === 'endcap' && !$hasEndcap) {
+                continue;
+            }
+            $mid = (int) $bom['material_id'];
+            $need = $bom['basis'] === 'per_fixture' ? (float) $bom['qty'] * $qty : (float) $bom['qty'] * $lengthM * $qty;
+            if (!isset($acc[$mid])) {
+                $mat = get_material($mid);
+                $acc[$mid] = [
+                    'material_id' => $mid,
+                    'name' => (string) ($mat['name'] ?? ('#' . $mid)),
+                    'unit' => (string) ($mat['unit'] ?? ''),
+                    'needed' => 0.0,
+                    'stock' => (float) ($mat['stock_qty'] ?? 0),
+                ];
+            }
+            $acc[$mid]['needed'] += $need;
+        }
+    }
+    foreach ($acc as &$r) {
+        $r['shortage'] = max(0.0, (float) $r['needed'] - (float) $r['stock']);
+    }
+    unset($r);
+    return array_values($acc);
+}
+
+/** سید قواعد فاز ۳ — فقط یک بار (با پرچم تنظیمات)؛ هرگز داده کاربر بازنویسی نمی‌شود */
+function seed_order_rules_if_needed(PDO $pdo): void
+{
+    if (get_setting('seeded_order_rules_v8', '') === '1') {
+        return;
+    }
+    // پلکان‌های تخفیف همکار (۶ پلکان پیش‌فرض، کاملاً قابل‌ویرایش از پنل)
+    if ((int) $pdo->query('SELECT COUNT(*) FROM price_tiers')->fetchColumn() === 0) {
+        $tiers = [
+            ['۹ تا ۱۸ متر', 9, 18, 3],
+            ['۱۸ تا ۳۰ متر', 18, 30, 5],
+            ['۳۰ تا ۶۰ متر', 30, 60, 7],
+            ['۶۰ تا ۱۲۰ متر', 60, 120, 9],
+            ['۱۲۰ تا ۳۰۰ متر', 120, 300, 12],
+            ['بالای ۳۰۰ متر', 300, null, 15],
+        ];
+        $ins = $pdo->prepare('INSERT INTO price_tiers (title, min_meters, max_meters, discount_percent, applies_to, is_active, sort_order) VALUES (:t, :min, :max, :pct, :ap, 1, :s)');
+        $s = 0;
+        foreach ($tiers as $tr) {
+            $s += 10;
+            $ins->execute([':t' => $tr[0], ':min' => $tr[1], ':max' => $tr[2], ':pct' => $tr[3], ':ap' => 'partner', ':s' => $s]);
+        }
+    }
+    // وضعیت‌های سفارش
+    if ((int) $pdo->query('SELECT COUNT(*) FROM order_statuses')->fetchColumn() === 0) {
+        $statuses = [
+            ['new', 'جدید', '#2563eb'],
+            ['confirmed', 'تأییدشده', '#0891b2'],
+            ['in_production', 'در حال تولید', '#d97706'],
+            ['ready', 'آماده ارسال', '#7c3aed'],
+            ['shipped', 'ارسال‌شده', '#059669'],
+            ['delivered', 'تحویل‌شده', '#16a34a'],
+            ['cancelled', 'لغوشده', '#dc2626'],
+        ];
+        $ins = $pdo->prepare('INSERT INTO order_statuses (status_key, title, color, is_active, sort_order) VALUES (:k, :t, :c, 1, :s)');
+        $s = 0;
+        foreach ($statuses as $st) {
+            $s += 10;
+            $ins->execute([':k' => $st[0], ':t' => $st[1], ':c' => $st[2], ':s' => $s]);
+        }
+    }
+    // ویژگی «رنگ پروفیل» (سفید/مشکی) — فقط اگر هنوز ساخته نشده باشد (ارتقای نصب‌های قدیمی)
+    $hasProfileColor = (int) $pdo->query("SELECT COUNT(*) FROM product_attributes WHERE attr_key = 'profile_color' OR title = 'رنگ پروفیل'")->fetchColumn();
+    if ($hasProfileColor === 0) {
+        $maxSort = (int) $pdo->query('SELECT COALESCE(MAX(sort_order), 0) FROM product_attributes')->fetchColumn();
+        $pdo->prepare("INSERT INTO product_attributes (title, attr_key, input_type, unit, sort_order, is_active) VALUES ('رنگ پروفیل', 'profile_color', 'select', '', :o, 1)")
+            ->execute([':o' => $maxSort + 10]);
+        $pcId = (int) $pdo->lastInsertId();
+        $insO = $pdo->prepare('INSERT INTO product_attribute_options (attribute_id, title, price_delta_per_meter, sort_order) VALUES (:a, :t, 0, :o)');
+        $insO->execute([':a' => $pcId, ':t' => 'سفید', ':o' => 10]);
+        $insO->execute([':a' => $pcId, ':t' => 'مشکی', ':o' => 20]);
+    }
+    // تنظیمات عددی/متنی پیش‌فرض فاز ۳ (فقط اگر کاربر چیزی ست نکرده باشد)
+    $defaults = [
+        'partner_min_bars' => '3',
+        'bar_length_m' => '3',
+        'min_billable_m' => '0.5',
+        'wire_default_cm' => '20',
+        'wire_step_cm' => '5',
+        'wire_price_per_step' => '0',
+        'remnant_min_cm' => '20',
+        'default_prep_days' => '3',
+        'deposit_percent' => '50',
+        'orders_public' => '1',
+        'enforce_min_partner' => 'warn',
+        'next_order_no' => '1001',
+        'payment_terms' => '',
+        'warranty_text' => '',
+        'qc_text' => '',
+    ];
+    foreach ($defaults as $k => $v) {
+        if (get_setting($k, '') === '') {
+            set_setting($k, $v);
+        }
+    }
+    set_setting('seeded_order_rules_v8', '1');
+}
