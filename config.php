@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.2.0');
+define('APP_VERSION', '8.2.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -31,6 +31,7 @@ function db(): PDO
         PDO::ATTR_EMULATE_PREPARES   => false,
     ]);
     $pdo->exec('PRAGMA foreign_keys = ON');
+    $pdo->exec('PRAGMA busy_timeout = 5000');
     init_db($pdo);
     return $pdo;
 }
@@ -344,6 +345,15 @@ function init_db(PDO $pdo): void
         )
     ");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visit_logs_id ON visit_logs (id DESC)");
+    // جدول نشست‌ها (نسخه ۸٫۲٫۱): نشست به‌جای فایل روی دیسک، داخل همین دیتابیس ذخیره می‌شود
+    // تا پاک‌سازی دوره‌ای و قفلِ مسیر نشستِ هاست‌های اشتراکی نتواند نشست مدیر را بکشد.
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS app_sessions (
+            id         TEXT PRIMARY KEY,
+            data       TEXT NOT NULL DEFAULT '',
+            expires_at INTEGER NOT NULL DEFAULT 0
+        )
+    ");
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS admin_logs (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1753,6 +1763,9 @@ function session_lifetime_seconds(): int
     if ($h > 720) { $h = 720; }
     return $h * 3600;
 }
+
+// نگهدارندهٔ نشست دیتابیسی و شروع نشست (نسخه ۸٫۲٫۱) در session_handler.php است.
+require_once __DIR__ . '/session_handler.php';
 
 /** آی‌پی واقعی بازدیدکننده (با احترام به هدر پراکسی هاست‌های اشتراکی). */
 function client_ip(): string
