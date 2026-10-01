@@ -16,7 +16,7 @@ if (!defined('CMS_ADMIN_PANEL')) {
 function inventory_post_actions(): array
 {
     return ['add_material', 'update_material', 'delete_material', 'toggle_material',
-        'stock_in', 'stock_out', 'stock_adjust'];
+        'stock_in', 'stock_out', 'stock_adjust', 'update_material_prices'];
 }
 
 /**
@@ -47,21 +47,27 @@ function inventory_handle_post(string $action): void
             if ($cutUnitCm < 0) {
                 $cutUnitCm = 0.0;
             }
+            // نام واحد تازه برای لیست برش (شاخه، رول، بسته…) — ۸٫۵٫۰
+            $cutLabel = trim((string) ($_POST['cut_unit_label'] ?? ''));
+            if ($cutLabel === '') {
+                $cutLabel = 'واحد';
+            }
             $data = [
                 ':name'  => $name,
                 ':unit'  => $unit,
                 ':thr'   => $threshold,
                 ':cut'   => $cutUnitCm,
+                ':cutlbl' => $cutLabel,
                 ':notes' => trim((string) ($_POST['notes'] ?? '')) ?: null,
                 ':act'   => isset($_POST['is_active']) ? 1 : 0,
             ];
             if ($action === 'update_material' && $mid > 0) {
                 $data[':id'] = $mid;
-                $pdo->prepare('UPDATE materials SET name = :name, unit = :unit, low_stock_threshold = :thr, cut_unit_cm = :cut, notes = :notes, is_active = :act, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                $pdo->prepare('UPDATE materials SET name = :name, unit = :unit, low_stock_threshold = :thr, cut_unit_cm = :cut, cut_unit_label = :cutlbl, notes = :notes, is_active = :act, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                 flash('ok', 'ماده اولیه به‌روزرسانی شد.');
                 redirect_admin('admin.php?page=materials&edit_id=' . $mid);
             }
-            $pdo->prepare('INSERT INTO materials (name, unit, low_stock_threshold, cut_unit_cm, notes, is_active) VALUES (:name, :unit, :thr, :cut, :notes, :act)')->execute($data);
+            $pdo->prepare('INSERT INTO materials (name, unit, low_stock_threshold, cut_unit_cm, cut_unit_label, notes, is_active) VALUES (:name, :unit, :thr, :cut, :cutlbl, :notes, :act)')->execute($data);
             flash('ok', 'ماده اولیه تازه ثبت شد. حالا از دکمه «ورود خرید» موجودی و قیمت خریدش را وارد کنید.');
             redirect_admin('admin.php?page=materials');
             // no break
@@ -124,7 +130,41 @@ function inventory_handle_post(string $action): void
                 }
                 flash('ok', 'موجودی «' . (string) $mat['name'] . '» اصلاح شد و روی ' . format_qty((float) $r['balance_after']) . ' ' . (string) $mat['unit'] . ' تنظیم شد.');
             }
-            redirect_admin('admin.php?page=materials');
+        case 'update_material_prices':
+            $prices = $_POST['price'] ?? [];
+            if (!is_array($prices)) {
+                $prices = [];
+            }
+            $updated = 0;
+            $updStmt = $pdo->prepare('UPDATE materials SET last_price = :p, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+            foreach ($prices as $midRaw => $priceRaw) {
+                $mid = (int) $midRaw;
+                if ($mid <= 0) {
+                    continue;
+                }
+                $priceRaw = trim((string) $priceRaw);
+                if ($priceRaw === '') {
+                    continue;
+                }
+                if (!is_numeric($priceRaw)) {
+                    throw new RuntimeException('قیمت واردشده معتبر نیست.');
+                }
+                $price = (int) round((float) $priceRaw);
+                if ($price < 0) {
+                    throw new RuntimeException('قیمت نمی‌تواند منفی باشد.');
+                }
+                $cur = $pdo->query('SELECT last_price FROM materials WHERE id = ' . $mid)->fetchColumn();
+                if ($cur === false) {
+                    continue;
+                }
+                if ((int) $cur !== $price) {
+                    $updStmt->execute([':p' => $price, ':id' => $mid]);
+                    $updated++;
+                }
+            }
+            log_admin_event('materials_price_list', 'به‌روزرسانی گروهی لیست قیمت مواد (' . $updated . ' قلم)');
+            flash('ok', $updated > 0 ? 'قیمت ' . $updated . ' ماده به‌روزرسانی شد.' : 'هیچ قیمتی تغییر نکرد.');
+            redirect_admin('admin.php?page=material_prices');
             // no break
     }
 }
@@ -147,8 +187,9 @@ function inventory_load_data(string $page): array
         'stockTypeFilter'     => '',
         'allMaterialsForFilter' => [],
     ];
-    if ($page === 'materials') {
+    if ($page === 'materials' || $page === 'material_prices') {
         $data['materialsList'] = get_materials(false);
+        if ($page === 'materials') {
         if (isset($_GET['edit_id'])) {
             $data['editMaterial'] = get_material((int) $_GET['edit_id']);
         }
@@ -163,6 +204,7 @@ function inventory_load_data(string $page): array
         foreach (db()->query('SELECT material_id, COUNT(*) AS c FROM stock_movements GROUP BY material_id')->fetchAll() as $r) {
             $data['materialUsage'][(int) $r['material_id']]['moves'] = (int) $r['c'];
         }
+        } // if materials
     }
     if ($page === 'stock') {
         $data['allMaterialsForFilter'] = get_materials(false);
@@ -276,6 +318,9 @@ function inventory_render_materials(array $d): void
                 <label>طول هر واحد تازه / شاخه / رول (سانت) — فقط برای مواد برش‌خور مثل پروفیل و نوار LED؛ ۰ یعنی بدون برش. موجودی این مواد بر حسب «متر» ثبت شود تا لیست برش تولید درست کار کند (مثلاً پروفیل: ۳۰۰، نوار LED: ‏۵۰۰)
                     <input type="number" name="cut_unit_cm" step="any" min="0" value="<?= isset($editMaterial['cut_unit_cm']) ? e(format_qty((float) $editMaterial['cut_unit_cm'])) : '0' ?>">
                 </label>
+                <label>نام واحد تازه در لیست برش — مثلاً شاخه، رول، بسته؛ در برگه تولید «شاخه ۱ (۳۰۰ سانت)» یا «رول ۲ (۵۰۰ سانت)» نوشته می‌شود
+                    <input type="text" name="cut_unit_label" value="<?= e($editMaterial['cut_unit_label'] ?? 'واحد') ?>" placeholder="شاخه، رول، بسته…">
+                </label>
                 <label>یادداشت
                     <input type="text" name="notes" value="<?= e($editMaterial['notes'] ?? '') ?>">
                 </label>
@@ -306,7 +351,7 @@ function inventory_render_materials(array $d): void
                     <tr>
                         <td><?= e($m['name']) ?><?php if (!empty($m['notes'])): ?><br><span class="muted"><?= e($m['notes']) ?></span><?php endif; ?></td>
                         <td><?= e($m['unit']) ?></td>
-                        <td><?= (float) ($m['cut_unit_cm'] ?? 0) > 0 ? e(format_qty((float) $m['cut_unit_cm'])) . ' سانت' : '<span class="muted">—</span>' ?></td>
+                        <td><?= (float) ($m['cut_unit_cm'] ?? 0) > 0 ? e($m['cut_unit_label'] ?? 'واحد') . ' ' . e(format_qty((float) $m['cut_unit_cm'])) . ' سانت' : '<span class="muted">—</span>' ?></td>
                         <td><strong><?= e(format_qty((float) $m['stock_qty'])) ?></strong></td>
                         <td><?= e(format_price($m['last_price'])) ?> تومان</td>
                         <td><?= e(format_price((float) $m['stock_qty'] * (int) $m['last_price'])) ?> تومان</td>
@@ -394,6 +439,45 @@ function inventory_render_stock(array $d): void
                 <?php endforeach; ?>
                 </tbody>
             </table>
+            <?php endif; ?>
+    <?php
+}
+
+/** رندر صفحه «لیست قیمت مواد اولیه» — آپدیت سریع و گروهی قیمت‌ها (۸٫۵٫۰) */
+function inventory_render_price_list(array $d): void
+{
+    extract($d);
+    ?>
+            <h1>لیست قیمت مواد اولیه</h1>
+            <p class="muted">قیمت هر ماده را همین‌جا سریع ویرایش کنید و یک‌جا ذخیره کنید. این قیمت‌ها «آخرین قیمت خرید» ماده‌اند و بهای تمام‌شده محصولات از روی آن‌ها حساب می‌شود. تغییر قیمت، گردش انبار ثبت نمی‌کند؛ برای ثبت خرید تازه (که هم موجودی و هم قیمت را تغییر می‌دهد) از «ورود خرید» در صفحه مواد اولیه استفاده کنید.</p>
+
+            <?php if ($materialsList === []): ?>
+                <div class="card wide"><p class="muted">هنوز ماده‌ای ثبت نشده است.</p></div>
+            <?php else: ?>
+            <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="update_material_prices">
+                <table>
+                    <thead><tr><th>#</th><th>نام ماده</th><th>واحد</th><th>موجودی</th><th>قیمت فعلی (تومان)</th><th>قیمت تازه (تومان)</th></tr></thead>
+                    <tbody>
+                    <?php $rn = 0; foreach ($materialsList as $m): $rn++; $mid = (int) $m['id']; ?>
+                        <tr>
+                            <td><?= $rn ?></td>
+                            <td><?= e($m['name']) ?><?php if ((int) $m['is_active'] !== 1): ?> <span class="badge off">غیرفعال</span><?php endif; ?></td>
+                            <td><?= e($m['unit']) ?></td>
+                            <td><strong><?= e(format_qty((float) $m['stock_qty'])) ?></strong></td>
+                            <td class="muted" dir="ltr" style="text-align:end"><?= e(format_price($m['last_price'])) ?></td>
+                            <td style="min-width:150px">
+                                <input type="number" name="price[<?= $mid ?>]" min="0" step="1" value="<?= (int) ($m['last_price'] ?? 0) ?>" dir="ltr" style="text-align:end">
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <button type="submit" class="btn add">💾 ذخیره همه قیمت‌ها</button>
+                <a class="btn" href="admin.php?page=materials">بازگشت به مواد اولیه</a>
+            </form>
+            <p class="muted">فقط قیمت‌هایی که تغییر کرده‌اند به‌روز می‌شوند و در لاگ سیستم ثبت می‌شود.</p>
             <?php endif; ?>
     <?php
 }
