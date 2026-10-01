@@ -13,6 +13,8 @@ require_once __DIR__ . '/admin_catalog.php';
 require_once __DIR__ . '/admin_inventory.php';
 // صفحات و اکشن‌های سفارش‌ها و پیش‌فاکتور (فاز ۳ / نسخه ۸) هم در فایل جدا هستند
 require_once __DIR__ . '/admin_orders.php';
+// صفحات و اکشن‌های تولید و برگه کارگاه (فاز ۴ / نسخه ۸٫۳) هم در فایل جدا هستند
+require_once __DIR__ . '/admin_production.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
 
@@ -350,6 +352,9 @@ $pageTitles = [
     'order_view' => 'جزئیات سفارش',
     'order_rules' => 'قوانین قیمت‌گذاری',
     'remnants'   => 'انبار پرتی',
+    'production' => 'تولید',
+    'production_view' => 'برگه تولید',
+    'production_rules' => 'مراحل و قوانین تولید',
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
@@ -386,6 +391,10 @@ $navGroups = [
         ['admin.php?page=orders', 'receipt', 'سفارش‌ها', 'orders'],
         ['admin.php?page=order_new', 'plus', 'سفارش تازه', 'order_new'],
         ['admin.php?page=order_rules', 'sliders', 'قوانین قیمت‌گذاری', 'order_rules'],
+    ]],
+    'production' => ['تولید', [
+        ['admin.php?page=production', 'cut', 'برگه‌های تولید', 'production'],
+        ['admin.php?page=production_rules', 'sliders', 'مراحل تولید', 'production_rules'],
     ]],
     'system' => ['سیستم', [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
@@ -473,6 +482,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۳ (سفارش‌ها) در admin_orders.php پردازش می‌شوند
         if (in_array($action, orders_post_actions(), true)) {
             orders_handle_post($action);
+        }
+        // اکشن‌های فاز ۴ (تولید) در admin_production.php پردازش می‌شوند
+        if (in_array($action, production_post_actions(), true)) {
+            production_handle_post($action);
         }
         // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
         if (in_array($action, logs_post_actions(), true)) {
@@ -960,6 +973,10 @@ extract($inventoryData);
 $ordersData = orders_load_data($page);
 extract($ordersData);
 
+// ---------- داده‌های فاز ۴ (تولید) — بارگذاری در admin_production.php ----------
+$productionData = production_load_data($page);
+extract($productionData);
+
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
 $dashCounts = ['customers' => 0, 'products' => 0, 'orders' => 0, 'new_orders' => 0];
 if ($page === 'dashboard') {
@@ -1046,7 +1063,7 @@ if ($page === 'design') {
         <details class="nav-group" data-group="<?= $gKey ?>"<?= $activeNavGroup === $gKey ? ' open' : '' ?>>
             <summary><?= e($gData[0]) ?></summary>
             <?php foreach ($gData[1] as $it): ?>
-            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
+            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'production' && (int) ($productionActiveCount ?? 0) > 0): ?><span class="nav-badge" title="برگه‌های تولید در جریان"><?= (int) $productionActiveCount ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
             <?php endforeach; ?>
         </details>
         <?php endforeach; ?>
@@ -1066,6 +1083,9 @@ if ($page === 'design') {
                 <a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong><?= (int) $dashCounts['customers'] ?></strong></a>
                 <a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong><?= (int) $dashCounts['products'] ?></strong></a>
                 <a class="stat-card" href="admin.php?page=orders"><span>سفارش‌ها</span><strong><?= (int) $dashCounts['orders'] ?></strong></a>
+                <?php if ((int) ($productionActiveCount ?? 0) > 0): ?>
+                <a class="stat-card" href="admin.php?page=production" style="border-color:#d97706;background:#fffbeb"><span style="color:#92400e">برگه‌های تولید در جریان</span><strong style="color:#92400e"><?= (int) $productionActiveCount ?></strong></a>
+                <?php endif; ?>
                 <?php if ((int) $dashCounts['new_orders'] > 0): ?>
                 <a class="stat-card" href="admin.php?page=orders&status=new" style="border-color:#2563eb;background:#eff6ff"><span style="color:#1d4ed8">سفارش‌های جدید</span><strong style="color:#1d4ed8"><?= (int) $dashCounts['new_orders'] ?></strong></a>
                 <?php endif; ?>
@@ -1507,6 +1527,12 @@ if ($page === 'design') {
             <?php orders_render_rules($ordersData); ?>
         <?php elseif ($page === 'remnants'): ?>
             <?php orders_render_remnants($ordersData); ?>
+        <?php elseif ($page === 'production'): ?>
+            <?php production_render_list($productionData); ?>
+        <?php elseif ($page === 'production_view'): ?>
+            <?php production_render_view($productionData); ?>
+        <?php elseif ($page === 'production_rules'): ?>
+            <?php production_render_rules($productionData); ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
