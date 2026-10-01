@@ -15,6 +15,8 @@ require_once __DIR__ . '/admin_inventory.php';
 require_once __DIR__ . '/admin_orders.php';
 // صفحات و اکشن‌های تولید و برگه کارگاه (فاز ۴ / نسخه ۸٫۳) هم در فایل جدا هستند
 require_once __DIR__ . '/admin_production.php';
+// صفحات و اکشن‌های مالی: فاکتور، دریافتی، هزینه و صورتحساب (فاز ۵ / نسخه ۸٫۴) هم در فایل جدا هستند
+require_once __DIR__ . '/admin_finance.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
 
@@ -355,6 +357,12 @@ $pageTitles = [
     'production' => 'تولید',
     'production_view' => 'برگه تولید',
     'production_rules' => 'مراحل و قوانین تولید',
+    'finance'    => 'داشبورد مالی',
+    'invoices'   => 'فاکتورها',
+    'invoice_view' => 'فاکتور',
+    'expenses'   => 'هزینه‌ها',
+    'statements' => 'صورتحساب مشتریان',
+    'finance_rules' => 'قوانین مالی',
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
@@ -395,6 +403,13 @@ $navGroups = [
     'production' => ['تولید', [
         ['admin.php?page=production', 'cut', 'برگه‌های تولید', 'production'],
         ['admin.php?page=production_rules', 'sliders', 'مراحل تولید', 'production_rules'],
+    ]],
+    'finance' => ['مالی', [
+        ['admin.php?page=finance', 'dashboard', 'داشبورد مالی', 'finance'],
+        ['admin.php?page=invoices', 'receipt', 'فاکتورها', 'invoices'],
+        ['admin.php?page=expenses', 'bag', 'هزینه‌ها', 'expenses'],
+        ['admin.php?page=statements', 'users', 'صورتحساب مشتریان', 'statements'],
+        ['admin.php?page=finance_rules', 'sliders', 'قوانین مالی', 'finance_rules'],
     ]],
     'system' => ['سیستم', [
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
@@ -486,6 +501,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۴ (تولید) در admin_production.php پردازش می‌شوند
         if (in_array($action, production_post_actions(), true)) {
             production_handle_post($action);
+        }
+        // اکشن‌های فاز ۵ (مالی) در admin_finance.php پردازش می‌شوند
+        if (in_array($action, finance_post_actions(), true)) {
+            finance_handle_post($action);
         }
         // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
         if (in_array($action, logs_post_actions(), true)) {
@@ -976,6 +995,9 @@ extract($ordersData);
 // ---------- داده‌های فاز ۴ (تولید) — بارگذاری در admin_production.php ----------
 $productionData = production_load_data($page);
 extract($productionData);
+// داده‌های فاز ۵ (مالی): فاکتور، دریافتی، هزینه و صورتحساب
+$financeData = finance_load_data($page);
+extract($financeData);
 
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
 $dashCounts = ['customers' => 0, 'products' => 0, 'orders' => 0, 'new_orders' => 0];
@@ -1063,7 +1085,7 @@ if ($page === 'design') {
         <details class="nav-group" data-group="<?= $gKey ?>"<?= $activeNavGroup === $gKey ? ' open' : '' ?>>
             <summary><?= e($gData[0]) ?></summary>
             <?php foreach ($gData[1] as $it): ?>
-            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'production' && (int) ($productionActiveCount ?? 0) > 0): ?><span class="nav-badge" title="برگه‌های تولید در جریان"><?= (int) $productionActiveCount ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
+            <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'production' && (int) ($productionActiveCount ?? 0) > 0): ?><span class="nav-badge" title="برگه‌های تولید در جریان"><?= (int) $productionActiveCount ?></span><?php endif; ?><?php if ($it[3] === 'expenses' && (int) ($finPending['count'] ?? 0) > 0): ?><span class="nav-badge" title="هزینه‌های در انتظار تأیید"><?= (int) $finPending['count'] ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
             <?php endforeach; ?>
         </details>
         <?php endforeach; ?>
@@ -1088,6 +1110,15 @@ if ($page === 'design') {
                 <?php endif; ?>
                 <?php if ((int) $dashCounts['new_orders'] > 0): ?>
                 <a class="stat-card" href="admin.php?page=orders&status=new" style="border-color:#2563eb;background:#eff6ff"><span style="color:#1d4ed8">سفارش‌های جدید</span><strong style="color:#1d4ed8"><?= (int) $dashCounts['new_orders'] ?></strong></a>
+                <?php endif; ?>
+                <?php if (isset($finPending) && is_array($finPending)): ?>
+                <a class="stat-card" href="admin.php?page=finance"><span>تراز مالی این ماه</span><strong><?= e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) ?> تومان</strong></a>
+                <?php if ((int) $finPending['count'] > 0): ?>
+                <a class="stat-card" href="admin.php?page=expenses&status=pending" style="border-color:#fcd34d;background:#fffbeb"><span style="color:#92400e">⏳ هزینه‌های در انتظار تأیید</span><strong style="color:#92400e"><?= (int) $finPending['count'] ?> مورد</strong></a>
+                <?php endif; ?>
+                <?php if ((int) ($finDebtTotal ?? 0) > 0): ?>
+                <a class="stat-card" href="admin.php?page=statements" style="border-color:#fca5a5;background:#fef2f2"><span style="color:#b91c1c">بدهی مشتریان</span><strong style="color:#b91c1c"><?= e(format_price((int) $finDebtTotal)) ?> تومان</strong></a>
+                <?php endif; ?>
                 <?php endif; ?>
                 <a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong><?= count($messages) ?></strong></a>
                 <a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr"><?= e(APP_VERSION) ?></strong></a>
@@ -1533,6 +1564,18 @@ if ($page === 'design') {
             <?php production_render_view($productionData); ?>
         <?php elseif ($page === 'production_rules'): ?>
             <?php production_render_rules($productionData); ?>
+        <?php elseif ($page === 'finance'): ?>
+            <?php finance_render_dashboard($financeData); ?>
+        <?php elseif ($page === 'invoices'): ?>
+            <?php finance_render_invoices($financeData); ?>
+        <?php elseif ($page === 'invoice_view'): ?>
+            <?php finance_render_invoice_view($financeData); ?>
+        <?php elseif ($page === 'expenses'): ?>
+            <?php finance_render_expenses($financeData); ?>
+        <?php elseif ($page === 'statements'): ?>
+            <?php finance_render_statements($financeData); ?>
+        <?php elseif ($page === 'finance_rules'): ?>
+            <?php finance_render_rules($financeData); ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
