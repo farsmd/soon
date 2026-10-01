@@ -1,1 +1,39 @@
-PD9waHAKLy8gcGFnZS5waHAg4oCUINmG2YXYp9uM2LQg24zaqSDYtdmB2K3ZhyDYrNiv2Kcg2KjYpyDYotiv2LHYsyBwYWdlLnBocD9zbHVnPS4uLiAo2YbYs9iu2Ycg27YpCi8vINmF2KrZhiDYtdmB2K3ZhyDYqNinINmC2KfZhNioINiv24zYqtin2KjbjNiz24wgwqtzaW5nbGXCuyDZiCDZvtmE24zYs+KAjNmH2YjZhNiv2LHZh9in24wge3twYWdlX3RpdGxlfX0g2Ygge3twYWdlX2NvbnRlbnR9fSDYs9in2K7YqtmHINmF24zigIzYtNmI2K8uCgpkZWNsYXJlKHN0cmljdF90eXBlcz0xKTsKCnJlcXVpcmUgX19ESVJfXyAuICcvY29uZmlnLnBocCc7Cgokc2V0dGluZ3MgPSBhbGxfc2V0dGluZ3MoKTsKJHNsdWcgPSB0cmltKChzdHJpbmcpICgkX0dFVFsnc2x1ZyddID8/ICcnKSk7CiRwYWdlID0gKCRzbHVnICE9PSAnJyAmJiBpc192YWxpZF9zbHVnKCRzbHVnKSkgPyBnZXRfcGFnZV9ieV9zbHVnKCRzbHVnLCB0cnVlKSA6IG51bGw7Cgokc2l0ZVRpdGxlID0gKHN0cmluZykgKCRzZXR0aW5nc1snc2l0ZV90aXRsZSddID8/ICfZiNio4oCM2LPYp9uM2Kog2YXZhicpOwoKaWYgKCRwYWdlID09PSBudWxsKSB7CiAgICBodHRwX3Jlc3BvbnNlX2NvZGUoNDA0KTsKICAgICR0aXRsZSA9ICfYtdmB2K3ZhyDZvtuM2K/YpyDZhti02K8g4oCUICcgLiAkc2l0ZVRpdGxlOwogICAgJGRlc2MgID0gKHN0cmluZykgKCRzZXR0aW5nc1snc2VvX2Rlc2NyaXB0aW9uJ10gPz8gJycpICE9PSAnJyA/IChzdHJpbmcpICRzZXR0aW5nc1snc2VvX2Rlc2NyaXB0aW9uJ10gOiAoc3RyaW5nKSAoJHNldHRpbmdzWydzaXRlX2Rlc2NyaXB0aW9uJ10gPz8gJycpOwogICAgJHZpZXdQYWdlID0gWwogICAgICAgICd0aXRsZScgICA9PiAn2LXZgdit2Ycg2b7bjNiv2Kcg2YbYtNivJywKICAgICAgICAnY29udGVudCcgPT4gJzxwPti12YHYrdmH4oCM2KfbjCDYqNinINin24zZhiDYotiv2LHYsyDZiNis2YjYryDZhtiv2KfYsdivINuM2Kcg2LrbjNix2YHYudin2YQg2KfYs9iqLjwvcD4nCiAgICAgICAgICAgIC4gJzxwPjxhIGNsYXNzPSJidG4iIGhyZWY9ImluZGV4LnBocCI+2KjYp9iy2q/YtNiqINio2Ycg2LXZgdit2Ycg2KfYtdmE24w8L2E+PC9wPicsCiAgICBdOwp9IGVsc2UgewogICAgJHRpdGxlID0gKHN0cmluZykgKCRwYWdlWydzZW9fdGl0bGUnXSA/PyAnJykgIT09ICcnID8gKHN0cmluZykgJHBhZ2VbJ3Nlb190aXRsZSddIDogKChzdHJpbmcpICRwYWdlWyd0aXRsZSddIC4gJyDigJQgJyAuICRzaXRlVGl0bGUpOwogICAgJGRlc2MgID0gKHN0cmluZykgKCRwYWdlWydzZW9fZGVzY3JpcHRpb24nXSA/PyAnJykgIT09ICcnID8gKHN0cmluZykgJHBhZ2VbJ3Nlb19kZXNjcmlwdGlvbiddIDogKHN0cmluZykgKCRzZXR0aW5nc1snc2l0ZV9kZXNjcmlwdGlvbiddID8/ICcnKTsKICAgICR2aWV3UGFnZSA9ICRwYWdlOwp9CgplY2hvIHNrZWxldG9uX2hlYWQoJHNldHRpbmdzLCAkdGl0bGUsICRkZXNjKTsKZWNobyByZW5kZXJfZGJfdGVtcGxhdGUoJ2hlYWRlcicsICRzZXR0aW5ncykgLiAiXG4iOwplY2hvICc8bWFpbiBpZD0ibWFpbiI+JyAuICJcbiI7CmVjaG8gcmVuZGVyX2RiX3RlbXBsYXRlKCdzaW5nbGUnLCAkc2V0dGluZ3MsIG51bGwsICR2aWV3UGFnZSkgLiAiXG4iOwplY2hvICc8L21haW4+JyAuICJcbiI7CmVjaG8gcmVuZGVyX2RiX3RlbXBsYXRlKCdmb290ZXInLCAkc2V0dGluZ3MpIC4gIlxuIjsKZWNobyBza2VsZXRvbl9mb290KCk7Cg==
+<?php
+// page.php — نمایش یک صفحه جدا با آدرس page.php?slug=... (نسخه ۶)
+// متن صفحه با قالب دیتابیسی «single» و پلیس‌هولدرهای {{page_title}} و {{page_content}} ساخته می‌شود.
+
+declare(strict_types=1);
+
+require __DIR__ . '/config.php';
+
+// لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲)
+track_public_request();
+
+$settings = all_settings();
+$slug = trim((string) ($_GET['slug'] ?? ''));
+$page = ($slug !== '' && is_valid_slug($slug)) ? get_page_by_slug($slug, true) : null;
+
+$siteTitle = (string) ($settings['site_title'] ?? 'وب‌سایت من');
+
+if ($page === null) {
+    http_response_code(404);
+    $title = 'صفحه پیدا نشد — ' . $siteTitle;
+    $desc  = (string) ($settings['seo_description'] ?? '') !== '' ? (string) $settings['seo_description'] : (string) ($settings['site_description'] ?? '');
+    $viewPage = [
+        'title'   => 'صفحه پیدا نشد',
+        'content' => '<p>صفحه‌ای با این آدرس وجود ندارد یا غیرفعال است.</p>'
+            . '<p><a class="btn" href="index.php">بازگشت به صفحه اصلی</a></p>',
+    ];
+} else {
+    $title = (string) ($page['seo_title'] ?? '') !== '' ? (string) $page['seo_title'] : ((string) $page['title'] . ' — ' . $siteTitle);
+    $desc  = (string) ($page['seo_description'] ?? '') !== '' ? (string) $page['seo_description'] : (string) ($settings['site_description'] ?? '');
+    $viewPage = $page;
+}
+
+echo skeleton_head($settings, $title, $desc);
+echo render_db_template('header', $settings) . "\n";
+echo '<main id="main">' . "\n";
+echo render_db_template('single', $settings, null, $viewPage) . "\n";
+echo '</main>' . "\n";
+echo render_db_template('footer', $settings) . "\n";
+echo skeleton_foot();
