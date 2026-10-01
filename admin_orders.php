@@ -955,6 +955,88 @@ function orders_render_view(array $d): void
             </table>
             <?php endif; ?>
         </section>
+        <?php
+        // ---------- بخش مالی سفارش (فاز ۵) ----------
+        $finInvoice = finance_order_invoice((int) $o['id']);
+        $finPaid = finance_order_paid((int) $o['id']);
+        $finGross = finance_order_gross($o);
+        $finDue = $finGross - $finPaid;
+        $finProfit = finance_order_profit((int) $o['id']);
+        $finPayments = db()->prepare('SELECT * FROM payments WHERE order_id = :o ORDER BY id DESC');
+        $finPayments->execute([':o' => (int) $o['id']]);
+        $finPayments = $finPayments->fetchAll();
+        $finVatPercent = (float) get_setting('vat_percent', '0');
+        ?>
+        <section class="card wide">
+            <h2>مالی: فاکتور، دریافتی و سود</h2>
+            <table><tbody>
+                <tr><th>مبلغ سفارش (بدون مالیات)</th><td><?= e(format_price($o['total'])) ?> تومان</td></tr>
+                <?php if ($finInvoice !== null): ?>
+                <tr><th>فاکتور</th><td><strong>#<?= (int) $finInvoice['invoice_no'] ?></strong> — جمع فاکتور: <?= e(format_price($finInvoice['total'])) ?> تومان<?= (int) $finInvoice['vat_applied'] === 1 ? ' (همراه مالیات ' . e(format_price($finInvoice['vat_amount'])) . ' تومان، ' . e(format_price($finInvoice['vat_percent'])) . '٪)' : ' (بدون مالیات)' ?>
+                    — <a href="admin.php?page=invoice_view&order_id=<?= (int) $o['id'] ?>">مشاهده و چاپ فاکتور</a></td></tr>
+                <?php else: ?>
+                <tr><th>فاکتور</th><td>صادر نشده است — از فرم پایین صادرش کنید.</td></tr>
+                <?php endif; ?>
+                <tr><th>دریافت‌شده</th><td><?= e(format_price($finPaid)) ?> تومان</td></tr>
+                <tr><th>مانده بدهی</th><td><strong style="color:<?= $finDue > 0 ? '#b91c1c' : '#16a34a' ?>"><?= e(format_price($finDue)) ?> تومان</strong><?= $finDue <= 0 && $finInvoice !== null ? ' — تسویه شده 🎉' : '' ?></td></tr>
+                <tr><th>سود سفارش (بدون مالیات)</th><td>درآمد <?= e(format_price($finProfit['revenue'])) ?> − بهای مواد <?= e(format_price($finProfit['material_cost'])) ?> (<?= $finProfit['basis'] === 'production' ? 'مصرف واقعی تولید' : 'برآورد BOM' ?>)<?= $finProfit['linked_expenses'] > 0 ? ' − هزینه مستقیم ' . e(format_price($finProfit['linked_expenses'])) : '' ?> = <strong style="color:<?= $finProfit['profit'] >= 0 ? '#16a34a' : '#b91c1c' ?>"><?= e(format_price($finProfit['profit'])) ?> تومان</strong></td></tr>
+            </tbody></table>
+
+            <?php if ($finInvoice === null && (string) $o['status'] !== 'cancelled'): ?>
+            <h3>صدور فاکتور ساده</h3>
+            <form method="post" class="inline-fields">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="issue_invoice">
+                <input type="hidden" name="order_id" value="<?= (int) $o['id'] ?>">
+                <label style="flex:1">یادداشت فاکتور (اختیاری)<input type="text" name="note" maxlength="300"></label>
+                <label style="align-self:end"><input type="checkbox" name="apply_vat" value="1"> اعمال مالیات بر ارزش افزوده (<?= e(format_price($finVatPercent)) ?>٪ = <?= e(format_price((int) round(max(0, (int) $o['subtotal'] - (int) $o['discount_amount']) * $finVatPercent / 100))) ?> تومان)</label>
+                <button type="submit" class="btn small primary" style="align-self:end">صدور فاکتور</button>
+            </form>
+            <?php elseif ($finInvoice !== null): ?>
+            <p>
+                <a class="btn small primary" href="admin.php?page=invoice_view&order_id=<?= (int) $o['id'] ?>&print=1" target="_blank">🖨 چاپ فاکتور #<?= (int) $finInvoice['invoice_no'] ?></a>
+                <form method="post" style="display:inline" onsubmit="return confirm('فاکتور باطل شود؟ بعدش می‌توانید با تنظیم تازه دوباره صادر کنید.')"><?= csrf_field() ?><input type="hidden" name="action" value="void_invoice"><input type="hidden" name="id" value="<?= (int) $finInvoice['id'] ?>"><button type="submit" class="btn small danger-btn">ابطال فاکتور</button></form>
+            </p>
+            <?php endif; ?>
+
+            <h3>ثبت دریافتی</h3>
+            <form method="post" class="inline-fields">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="add_payment">
+                <input type="hidden" name="order_id" value="<?= (int) $o['id'] ?>">
+                <label>مبلغ (تومان)<input type="number" name="amount" min="1" step="1" required></label>
+                <label>روش
+                    <select name="method_key">
+                        <?php foreach (finance_methods(true) as $m): ?><option value="<?= e($m['method_key']) ?>"><?= e($m['title']) ?></option><?php endforeach; ?>
+                    </select>
+                </label>
+                <label>نوع
+                    <select name="kind"><option value="receipt">دریافتی</option><option value="prepayment">پیش‌پرداخت</option></select>
+                </label>
+                <label>تاریخ<input type="date" name="paid_on" value="<?= e(date('Y-m-d')) ?>"></label>
+                <label style="flex:1">توضیح<input type="text" name="note" maxlength="200" placeholder="مثلاً بیعانه، شماره پیگیری…"></label>
+                <button type="submit" class="btn small primary" style="align-self:end">+ ثبت دریافتی</button>
+            </form>
+            <?php if ($finPayments === []): ?>
+                <p class="muted">هنوز دریافتی برای این سفارش ثبت نشده است.</p>
+            <?php else: ?>
+            <table>
+                <thead><tr><th>مبلغ</th><th>نوع</th><th>روش</th><th>تاریخ</th><th>توضیح</th><th></th></tr></thead>
+                <tbody>
+                <?php foreach ($finPayments as $p): ?>
+                    <tr>
+                        <td><strong><?= e(format_price($p['amount'])) ?></strong></td>
+                        <td><?= e(finance_payment_kind_label((string) $p['kind'])) ?></td>
+                        <td><?= e(finance_method_title((string) $p['method_key'])) ?></td>
+                        <td class="muted"><?= e(mb_substr((string) $p['paid_at'], 0, 10)) ?></td>
+                        <td><?= e($p['note'] ?? '—') ?></td>
+                        <td><form method="post" onsubmit="return confirm('این دریافتی حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_payment"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php endif; ?>
+        </section>
         <section class="card wide">
             <h2>تولید</h2>
             <?php $prodOpen = production_open_for_order((int) $o['id']); $prodLatest = $prodOpen ?? production_latest_for_order((int) $o['id']); ?>
