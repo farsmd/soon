@@ -1,1 +1,28 @@
-PD9waHAKLy8gc3R5bGUucGhwIOKAlCDYrtix2YjYrNuMINi52YXZiNmF24wg2Ygg2YHZgti34oCM2K7ZiNin2YbYr9mG24wgQ1NTINiz2KfbjNiqINin2LIg2K/bjNiq2KfYqNuM2LMgKNmG2LPYrtmHINu2KQovLyDYqtix2KrbjNioINiu2LHZiNis24w6INin24zZhdm+2YjYsdiqINmB2YjZhtiqICjYr9ixINi12YjYsdiqINin2YbYqtiu2KfYqCkgKyBDU1Mg2KfYtdmE24wgKyDZhdiq2LrbjNix2YfYp9uMINiq2YbYuNuM2YXYp9iqINi42KfZh9ix24wgKyBDU1Mg2LPZgdin2LHYtNuMLgovLyDYqNinIEVUYWcg2YggSWYtTm9uZS1NYXRjaCDZvtin2LPYriAzMDQg2YXbjOKAjNiv2YfYr9ibINmH24zahiDYqtmG2LjbjNmFINiv24zar9ix24wg2KzYsiBDU1Mg2KfYsiDYp9uM2YYg2YXYs9uM2LEg2YTZiCDZhtmF24zigIzYsdmI2K8uCgpkZWNsYXJlKHN0cmljdF90eXBlcz0xKTsKCnJlcXVpcmUgX19ESVJfXyAuICcvY29uZmlnLnBocCc7Cgokc2V0dGluZ3MgPSBhbGxfc2V0dGluZ3MoKTsKJGNzcyA9IGJ1aWxkX3NpdGVfY3NzKCRzZXR0aW5ncyk7CiRldGFnID0gJyInIC4gc2hhMSgkY3NzIC4gJ3wnIC4gKHN0cmluZykgKCRzZXR0aW5nc1snY3NzX3VwZGF0ZWRfYXQnXSA/PyAnJykpIC4gJyInOwoKaGVhZGVyKCdDb250ZW50LVR5cGU6IHRleHQvY3NzOyBjaGFyc2V0PXV0Zi04Jyk7CmhlYWRlcignQ2FjaGUtQ29udHJvbDogcHVibGljLCBtYXgtYWdlPTMwMCcpOwpoZWFkZXIoJ0VUYWc6ICcgLiAkZXRhZyk7CmhlYWRlcignWC1Db250ZW50LVR5cGUtT3B0aW9uczogbm9zbmlmZicpOwoKJGlmTm9uZU1hdGNoID0gdHJpbSgoc3RyaW5nKSAoJF9TRVJWRVJbJ0hUVFBfSUZfTk9ORV9NQVRDSCddID8/ICcnKSk7CmlmIChzdHJwb3MoJGlmTm9uZU1hdGNoLCAnVy8nKSA9PT0gMCkgewogICAgJGlmTm9uZU1hdGNoID0gdHJpbShzdWJzdHIoJGlmTm9uZU1hdGNoLCAyKSk7Cn0KaWYgKCRpZk5vbmVNYXRjaCAhPT0gJycgJiYgKCRpZk5vbmVNYXRjaCA9PT0gJGV0YWcgfHwgJGlmTm9uZU1hdGNoID09PSAnKicpKSB7CiAgICBodHRwX3Jlc3BvbnNlX2NvZGUoMzA0KTsKICAgIGV4aXQ7Cn0KCmVjaG8gJGNzczsK
+<?php
+// style.php — خروجی عمومی و فقط‌خواندنی CSS سایت از دیتابیس (نسخه ۶)
+// ترتیب خروجی: ایمپورت فونت (در صورت انتخاب) + CSS اصلی + متغیرهای تنظیمات ظاهری + CSS سفارشی.
+// با ETag و If-None-Match پاسخ 304 می‌دهد؛ هیچ تنظیم دیگری جز CSS از این مسیر لو نمی‌رود.
+
+declare(strict_types=1);
+
+require __DIR__ . '/config.php';
+
+$settings = all_settings();
+$css = build_site_css($settings);
+$etag = '"' . sha1($css . '|' . (string) ($settings['css_updated_at'] ?? '')) . '"';
+
+header('Content-Type: text/css; charset=utf-8');
+header('Cache-Control: public, max-age=300');
+header('ETag: ' . $etag);
+header('X-Content-Type-Options: nosniff');
+
+$ifNoneMatch = trim((string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));
+if (strpos($ifNoneMatch, 'W/') === 0) {
+    $ifNoneMatch = trim(substr($ifNoneMatch, 2));
+}
+if ($ifNoneMatch !== '' && ($ifNoneMatch === $etag || $ifNoneMatch === '*')) {
+    http_response_code(304);
+    exit;
+}
+
+echo $css;
