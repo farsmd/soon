@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.2.0');
+define('APP_VERSION', '9.3.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -535,6 +535,8 @@ function init_db(PDO $pdo): void
         'admin_log_enabled'      => '1',
         'log_retention_days'     => '90',
         'log_timezone'           => 'Asia/Tehran',
+        'cut_kerf_mm'            => '5',
+        'site_theme'             => 'cinematic',
     ] as $logKey => $logDef) {
         if (get_setting($logKey, '') === '') {
             set_setting($logKey, $logDef);
