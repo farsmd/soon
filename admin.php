@@ -1797,7 +1797,7 @@ if ($page === 'design') {
                     <input type="text" name="heading" value="<?= e($editSection['heading'] ?? '') ?>" placeholder="اگر خالی باشد، عنوان پیش‌فرض قالب نشان داده می‌شود">
                 </label>
                 <label>متن بخش <span class="muted">(HTML ساده مجاز است؛ فقط مدیر سایت این را می‌نویسد)</span>
-                    <textarea name="body" rows="6"><?= e($editSection['body'] ?? '') ?></textarea>
+                    <textarea name="body" rows="10" dir="ltr" spellcheck="false" class="code-editor" data-mode="htmlmixed"><?= e($editSection['body'] ?? '') ?></textarea>
                 </label>
                 <label>عکس بخش <span class="muted">(jpg/png/webp/gif، حداکثر ۳ مگابایت؛ در اسلایدر پس‌زمینه می‌شود)</span>
                     <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
@@ -2583,7 +2583,7 @@ if ($page === 'design') {
                 <label>کلمات کلیدی سئو (با کاما جدا کنید)
                     <input type="text" name="seo_keywords" value="<?= e($settings['seo_keywords'] ?? '') ?>" dir="rtl">
                 </label>
-                <label>آدرس کامل سایت (برای canonical و نقشه سایت) — مثال: https://linerlight.ir/cms
+                <label>آدرس کامل سایت (برای canonical و نقشه سایت) — مثال: https://linerlight.ir
                     <input type="text" name="site_url" value="<?= e($settings['site_url'] ?? '') ?>" dir="ltr" placeholder="https://...">
                 </label>
                 <h3>مشتری‌ها و کاتالوگ محصول (فاز ۲)</h3>
