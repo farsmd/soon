@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.10.1');
+define('APP_VERSION', '9.0.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -751,6 +751,12 @@ GALLERYHTML;
         seed_product_seo_v810_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('product seo migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹: ویترین محصولات، گالری، صفحه‌ساز ---
+    try {
+        seed_v9_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('v9 migration failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
@@ -1675,7 +1681,11 @@ function template_context(string $key, array $settings, ?array $section = null, 
         'page_content'      => $pageContent,
         'contact_form'      => '',
         'slider_slides'     => '',
+        'products_showcase' => '',
     ];
+    if ($key === 'slider') {
+        $ctx['products_showcase'] = products_showcase_html();
+    }
     if ($key === 'contact' && !array_key_exists('contact_form', $extra)) {
         $ctx['contact_form'] = contact_form_html(contact_state());
     }
@@ -3257,6 +3267,89 @@ function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
 
 
 /**
+ * نسخه ۹ — ویترین محصولات + مدیریت گالری + صفحه‌ساز (فقط یک بار).
+ * قالب اسلایدر و CSS سایت را با نسخه کارخانه‌ای جدید به‌روز می‌کند.
+ */
+function seed_v9_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('seeded_v9', '') === '1') {
+        return;
+    }
+    $tpls = factory_templates();
+    // به‌روزرسانی قالب اسلایدر (ویترین محصولات)
+    $st = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    $st->execute([':k' => 'slider']);
+    $old = $st->fetchColumn();
+    if ($old !== false && trim((string) $old) !== '') {
+        archive_design_revision($pdo, 'template', 'slider', (string) $old, 'template-archive: قالب «اسلایدر» قبل از نسخه ۹ (ویترین محصولات).');
+    }
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    $up->execute([':c' => $tpls['slider']['content'], ':k' => 'slider']);
+    // به‌روزرسانی CSS سایت (استایل ویترین)
+    $oldCss = get_setting('site_css', '');
+    if (trim($oldCss) !== '') {
+        archive_design_revision($pdo, 'setting', 'site_css', $oldCss, 'setting-archive: CSS سایت قبل از نسخه ۹.');
+    }
+    set_setting('site_css', $tpls['site_css']['content'] ?? $oldCss);
+    // جدول بلوک‌های صفحه (صفحه‌ساز ویژوال)
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS page_blocks (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id    INTEGER NOT NULL,
+            block_type TEXT NOT NULL DEFAULT 'text',
+            title      TEXT NOT NULL DEFAULT '',
+            content    TEXT NOT NULL DEFAULT '',
+            settings   TEXT NOT NULL DEFAULT '{}',
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active  INTEGER NOT NULL DEFAULT 1
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_page_blocks_page ON page_blocks (page_id, sort_order)");
+    // ویژگی رنگ نور رشد گیاه
+    $chk = $pdo->prepare("SELECT id FROM product_attributes WHERE attr_key = 'grow_light_color'");
+    $chk->execute();
+    if (!$chk->fetch()) {
+        $pdo->prepare("INSERT INTO product_attributes (title, attr_key, input_type, unit, sort_order, is_active) VALUES ('رنگ نور رشد', 'grow_light_color', 'select', '', 10, 1)")->execute();
+        $aid = (int) $pdo->lastInsertId();
+        $colors = [
+            ['آفتابی', 0],
+            ['نچرال', 0],
+            ['صورتی فول‌اسپکتروم', 0],
+        ];
+        $ins = $pdo->prepare("INSERT INTO product_attribute_options (attribute_id, title, price_delta_per_meter, sort_order) VALUES (:a, :t, :d, :s)");
+        foreach ($colors as $i => $c) {
+            $ins->execute([':a' => $aid, ':t' => $c[0], ':d' => $c[1], ':s' => $i]);
+        }
+    }
+    // دسته‌بندی نور رشد گیاه
+    $chk = $pdo->prepare("SELECT id FROM product_categories WHERE slug = 'grow-light'");
+    $chk->execute();
+    $catId = $chk->fetchColumn();
+    if (!$catId) {
+        $pdo->prepare("INSERT INTO product_categories (title, slug, description, sort_order, is_active) VALUES ('نور رشد گیاه', 'grow-light', 'چراغ‌های مخصوص رشد گیاهان آپارتمانی و گلخانه', 20, 1)")->execute();
+        $catId = (int) $pdo->lastInsertId();
+    }
+    // محصول چراغ رشد گیاه
+    $chk = $pdo->prepare("SELECT id FROM products WHERE name = 'چراغ رشد گیاه'");
+    $chk->execute();
+    if (!$chk->fetch()) {
+        $pdo->prepare("INSERT INTO products (category_id, name, sku, description, price_per_meter, partner_price_per_meter, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:c, 'چراغ رشد گیاه', 'GROW-1', :d, 0, 0, :st, :sd, :sk, 1, 50, 3)")->execute([
+            ':c' => $catId,
+            ':d' => 'چراغ خطی مخصوص رشد گیاهان؛ در سه رنگ آفتابی، نچرال و صورتی فول‌اسپکتروم. قابل سفارش در ابعاد دلخواه.',
+            ':st' => 'چراغ رشد گیاه | نور مخصوص گیاهان آپارتمانی',
+            ':sd' => 'چراغ رشد گیاه لاینرلایت در سه رنگ آفتابی، نچرال و صورتی فول‌اسپکتروم؛ سفارشی در ابعاد دلخواه شما.',
+            ':sk' => 'چراغ رشد گیاه, نور رشد گیاه, گرولایت, نور گیاه آپارتمانی, فول اسپکتروم',
+        ]);
+    }
+    set_setting('seeded_v9', '1');
+}
+
+/**
  * نسخه ۸٫۱۰٫۱ — رفع مخفی ماندن کارت‌های ویژگی‌ها (فقط یک بار).
  * اسکریپت reveal در قالب اسلایدر قبل از لود DOM اجرا می‌شد؛ اصلاح شد.
  */
@@ -3464,4 +3557,272 @@ function seed_order_rules_if_needed(PDO $pdo): void
         }
     }
     set_setting('seeded_order_rules_v8', '1');
+}
+
+/**
+ * نسخه ۹ — مدیریت گالری از پنل
+ * توابع کمکی برای خواندن/نوشتن figureهای صفحه گالری
+ */
+
+/** استخراج figureها از محتوای HTML صفحه گالری */
+function gallery_parse_figures(string $html): array
+{
+    $figs = [];
+    if (preg_match_all('#<figure>(.*?)</figure>#s', $html, $m)) {
+        foreach ($m[1] as $inner) {
+            $src = '';
+            $alt = '';
+            $caption = '';
+            $desc = '';
+            if (preg_match('#<img[^>]+src="([^"]+)"#', $inner, $im)) {
+                $src = html_entity_decode($im[1], ENT_QUOTES, 'UTF-8');
+            }
+            if (preg_match('#<img[^>]+alt="([^"]*)"#', $inner, $im)) {
+                $alt = html_entity_decode($im[1], ENT_QUOTES, 'UTF-8');
+            }
+            if (preg_match('#<figcaption>(.*?)</figcaption>#s', $inner, $im)) {
+                $caption = trim(strip_tags($im[1]));
+            }
+            if (preg_match('#<p class="gdesc">(.*?)</p>#s', $inner, $im)) {
+                $desc = trim(strip_tags($im[1]));
+            }
+            if ($src !== '') {
+                $figs[] = ['src' => $src, 'alt' => $alt, 'caption' => $caption, 'desc' => $desc];
+            }
+        }
+    }
+    return $figs;
+}
+
+/** ساخت HTML گالری از آرایه figureها */
+function gallery_build_html(array $figs): string
+{
+    $out = '';
+    foreach ($figs as $f) {
+        $src = (string) ($f['src'] ?? '');
+        $alt = (string) ($f['alt'] ?? $f['caption'] ?? '');
+        $cap = (string) ($f['caption'] ?? '');
+        $desc = (string) ($f['desc'] ?? '');
+        $out .= '<figure><img loading="lazy" src="' . e($src) . '" alt="' . e($alt) . '">'
+            . '<figcaption>' . e($cap) . '</figcaption>';
+        if ($desc !== '') {
+            $out .= '<p class="gdesc">' . e($desc) . '</p>';
+        }
+        $out .= "</figure>\n";
+    }
+    return $out;
+}
+
+/** خواندن figureهای صفحه گالری (slug = gallery) */
+function gallery_get_figures(PDO $pdo): array
+{
+    $st = $pdo->prepare("SELECT content FROM pages WHERE slug = 'gallery' LIMIT 1");
+    $st->execute();
+    $content = (string) ($st->fetchColumn() ?: '');
+    return gallery_parse_figures($content);
+}
+
+/** ذخیره figureها در صفحه گالری */
+function gallery_save_figures(PDO $pdo, array $figs): void
+{
+    $html = gallery_build_html($figs);
+    $st = $pdo->prepare("UPDATE pages SET content = :c WHERE slug = 'gallery'");
+    $st->execute([':c' => $html]);
+}
+
+/** پیدا کردن شماره آزاد بعدی برای نام فایل گالری */
+function gallery_next_number(PDO $pdo): int
+{
+    $figs = gallery_get_figures($pdo);
+    $max = 0;
+    foreach ($figs as $f) {
+        if (preg_match('#gallery-(\d+)\.#', (string) ($f['src'] ?? ''), $m)) {
+            $max = max($max, (int) $m[1]);
+        }
+    }
+    // همچنین فایل‌های موجود در پوشه را بررسی کن
+    $dir = __DIR__ . '/uploads/gallery';
+    if (is_dir($dir)) {
+        foreach (glob($dir . '/gallery-*.*') ?: [] as $file) {
+            if (preg_match('#gallery-(\d+)\.#', basename($file), $m)) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
+    }
+    return $max + 1;
+}
+
+/**
+ * نسخه ۹ — ویترین محصولات در صفحه اصلی (زیر نوار متحرک)
+ * کارت‌های محصولات فعال با عکس، قیمت و لینک
+ */
+function products_showcase_html(): string
+{
+    $products = get_products(true);
+    if ($products === []) {
+        return '';
+    }
+    $out = '<section class="products-showcase" id="products-showcase"><div class="container">';
+    $out .= '<div class="ps-head"><h2>محصولات ما</h2><p>چراغ‌های خطی و نور رشد گیاه — برش دقیق در ابعاد دلخواه شما</p></div>';
+    $out .= '<div class="ps-grid">';
+    foreach ($products as $p) {
+        $name = (string) ($p['name'] ?? '');
+        $img = uploaded_image_url($p['image'] ?? '');
+        $price = product_base_price_per_meter($p, false);
+        $partnerPrice = product_base_price_per_meter($p, true);
+        $out .= '<a class="ps-card rv" href="products.php#' . (int) $p['id'] . '">';
+        if ($img !== '') {
+            $out .= '<div class="ps-img"><img loading="lazy" src="' . e($img) . '" alt="' . e($name) . '"></div>';
+        }
+        $out .= '<div class="ps-body"><h3>' . e($name) . '</h3>';
+        if (!empty($p['category_title'])) {
+            $out .= '<span class="ps-cat">' . e((string) $p['category_title']) . '</span>';
+        }
+        if ($price > 0) {
+            $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
+        }
+        if ($partnerPrice > 0 && $partnerPrice != $price) {
+            $out .= '<div class="ps-partner">همکار: ' . e(format_price($partnerPrice)) . '</div>';
+        }
+        $out .= '<span class="ps-link">مشاهده و برآورد قیمت ←</span>';
+        $out .= '</div></a>';
+    }
+    $out .= '</div>';
+    $out .= '<div class="ps-more"><a class="btn btn-gold" href="products.php">مشاهده همه محصولات</a></div>';
+    $out .= '</div></section>';
+    return $out;
+}
+
+/**
+ * نسخه ۹ — صفحه‌ساز ویژوال
+ * بلوک‌های صفحه: متن، تصویر، گالری، محصولات، CTA، ویژگی‌ها، جداکننده، ویدیو
+ */
+
+/** انواع بلوک‌های صفحه‌ساز */
+function page_block_types(): array
+{
+    return [
+        'text'     => 'متن',
+        'image'    => 'تصویر',
+        'gallery'  => 'گالری تصاویر',
+        'products' => 'ویترین محصولات',
+        'cta'      => 'دعوت به اقدام (CTA)',
+        'features' => 'ویژگی‌ها (کارت)',
+        'divider'  => 'جداکننده',
+        'video'    => 'ویدیو',
+    ];
+}
+
+/** خواندن بلوک‌های فعال یک صفحه */
+function get_page_blocks(int $pageId, bool $onlyActive = true): array
+{
+    $sql = 'SELECT * FROM page_blocks WHERE page_id = :p';
+    if ($onlyActive) {
+        $sql .= ' AND is_active = 1';
+    }
+    $sql .= ' ORDER BY sort_order ASC, id ASC';
+    $st = db()->prepare($sql);
+    $st->execute([':p' => $pageId]);
+    return $st->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** رندر یک بلوک صفحه */
+function render_page_block(array $block): string
+{
+    $type = (string) ($block['block_type'] ?? 'text');
+    $title = (string) ($block['title'] ?? '');
+    $content = (string) ($block['content'] ?? '');
+    $settings = json_decode((string) ($block['settings'] ?? '{}'), true) ?: [];
+
+    switch ($type) {
+        case 'text':
+            $out = '<div class="pb-text"><div class="container">';
+            if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
+            $out .= '<div class="pb-body">' . $content . '</div></div></div>';
+            return $out;
+
+        case 'image':
+            $src = trim($content);
+            if ($src === '') { return ''; }
+            $out = '<div class="pb-image"><div class="container">';
+            if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
+            $alt = (string) ($settings['alt'] ?? $title);
+            $out .= '<img loading="lazy" src="' . e($src) . '" alt="' . e($alt) . '">';
+            if (!empty($settings['caption'])) { $out .= '<p class="pb-caption">' . e((string) $settings['caption']) . '</p>'; }
+            $out .= '</div></div>';
+            return $out;
+
+        case 'gallery':
+            $images = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $content)));
+            if ($images === []) { return ''; }
+            $out = '<div class="pb-gallery"><div class="container">';
+            if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
+            $out .= '<div class="pb-ggrid">';
+            foreach ($images as $img) {
+                $out .= '<a href="' . e($img) . '" target="_blank" rel="noopener"><img loading="lazy" src="' . e($img) . '" alt="' . e($title) . '"></a>';
+            }
+            $out .= '</div></div></div>';
+            return $out;
+
+        case 'products':
+            return products_showcase_html();
+
+        case 'cta':
+            $btnText = (string) ($settings['btn_text'] ?? 'شروع کنید');
+            $btnUrl = (string) ($settings['btn_url'] ?? 'products.php');
+            $out = '<div class="pb-cta"><div class="container">';
+            if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
+            if ($content !== '') { $out .= '<p>' . nl2br(e($content)) . '</p>'; }
+            $out .= '<a class="btn btn-gold" href="' . e($btnUrl) . '">' . e($btnText) . '</a>';
+            $out .= '</div></div>';
+            return $out;
+
+        case 'features':
+            $items = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $content)));
+            if ($items === []) { return ''; }
+            $out = '<div class="pb-features"><div class="container">';
+            if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
+            $out .= '<div class="pb-fgrid">';
+            foreach ($items as $item) {
+                // فرمت: عنوان | توضیح
+                $parts = explode('|', $item, 2);
+                $ft = trim($parts[0]);
+                $fd = trim($parts[1] ?? '');
+                $out .= '<div class="pb-fcard"><h3>' . e($ft) . '</h3>';
+                if ($fd !== '') { $out .= '<p>' . e($fd) . '</p>'; }
+                $out .= '</div>';
+            }
+            $out .= '</div></div></div>';
+            return $out;
+
+        case 'divider':
+            return '<div class="pb-divider"><div class="container"><hr></div></div>';
+
+        case 'video':
+            $url = trim($content);
+            if ($url === '') { return ''; }
+            $out = '<div class="pb-video"><div class="container">';
+            if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
+            // پشتیبانی از آپارات و یوتیوب و فایل مستقیم
+            if (preg_match('#(aparat\.com/v/|youtube\.com/watch\?v=|youtu\.be/)#', $url)) {
+                $out .= '<div class="pb-vwrap"><iframe src="' . e($url) . '" frameborder="0" allowfullscreen></iframe></div>';
+            } else {
+                $out .= '<video controls preload="none" src="' . e($url) . '"></video>';
+            }
+            $out .= '</div></div>';
+            return $out;
+
+        default:
+            return '';
+    }
+}
+
+/** رندر همه بلوک‌های یک صفحه */
+function render_page_blocks(int $pageId): string
+{
+    $out = '';
+    foreach (get_page_blocks($pageId, true) as $block) {
+        $out .= render_page_block($block) . "\n";
+    }
+    return $out;
 }
