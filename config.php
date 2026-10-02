@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.9.0');
+define('APP_VERSION', '8.9.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -712,7 +712,18 @@ GALLERYHTML;
     seed_order_form_css_v823_if_needed($pdo);
 
     // --- نسخه ۸٫۹٫۰: تم سینمایی لاینرلایت (یک بار؛ قالب‌ها و CSS قبلی آرشیو می‌شوند) ---
-    seed_cinematic_theme_v890_if_needed($pdo);
+    // نسخه ۸٫۹٫۱: محافظت‌شده — خطا در مهاجرت هرگز نباید سایت را از کار بیندازد
+    try {
+        seed_cinematic_theme_v890_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('cinematic theme migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۸٫۹٫۱: لوگوی تصویری در هدر ---
+    try {
+        seed_header_logo_v891_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('header logo migration failed: ' . $e->getMessage());
+    }
 }
 
 /** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
@@ -1907,6 +1918,8 @@ function skeleton_head(array $settings, string $title, string $description): str
     $out .= '<meta name="description" content="' . e($description) . '">' . "\n";
     $out .= '<meta name="theme-color" content="' . e($visual['primary_color']) . '">' . "\n";
     $out .= '<link rel="stylesheet" href="style.php?v=' . e(site_css_version($settings)) . '">' . "\n";
+    $out .= '<link rel="icon" type="image/png" href="uploads/favicon.png">' . "\n";
+    $out .= '<link rel="apple-touch-icon" href="uploads/favicon.png">' . "\n";
     $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t!==\'dark\'&&t!==\'light\'){t=' . $themeJson . ';if(t===\'system\'){t=(window.matchMedia&&window.matchMedia(\'(prefers-color-scheme: dark)\').matches)?\'dark\':\'light\';}}if(t===\'dark\'){document.documentElement.setAttribute(\'data-theme\',\'dark\');}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
@@ -3118,6 +3131,32 @@ function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
 
     set_setting('css_updated_at', date('Y-m-d H:i:s'));
     set_setting('theme_cinematic_890', '1');
+}
+
+/**
+ * نسخه ۸٫۹٫۱ — افزودن لوگوی تصویری به قالب هدر (فقط یک بار).
+ * نسخه قبلی هدر در «تاریخچه طراحی» آرشیو می‌شود.
+ */
+function seed_header_logo_v891_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('header_logo_891', '') === '1') {
+        return;
+    }
+    $st = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    $st->execute([':k' => 'header']);
+    $old = $st->fetchColumn();
+    if ($old !== false && trim((string) $old) !== '') {
+        archive_design_revision($pdo, 'template', 'header', (string) $old, 'template-archive: قالب «هدر سایت» قبل از افزودن لوگوی تصویری (نسخه ۸٫۹٫۱).');
+    }
+    $tpls = factory_templates();
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    $up->execute([':c' => $tpls['header']['content'], ':k' => 'header']);
+    set_setting('header_logo_891', '1');
 }
 
 function seed_order_rules_if_needed(PDO $pdo): void
