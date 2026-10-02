@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.0.0');
+define('APP_VERSION', '9.0.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1526,7 +1526,9 @@ function tpl_raw_keys(): array
 {
     return ['menu', 'section_body', 'page_content', 'contact_form', 'slider_slides',
         // فاز ۲: HTML داخلی ساخته‌شده در کد برای کاتالوگ و محصول (هرگز از ورودی کاربر ساخته نمی‌شود)
-        'categories_nav', 'products_grid', 'product_specs', 'attributes_options', 'estimator'];
+        'categories_nav', 'products_grid', 'product_specs', 'attributes_options', 'estimator',
+        // نسخه ۹: ویترین محصولات صفحه اصلی
+        'products_showcase'];
 }
 
 /** پارس بازگشتی توکن‌های قالب به درخت گره‌ها (متن / متغیر / شرط) */
