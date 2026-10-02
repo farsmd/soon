@@ -41,18 +41,18 @@ HTML,
 </section>
 <div class="marquee" aria-hidden="true">
     <div class="mq-track">
-        <span><b>لاینرلایت</b> — طراحی و تولید چراغ خطی سفارشی</span>
-        <span>برش دقیق در ابعاد دلخواه شما</span>
-        <span>نورپردازی کمد، کابینت و کلوزت</span>
-        <span>پروفیل آلومینیومی و سیلیکونی</span>
-        <span><b>۲۰۰۰ لومن</b> در هر متر</span>
-        <span>گارانتی و کنترل کیفیت</span>
-        <span><b>لاینرلایت</b> — طراحی و تولید چراغ خطی سفارشی</span>
-        <span>برش دقیق در ابعاد دلخواه شما</span>
-        <span>نورپردازی کمد، کابینت و کلوزت</span>
-        <span>پروفیل آلومینیومی و سیلیکونی</span>
-        <span><b>۲۰۰۰ لومن</b> در هر متر</span>
-        <span>گارانتی و کنترل کیفیت</span>
+        <span class="mq-item"><b>لاینرلایت</b>&nbsp;— طراحی و تولید چراغ خطی سفارشی</span><span class="mq-dot">✦</span>
+        <span class="mq-item">برش دقیق در ابعاد دلخواه شما</span><span class="mq-dot">✦</span>
+        <span class="mq-item">نورپردازی کمد، کابینت و کلوزت</span><span class="mq-dot">✦</span>
+        <span class="mq-item">پروفیل آلومینیومی و سیلیکونی</span><span class="mq-dot">✦</span>
+        <span class="mq-item"><b>۲۰۰۰ لومن</b>&nbsp;در هر متر</span><span class="mq-dot">✦</span>
+        <span class="mq-item">گارانتی و کنترل کیفیت</span><span class="mq-dot">✦</span>
+        <span class="mq-item"><b>لاینرلایت</b>&nbsp;— طراحی و تولید چراغ خطی سفارشی</span><span class="mq-dot">✦</span>
+        <span class="mq-item">برش دقیق در ابعاد دلخواه شما</span><span class="mq-dot">✦</span>
+        <span class="mq-item">نورپردازی کمد، کابینت و کلوزت</span><span class="mq-dot">✦</span>
+        <span class="mq-item">پروفیل آلومینیومی و سیلیکونی</span><span class="mq-dot">✦</span>
+        <span class="mq-item"><b>۲۰۰۰ لومن</b>&nbsp;در هر متر</span><span class="mq-dot">✦</span>
+        <span class="mq-item">گارانتی و کنترل کیفیت</span><span class="mq-dot">✦</span>
     </div>
 </div>
 <script>
@@ -314,11 +314,18 @@ section{scroll-margin-top:84px}
 .hero-scroll span{width:4px;height:9px;border-radius:4px;background:var(--accent);animation:scrollDot 1.8s ease-in-out infinite}
 @keyframes scrollDot{0%{transform:translateY(0);opacity:1}70%{transform:translateY(14px);opacity:0}100%{opacity:0}}
 
-/* ---------- نوار متحرک ---------- */
-.marquee{border-block:1px solid rgba(232,198,106,.14);background:rgba(201,162,39,.04);overflow:hidden;padding:15px 0;position:relative;z-index:2;direction:ltr}
-.mq-track{display:flex;gap:56px;width:max-content;animation:mq 26s linear infinite;font-size:14px;color:var(--muted);white-space:nowrap}
-.mq-track b{color:var(--accent);font-weight:700}
-.mq-track span{direction:rtl}
+/* ---------- نوار متحرک (نسخه بهبودیافته ۸٫۹٫۴) ---------- */
+.marquee{position:relative;overflow:hidden;padding:20px 0;z-index:2;direction:ltr;
+    background:linear-gradient(180deg,rgba(201,162,39,.07),rgba(201,162,39,.02) 50%,rgba(201,162,39,.07));
+    border-block:1px solid rgba(232,198,106,.2)}
+.marquee::before,.marquee::after{content:"";position:absolute;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(232,198,106,.55),transparent)}
+.marquee::before{top:0}.marquee::after{bottom:0}
+.mq-track{display:flex;align-items:center;width:max-content;animation:mq 34s linear infinite;white-space:nowrap}
+.mq-track:hover{animation-play-state:paused}
+.mq-item{display:inline-flex;align-items:center;padding:0 30px;font-size:15px;font-weight:500;color:#ddd6c4;direction:rtl;letter-spacing:.2px}
+.mq-item b{color:var(--accent);font-weight:800;text-shadow:0 0 22px rgba(232,198,106,.4)}
+.mq-dot{color:var(--accent);font-size:9px;opacity:.75;text-shadow:0 0 14px rgba(232,198,106,.7);flex-shrink:0}
 @keyframes mq{to{transform:translateX(-50%)}}
 
 /* ---------- تیتر بخش‌ها ---------- */
