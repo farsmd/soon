@@ -348,6 +348,16 @@ section{scroll-margin-top:84px}
 .sec-sub{text-align:center;color:var(--muted);max-width:620px;margin:0 auto 46px;font-size:15.5px}
 
 /* ---------- بخش‌ها ---------- */
+.features{padding:0;position:relative}
+.workshop-showcase{position:relative;padding:100px 0;overflow:hidden;border-radius:28px;margin:40px 20px;
+    border:1px solid rgba(232,198,106,.2)}
+.workshop-showcase::before{content:"";position:absolute;inset:0;
+    background:url('uploads/gallery/workshop_glow.jpg') center/cover;filter:blur(8px) brightness(.35);transform:scale(1.05)}
+.workshop-showcase::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(7,9,13,.6),rgba(7,9,13,.85))}
+.workshop-showcase>*{position:relative;z-index:2}
+html[data-theme="light"] .workshop-showcase::before{filter:blur(8px) brightness(.55)}
+html[data-theme="light"] .workshop-showcase::after{background:linear-gradient(180deg,rgba(250,248,242,.75),rgba(250,248,242,.92))}
 .features{padding:110px 0 30px}
 /* ---------- کارت‌های خلاقانه ویژگی‌ها ---------- */
 .features .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:40px}
@@ -500,16 +510,16 @@ html[data-theme="light"] .mani-kicker{color:#8a6d1f}
 .page-body{font-size:15.5px;color:var(--text);line-height:2.1;max-width:860px;margin:0 auto;padding-bottom:90px}
 .page-body img{border-radius:var(--radius)}
 /* ---------- گالری تایلی مدرن ---------- */
-.page-body .gallery-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;grid-auto-flow:dense}
-.page-body .gallery-tiles figure{margin:0;border-radius:16px;overflow:hidden;position:relative;cursor:pointer;
-    border:1px solid var(--surface-border);background:var(--surface);transition:transform .4s cubic-bezier(.2,.7,.3,1.2),box-shadow .4s,border-color .4s}
-.page-body .gallery-tiles figure:nth-child(5n+1){grid-row:span 2}
-.page-body .gallery-tiles figure:nth-child(5n+1) img{aspect-ratio:3/4}
-.page-body .gallery-tiles figure img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;transition:transform .6s ease,filter .6s}
-.page-body .gallery-tiles figure:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 50px rgba(0,0,0,.35),0 0 30px rgba(201,162,39,.15);border-color:rgba(232,198,106,.5);z-index:2}
-.page-body .gallery-tiles figure:hover img{transform:scale(1.08)}
-.page-body .gallery-tiles figcaption{position:absolute;inset-inline:0;bottom:0;padding:30px 14px 12px;font-size:12.5px;font-weight:600;color:#fff;
-    background:linear-gradient(180deg,transparent,rgba(0,0,0,.82));opacity:0;transform:translateY(10px);transition:opacity .35s,transform .35s}
+.page-body .gallery-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;grid-auto-flow:dense}
+.page-body .gallery-tiles figure{margin:0;border-radius:14px;overflow:hidden;position:relative;cursor:pointer;
+    border:1px solid var(--surface-border);background:var(--surface);transition:transform .35s ease,box-shadow .35s,border-color .35s}
+.page-body .gallery-tiles figure:nth-child(6n+1){grid-row:span 2}
+.page-body .gallery-tiles figure:nth-child(6n+1) img{aspect-ratio:3/4}
+.page-body .gallery-tiles figure img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;transition:transform .5s ease}
+.page-body .gallery-tiles figure:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.3),0 0 24px rgba(201,162,39,.12);border-color:rgba(232,198,106,.45);z-index:2}
+.page-body .gallery-tiles figure:hover img{transform:scale(1.06)}
+.page-body .gallery-tiles figcaption{position:absolute;inset-inline:0;bottom:0;padding:24px 12px 10px;font-size:12px;font-weight:600;color:#fff;
+    background:linear-gradient(180deg,transparent,rgba(0,0,0,.8));opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s}
 .page-body .gallery-tiles figure:hover figcaption{opacity:1;transform:translateY(0)}
 @media(max-width:640px){.page-body .gallery-tiles{grid-template-columns:repeat(2,1fr);gap:10px}
 .page-body .gallery-tiles figure:nth-child(5n+1){grid-row:span 1}
