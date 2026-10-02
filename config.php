@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.0.1');
+define('APP_VERSION', '9.0.4');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -757,6 +757,18 @@ GALLERYHTML;
         seed_v9_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('v9 migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۰٫۳: رفع CSS ویترین ---
+    try {
+        seed_v903_css_fix_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('v903 css fix failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۰٫۴: تم روشن/تیره ---
+    try {
+        seed_v904_theme_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('v904 theme failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
@@ -2052,7 +2064,7 @@ function skeleton_head(array $settings, string $title, string $description, arra
     $out .= '<link rel="stylesheet" href="style.php?v=' . e(site_css_version($settings)) . '">' . "\n";
     $out .= '<link rel="icon" type="image/png" href="uploads/gallery/favicon.png">' . "\n";
     $out .= '<link rel="apple-touch-icon" href="uploads/gallery/favicon.png">' . "\n";
-    $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t!==\'dark\'&&t!==\'light\'){t=' . $themeJson . ';if(t===\'system\'){t=(window.matchMedia&&window.matchMedia(\'(prefers-color-scheme: dark)\').matches)?\'dark\':\'light\';}}if(t===\'dark\'){document.documentElement.setAttribute(\'data-theme\',\'dark\');}}catch(e){}})();</script>' . "\n";
+    $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t!==\'dark\'&&t!==\'light\'){t=' . $themeJson . ';if(t===\'system\'){t=(window.matchMedia&&window.matchMedia(\'(prefers-color-scheme: dark)\').matches)?\'dark\':\'light\';}}if(t===\'light\'){document.documentElement.setAttribute(\'data-theme\',\'light\');}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
     return $out;
@@ -2079,9 +2091,9 @@ function skeleton_foot(): string
     var themeBtn=document.getElementById('theme-toggle');
     if(themeBtn){
         themeBtn.addEventListener('click',function(){
-            var dark=document.documentElement.getAttribute('data-theme')==='dark';
-            if(dark){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','dark');}
-            try{localStorage.setItem('cms-theme',dark?'light':'dark');}catch(e){}
+            var light=document.documentElement.getAttribute('data-theme')==='light';
+            if(light){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}
+            try{localStorage.setItem('cms-theme',light?'dark':'light');}catch(e){}
         });
     }
     var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -3292,12 +3304,14 @@ function seed_v9_if_needed(PDO $pdo): void
     }
     $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
     $up->execute([':c' => $tpls['slider']['content'], ':k' => 'slider']);
-    // به‌روزرسانی CSS سایت (استایل ویترین)
+    // به‌روزرسانی CSS سایت (استایل ویترین) — نسخه ۹٫۰٫۳: از default_site_css استفاده کن
     $oldCss = get_setting('site_css', '');
     if (trim($oldCss) !== '') {
         archive_design_revision($pdo, 'setting', 'site_css', $oldCss, 'setting-archive: CSS سایت قبل از نسخه ۹.');
     }
-    set_setting('site_css', $tpls['site_css']['content'] ?? $oldCss);
+    if (function_exists('default_site_css')) {
+        set_setting('site_css', default_site_css());
+    }
     // جدول بلوک‌های صفحه (صفحه‌ساز ویژوال)
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS page_blocks (
@@ -3349,6 +3363,58 @@ function seed_v9_if_needed(PDO $pdo): void
         ]);
     }
     set_setting('seeded_v9', '1');
+}
+
+/**
+ * نسخه ۹٫۰٫۴ — تم روشن/تیره با دکمه تغییر (فقط یک بار).
+ * CSS سایت را با تم روشن به‌روز می‌کند.
+ */
+function seed_v904_theme_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('seeded_v904_theme', '') === '1') {
+        return;
+    }
+    if (function_exists('default_site_css')) {
+        $oldCss = get_setting('site_css', '');
+        if (strpos($oldCss, 'data-theme="light"') === false && strpos($oldCss, "[data-theme=\"light\"]") === false) {
+            if (trim($oldCss) !== '') {
+                archive_design_revision($pdo, 'setting', 'site_css', $oldCss, 'setting-archive: CSS سایت قبل از تم روشن/تیره ۹٫۰٫۴.');
+            }
+            set_setting('site_css', default_site_css());
+        }
+    }
+    set_setting('seeded_v904_theme', '1');
+}
+
+/**
+ * نسخه ۹٫۰٫۳ — رفع به‌روزرسانی CSS ویترین (فقط یک بار).
+ * مایگریشن ۹٫۰٫۰ به اشتباه CSS را به‌روز نکرده بود.
+ */
+function seed_v903_css_fix_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('seeded_v903_css', '') === '1') {
+        return;
+    }
+    if (function_exists('default_site_css')) {
+        $oldCss = get_setting('site_css', '');
+        if (strpos($oldCss, '.products-showcase') === false) {
+            if (trim($oldCss) !== '') {
+                archive_design_revision($pdo, 'setting', 'site_css', $oldCss, 'setting-archive: CSS سایت قبل از رفع ۹٫۰٫۳.');
+            }
+            set_setting('site_css', default_site_css());
+        }
+    }
+    set_setting('seeded_v903_css', '1');
 }
 
 /**
