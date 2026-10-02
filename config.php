@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.9.2');
+define('APP_VERSION', '8.9.3');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -728,6 +728,12 @@ GALLERYHTML;
         seed_header_logo_v891_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('header logo migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۸٫۹٫۳: اصلاح مسیر لوگو/فاوآیکون ---
+    try {
+        seed_logo_path_v893_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('logo path migration failed: ' . $e->getMessage());
     }
 }
 
@@ -1923,8 +1929,8 @@ function skeleton_head(array $settings, string $title, string $description): str
     $out .= '<meta name="description" content="' . e($description) . '">' . "\n";
     $out .= '<meta name="theme-color" content="' . e($visual['primary_color']) . '">' . "\n";
     $out .= '<link rel="stylesheet" href="style.php?v=' . e(site_css_version($settings)) . '">' . "\n";
-    $out .= '<link rel="icon" type="image/png" href="uploads/favicon.png">' . "\n";
-    $out .= '<link rel="apple-touch-icon" href="uploads/favicon.png">' . "\n";
+    $out .= '<link rel="icon" type="image/png" href="uploads/gallery/favicon.png">' . "\n";
+    $out .= '<link rel="apple-touch-icon" href="uploads/gallery/favicon.png">' . "\n";
     $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t!==\'dark\'&&t!==\'light\'){t=' . $themeJson . ';if(t===\'system\'){t=(window.matchMedia&&window.matchMedia(\'(prefers-color-scheme: dark)\').matches)?\'dark\':\'light\';}}if(t===\'dark\'){document.documentElement.setAttribute(\'data-theme\',\'dark\');}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
@@ -3137,6 +3143,32 @@ function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
 
     set_setting('css_updated_at', date('Y-m-d H:i:s'));
     set_setting('theme_cinematic_890', '1');
+}
+
+
+/**
+ * نسخه ۸٫۹٫۳ — اصلاح مسیر لوگو و فاوآیکون به uploads/gallery/ (فقط یک بار).
+ */
+function seed_logo_path_v893_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('logo_path_893', '') === '1') {
+        return;
+    }
+    // به‌روزرسانی قالب هدر: مسیر لوگو به uploads/gallery/logo.png
+    $st = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    $st->execute([':k' => 'header']);
+    $old = $st->fetchColumn();
+    if ($old !== false && strpos((string)$old, 'uploads/logo.png') !== false) {
+        $new = str_replace('uploads/logo.png', 'uploads/gallery/logo.png', (string)$old);
+        $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+        $up->execute([':c' => $new, ':k' => 'header']);
+    }
+    set_setting('logo_path_893', '1');
 }
 
 /**
