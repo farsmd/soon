@@ -370,4 +370,45 @@ if ($res === 'order') {
     api_out(['ok' => true, 'order' => $row]);
 }
 
-api_fail('منبع نامعتبر است (res). منابع مجاز: ping, pages, page, sections, section, settings, products, product, orders, order', 404);
+// ---------------- آپلود عکس گالری پروژه‌ها ----------------
+if ($res === 'gallery_upload') {
+    if (!$isWrite) {
+        api_fail('این منبع فقط با POST کار می‌کند.', 405);
+    }
+    api_need_write($auth);
+    $file = $_FILES['image'] ?? null;
+    if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        api_fail('فایل عکس (image) ارسال نشده یا خطا دارد.');
+    }
+    if ((int) ($file['size'] ?? 0) > 5 * 1024 * 1024) {
+        api_fail('حجم عکس نباید بیشتر از ۵ مگابایت باشد.');
+    }
+    $info = @getimagesize((string) $file['tmp_name']);
+    if ($info === false) {
+        api_fail('فایل ارسال‌شده عکس معتبر نیست.');
+    }
+    $mimeToExt = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $mime = (string) ($info['mime'] ?? '');
+    if (!isset($mimeToExt[$mime])) {
+        api_fail('فرمت عکس باید JPG یا PNG یا WebP باشد.');
+    }
+    $ext = $mimeToExt[$mime];
+    $name = trim((string) api_in('name', ''));
+    if (!preg_match('/^[a-z0-9_-]{1,60}$/i', $name)) {
+        $name = 'g_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
+    }
+    $dir = __DIR__ . '/uploads/gallery';
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
+        api_fail('ساخت پوشه گالری انجام نشد.');
+    }
+    @file_put_contents($dir . '/index.html', '');
+    $filename = $name . '.' . $ext;
+    $dest = $dir . '/' . $filename;
+    if (!@move_uploaded_file((string) $file['tmp_name'], $dest)) {
+        api_fail('ذخیره عکس انجام نشد.');
+    }
+    api_logged_write('gallery_upload', 'آپلود ' . $filename . ' از IP ' . $ip);
+    api_out(['ok' => true, 'filename' => $filename, 'url' => 'uploads/gallery/' . $filename]);
+}
+
+api_fail('منبع نامعتبر است (res). منابع مجاز: ping, pages, page, sections, section, settings, products, product, orders, order, gallery_upload', 404);
