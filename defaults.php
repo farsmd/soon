@@ -359,9 +359,9 @@ section{scroll-margin-top:84px}
 html[data-theme="light"] .workshop-showcase::before{filter:blur(8px) brightness(.55)}
 html[data-theme="light"] .workshop-showcase::after{background:linear-gradient(180deg,rgba(250,248,242,.75),rgba(250,248,242,.92))}
 @media(max-width:640px){.workshop-showcase{margin:20px 12px;padding:60px 0;border-radius:20px}
-.workshop-showcase .container{padding:0 16px}
-.features .cards{grid-template-columns:1fr;gap:14px}
-.features .card{padding:28px 20px}}
+.workshop-showcase .container{padding:0 16px;max-width:100%}
+.features .cards{grid-template-columns:1fr;gap:14px;margin-inline:0;width:100%}
+.features .card{padding:28px 20px;margin:0}}
 .features{padding:110px 0 30px}
 /* ---------- کارت‌های خلاقانه ویژگی‌ها ---------- */
 .features .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:40px}
@@ -609,7 +609,8 @@ textarea{min-height:120px;resize:vertical}
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
     .rv{opacity:1;transform:none}
     .hero-canvas{display:none}
-    .mq-track{animation:none}
+    /* نوار متحرک محصولات: به خواست کاربر، حتی با Reduce Motion هم باید بچرخد */
+    .mq-track{-webkit-animation:mq 34s linear infinite!important;animation:mq 34s linear infinite!important}
 }
 
 /* ---------- چاپ ---------- */
