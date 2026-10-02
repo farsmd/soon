@@ -60,6 +60,7 @@ function admin_page_catalog(): array
         'سیستم' => [
             'users'    => 'کاربران و نقش‌ها',
             'settings' => 'تنظیمات سایت',
+            'sitemap'  => 'نقشه سایت',
             'database' => 'اتصال دیتابیس',
             'logs'     => 'لاگ‌ها',
             'api'      => 'دسترسی API',
@@ -277,7 +278,7 @@ function admin_action_page_map(): array
         'add_block' => 'pages', 'update_block' => 'pages', 'delete_block' => 'pages', 'move_block' => 'pages', 'toggle_block' => 'pages',
         'add_section' => 'sections', 'update_section' => 'sections', 'delete_section' => 'sections', 'move_section' => 'sections', 'toggle_section' => 'sections',
         'delete_message' => 'messages',
-        'save_css' => 'design', 'reset_css' => 'design', 'save_visual_settings' => 'design', 'restore_revision' => 'design',
+        'save_css' => 'design', 'reset_css' => 'design', 'save_visual_settings' => 'design', 'restore_revision' => 'design', 'apply_theme' => 'design',
         'create_db_template' => 'design', 'delete_db_template' => 'design', 'save_db_template' => 'design', 'reset_db_template' => 'design', 'delete_legacy_files' => 'design',
         'save_settings' => 'settings', 'change_password' => 'settings',
         'perform_update' => 'update', 'save_update_settings' => 'update',

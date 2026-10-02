@@ -46,6 +46,7 @@ function orders_handle_post(string $action): void
                 'wire_price_per_step' => ['min' => 0, 'max' => 100000000, 'float' => false],
                 'wire_max_cm'      => ['min' => 0, 'max' => 1000, 'float' => false],
                 'remnant_min_cm'   => ['min' => 0, 'max' => 500, 'float' => false],
+                'cut_kerf_mm'      => ['min' => 0, 'max' => 100, 'float' => true],
                 'default_prep_days' => ['min' => 0, 'max' => 365, 'float' => false],
                 'deposit_percent'  => ['min' => 0, 'max' => 100, 'float' => false],
                 'next_order_no'    => ['min' => 1, 'max' => 1000000000, 'float' => false],
@@ -495,6 +496,7 @@ function orders_load_data(string $page): array
             'wire_max_cm' => order_setting('wire_max_cm', 100),
             'order_line_note' => order_setting('order_line_note', '1'),
             'remnant_min_cm' => order_setting('remnant_min_cm', 20),
+            'cut_kerf_mm' => order_setting('cut_kerf_mm', 5),
             'default_prep_days' => order_setting('default_prep_days', 3),
             'deposit_percent' => order_setting('deposit_percent', 50),
             'orders_public' => order_setting('orders_public', '1'),
@@ -855,11 +857,31 @@ function orders_render_view(array $d): void
     $deliveryMode = isset($_GET['delivery']);
     ?>
     <style>
+    @page { size: A4; margin: 12mm; }
     @media print {
         header, aside.sidebar, .nav-overlay, .screen-area { display: none !important; }
         .layout { display: block !important; }
         main.content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
-        .proforma { display: block !important; border: none !important; }
+        <?php if ($print && $deliveryMode): ?>
+        /* فقط رسید تحویل چاپ شود؛ پیش‌فاکتور مخفی بماند */
+        #delivery-receipt { display: block !important; border: none !important; }
+        #proforma { display: none !important; }
+        <?php elseif ($print): ?>
+        /* فقط پیش‌فاکتور چاپ شود؛ رسید تحویل مخفی بماند */
+        #proforma { display: block !important; border: none !important; }
+        #delivery-receipt { display: none !important; }
+        <?php endif; ?>
+        /* چاپ تک‌صفحه‌ای: فشرده‌سازی برای جا شدن در یک برگ A4 */
+        .proforma { padding: 8px !important; font-size: 11px !important; color: #111 !important; background: #fff !important; }
+        .proforma h2 { font-size: 17px !important; margin: 0 0 6px !important; }
+        .proforma h3 { font-size: 13px !important; margin: 8px 0 4px !important; }
+        .proforma p { margin: 4px 0 !important; }
+        .proforma .muted { color: #555 !important; }
+        .proforma table { width: 100%; font-size: 11px !important; border-collapse: collapse; page-break-inside: auto; }
+        .proforma th, .proforma td { padding: 3px 5px !important; }
+        .proforma tr { page-break-inside: avoid; }
+        .sig-row { margin-top: 22px !important; gap: 24px !important; }
+        .sig-row div { padding-top: 6px !important; font-size: 11px; }
     }
     .proforma { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
     .proforma h2 { margin-top: 0; }
@@ -1196,6 +1218,7 @@ function orders_render_rules(array $d): void
             <label>قیمت هر گام سیم (تومان)<input type="number" name="wire_price_per_step" min="0" step="any" value="<?= e($s['wire_price_per_step']) ?>"></label>
             <label>حداکثر طول سیم هر چراغ (سانت)<input type="number" name="wire_max_cm" min="0" step="1" value="<?= e($s['wire_max_cm']) ?>"></label>
             <label>حداقل طول پرت برگشتی به انبار (سانت)<input type="number" name="remnant_min_cm" min="0" step="1" value="<?= e($s['remnant_min_cm']) ?>"></label>
+            <label>پرت تیغ اره در هر برش (میلی‌متر)<input type="number" name="cut_kerf_mm" min="0" max="100" step="any" value="<?= e($s['cut_kerf_mm']) ?>"></label>
             <label>زمان آماده‌سازی پیش‌فرض (روز)<input type="number" name="default_prep_days" min="0" step="1" value="<?= e($s['default_prep_days']) ?>"></label>
             <label>درصد بیعانه پیش‌فاکتور<input type="number" name="deposit_percent" min="0" max="100" step="any" value="<?= e($s['deposit_percent']) ?>"></label>
             <label>شماره سفارش بعدی<input type="number" name="next_order_no" min="1" step="1" value="<?= e($s['next_order_no']) ?>"></label>

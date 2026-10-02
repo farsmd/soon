@@ -1171,6 +1171,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin('admin.php?page=design&tab=css');
                 // no break
 
+            case 'apply_theme':
+                $themeKey = (string) ($_POST['theme'] ?? '');
+                $defs = site_theme_definitions();
+                if (!isset($defs[$themeKey])) {
+                    throw new RuntimeException('قالب معتبر نیست.');
+                }
+                save_css_content('site_css', theme_css($themeKey) . "\n\n" . order_form_css(), 'قبل از تغییر قالب به «' . $defs[$themeKey]['title'] . '»');
+                set_setting('site_theme', $themeKey);
+                log_admin_event('apply_theme', 'تغییر قالب فرانت‌اند به «' . $defs[$themeKey]['title'] . '»');
+                flash('ok', 'قالب «' . $defs[$themeKey]['title'] . '» فعال شد. نسخه قبلی CSS در تاریخچه نگه داشته شد.');
+                redirect_admin('admin.php?page=design&tab=themes');
+                // no break
+
             case 'delete_legacy_files':
                 if (trim((string) ($_POST['confirm_text'] ?? '')) !== 'حذف') {
                     throw new RuntimeException('برای حذف فایل‌های قدیمی، کلمه «حذف» را دقیقاً تایپ کنید.');
@@ -1486,7 +1499,7 @@ $tplUsedIn = [];
 $visual = validated_visual_settings($settings);
 if ($page === 'design') {
     $designTab = (string) ($_GET['tab'] ?? 'templates');
-    if (!in_array($designTab, ['templates', 'css'], true)) {
+    if (!in_array($designTab, ['templates', 'css', 'themes'], true)) {
         $designTab = 'templates';
     }
     $dbTemplates = all_templates();
@@ -1937,11 +1950,41 @@ if ($page === 'design') {
             <?php endif; ?>
 
             <nav class="design-tabs">
+                <a href="admin.php?page=design&tab=themes" class="<?= $designTab === 'themes' ? 'active' : '' ?>">قالب‌های آماده</a>
                 <a href="admin.php?page=design&tab=templates" class="<?= $designTab === 'templates' ? 'active' : '' ?>">قالب‌ها</a>
                 <a href="admin.php?page=design&tab=css" class="<?= $designTab === 'css' ? 'active' : '' ?>">CSS و ظاهر</a>
             </nav>
 
-            <?php if ($designTab === 'templates'): ?>
+            <?php if ($designTab === 'themes'): ?>
+                <?php $themeDefs = site_theme_definitions(); $activeTheme = (string) get_setting('site_theme', 'cinematic'); ?>
+                <p class="muted">سه قالب آماده و مدرن برای ظاهر سایت. با یک کلیک قالب عوض می‌شود؛ نسخه قبلی CSS در «تاریخچه نسخه‌ها» می‌ماند تا برگشت‌پذیر باشد. تنظیمات ظاهری و CSS سفارشی شما حفظ می‌شوند.</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:16px 0">
+                <?php foreach ($themeDefs as $tKey => $tDef): ?>
+                    <div class="card" style="<?= $tKey === $activeTheme ? 'border:2px solid #c9a227;' : '' ?>">
+                        <div style="display:flex;gap:6px;margin-bottom:12px">
+                            <?php foreach ((array) $tDef['swatches'] as $sw): ?>
+                                <span style="width:36px;height:36px;border-radius:10px;background:<?= e($sw) ?>;border:1px solid #0002;display:inline-block"></span>
+                            <?php endforeach; ?>
+                        </div>
+                        <h3 style="margin:0 0 6px"><?= e($tDef['title']) ?>
+                            <?php if ($tKey === $activeTheme): ?><span class="badge ok">فعال</span><?php endif; ?>
+                        </h3>
+                        <p class="muted" style="min-height:48px"><?= e($tDef['desc']) ?></p>
+                        <?php if ($tKey !== $activeTheme): ?>
+                        <form method="post" onsubmit="return confirm('قالب «<?= e($tDef['title']) ?>» فعال شود؟ CSS فعلی در تاریخچه می‌ماند.')">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="apply_theme">
+                            <input type="hidden" name="theme" value="<?= e($tKey) ?>">
+                            <button type="submit" class="btn primary">فعال‌سازی این قالب</button>
+                        </form>
+                        <?php else: ?>
+                        <a class="btn" href="index.php" target="_blank" rel="noopener">مشاهده سایت</a>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+
+            <?php elseif ($designTab === 'templates'): ?>
                 <table>
                     <thead><tr><th>قالب</th><th>نوع</th><th>آخرین ویرایش</th><th>استفاده در بخش‌ها</th><th>عملیات</th></tr></thead>
                     <tbody>

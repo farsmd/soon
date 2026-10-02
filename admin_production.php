@@ -207,10 +207,14 @@ function production_cut_pieces(array $items): array
  * برگشتی برسد «پرت برگشتی» است، وگرنه ضایعات حساب می‌شود.
  * $remnants: ردیف‌های material_remnants همین ماده (هر ردیف qty تکه هم‌اندازه).
  */
-function production_plan_cutting(array $pieces, array $remnants, float $unitCm, float $minRemnantCm): array
+function production_plan_cutting(array $pieces, array $remnants, float $unitCm, float $minRemnantCm, float $kerfCm = 0.0): array
 {
     $pieces = array_map(static fn ($p): float => round((float) $p, 1), $pieces);
     rsort($pieces, SORT_NUMERIC);
+    // پرت تیغ اره در هر برش (سانت) — هر قطعه به‌اندازه طولش + یک پرت برش از منبع کم می‌کند
+    $kerfCm = max(0.0, $kerfCm);
+    // مصرف واقعی چیده‌شده در یک منبع = جمع طول قطعه‌ها + پرت برش هر قطعه
+    $consumed = static fn (array $pcs): float => array_sum($pcs) + count($pcs) * $kerfCm;
 
     $bins = []; // هر bin: یک تکه پرت موجود یا یک واحد تازه، با قطعه‌های چیده‌شده در آن
     foreach ($remnants as $r) {
@@ -226,15 +230,16 @@ function production_plan_cutting(array $pieces, array $remnants, float $unitCm, 
     foreach ($pieces as $p) {
         $placed = false;
         foreach ($bins as $bi => $bin) {
-            $used = array_sum($bin['pieces']);
-            if ($bin['capacity'] - $used >= $p - 1e-9) {
+            $used = $consumed($bin['pieces']);
+            // قطعه فقط وقتی جا می‌شود که طولش + پرت یک برش در فضای خالی بگنجد
+            if ($bin['capacity'] - $used >= $p + $kerfCm - 1e-9) {
                 $bins[$bi]['pieces'][] = $p;
                 $placed = true;
                 break;
             }
         }
         if (!$placed) {
-            if ($unitCm > 0 && $p <= $unitCm + 1e-9) {
+            if ($unitCm > 0 && $p + $kerfCm <= $unitCm + 1e-9) {
                 $bins[] = ['kind' => 'new', 'remnant_id' => null, 'capacity' => $unitCm, 'pieces' => [$p]];
             } else {
                 $unplaced[] = $p; // بلندتر از هر پرت و از واحد تازه — با این انبار قابل برش نیست
@@ -245,8 +250,13 @@ function production_plan_cutting(array $pieces, array $remnants, float $unitCm, 
     $newUnits = 0;
     $waste = 0.0;
     $leftoverTotal = 0.0;
+    $kerfTotal = 0.0;
     foreach ($bins as &$bin) {
-        $rest = round($bin['capacity'] - array_sum($bin['pieces']), 1);
+        $nPieces = count($bin['pieces']);
+        $kerfHere = $nPieces * $kerfCm;
+        $kerfTotal += $kerfHere;
+        $bin['kerf_cm'] = round($kerfHere, 1);
+        $rest = round($bin['capacity'] - array_sum($bin['pieces']) - $kerfHere, 1);
         if ($bin['kind'] === 'new') {
             $newUnits++;
         }
@@ -270,6 +280,8 @@ function production_plan_cutting(array $pieces, array $remnants, float $unitCm, 
         'pieces_count' => count($pieces) - count($unplaced),
         'waste_cm' => round($waste, 1),
         'leftover_cm' => round($leftoverTotal, 1),
+        'kerf_cm' => round($kerfCm, 2), // پرت تیغ اره هر برش (سانت)
+        'kerf_total_cm' => round($kerfTotal, 1), // جمع پرت تیغ اره همه برش‌ها (سانت)
         'unplaced' => $unplaced,
     ];
 }
@@ -310,7 +322,7 @@ function production_requirements(array $items): array
         if (isset($cutPacks[$mid])) {
             $stmt = db()->prepare('SELECT * FROM material_remnants WHERE material_id = :m ORDER BY length_cm ASC, id ASC');
             $stmt->execute([':m' => $mid]);
-            $plan = production_plan_cutting($cutPacks[$mid]['pieces'], $stmt->fetchAll(), (float) $cutPacks[$mid]['unit_cm'], $minCm);
+            $plan = production_plan_cutting($cutPacks[$mid]['pieces'], $stmt->fetchAll(), (float) $cutPacks[$mid]['unit_cm'], $minCm, (float) get_setting('cut_kerf_mm', '5') / 10.0);
             $row['cuttable'] = true;
             $row['unit_cm'] = (float) $cutPacks[$mid]['unit_cm'];
             // نام واحد تازه برای لیست برش (شاخه، رول، بسته…) — ۸٫۵٫۰
@@ -829,6 +841,10 @@ function production_render_plan(array $materials, bool $snapshot): void
                 (<?= e(format_qty((float) ($plan['new_meters'] ?? 0))) ?> متر)
                 — پرت برگشتی به انبار: <?= e(format_qty((float) ($plan['leftover_cm'] ?? 0))) ?> سانت
                 — ضایعات: <?= e(format_qty((float) ($plan['waste_cm'] ?? 0))) ?> سانت
+                <?php if ((float) ($plan['kerf_total_cm'] ?? 0) > 0): ?>
+                    — پرت تیغ اره: <?= e(format_qty((float) $plan['kerf_total_cm'])) ?> سانت
+                    <span class="muted">(هر برش <?= e(format_qty((float) ($plan['kerf_cm'] ?? 0) * 10)) ?> میلی‌متر)</span>
+                <?php endif; ?>
                 <?php if ((float) ($m['shortage'] ?? 0) > 0): ?>
                     — <span class="badge" style="background:#fee2e2;color:#b91c1c">کمبود موجودی: <?= e(format_qty((float) $m['shortage'])) ?> <?= e($m['unit']) ?></span>
                 <?php endif; ?>
@@ -949,11 +965,31 @@ function production_render_view(array $d): void
     $isSnapshot = !empty($prodReq['snapshot']);
     ?>
     <style>
+    @page { size: A4; margin: 12mm; }
     @media print {
         header, aside.sidebar, .nav-overlay, .screen-area { display: none !important; }
         .layout { display: block !important; }
         main.content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
-        .worksheet { display: block !important; border: none !important; }
+        <?php if ($print && $qcMode): ?>
+        /* فقط برگه تست و کنترل کیفیت چاپ شود؛ برگه کارگاه مخفی بماند */
+        #qc-sheet { display: block !important; border: none !important; }
+        #worksheet { display: none !important; }
+        <?php elseif ($print): ?>
+        /* فقط برگه کارگاه چاپ شود؛ برگه کیفیت مخفی بماند */
+        #worksheet { display: block !important; border: none !important; }
+        #qc-sheet { display: none !important; }
+        <?php endif; ?>
+        /* چاپ تک‌صفحه‌ای: فشرده‌سازی برای جا شدن در یک برگ A4 */
+        .worksheet { padding: 8px !important; font-size: 11px !important; color: #111 !important; background: #fff !important; }
+        .worksheet h2 { font-size: 17px !important; margin: 0 0 6px !important; }
+        .worksheet h3 { font-size: 13px !important; margin: 8px 0 4px !important; }
+        .worksheet p { margin: 4px 0 !important; }
+        .worksheet .muted { color: #555 !important; }
+        .worksheet table { width: 100%; font-size: 11px !important; border-collapse: collapse; page-break-inside: auto; }
+        .worksheet th, .worksheet td { padding: 3px 5px !important; }
+        .worksheet tr { page-break-inside: avoid; }
+        .sig-row { margin-top: 22px !important; gap: 24px !important; }
+        .sig-row div { padding-top: 6px !important; font-size: 11px; }
     }
     .worksheet { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
     .worksheet h2 { margin-top: 0; }
@@ -969,7 +1005,7 @@ function production_render_view(array $d): void
         </h1>
         <p>
             <a class="btn small" href="admin.php?page=production_view&id=<?= (int) $p['id'] ?>&print=1" target="_blank">🖨 چاپ برگه کارگاه</a>
-            <a class="btn small" href="admin.php?page=production_view&id=<?= (int) $p['id'] ?>&qc=1" target="_blank">🧪 چاپ برگه تست و کنترل کیفیت</a>
+            <a class="btn small" href="admin.php?page=production_view&id=<?= (int) $p['id'] ?>&qc=1&print=1" target="_blank">🧪 چاپ برگه تست و کنترل کیفیت</a>
             <a class="btn small" href="admin.php?page=order_view&id=<?= (int) $p['order_id'] ?>">مشاهده سفارش #<?= (int) $p['order_no'] ?></a>
         </p>
 
@@ -1170,7 +1206,7 @@ function production_render_view(array $d): void
         </table>
 
         <h3>✂️ لیست برش</h3>
-        <?php $totWaste = 0.0; $totLeft = 0.0; $totUnits = 0; $totPieces = 0; ?>
+        <?php $totWaste = 0.0; $totLeft = 0.0; $totUnits = 0; $totPieces = 0; $totKerf = 0.0; ?>
         <?php foreach ($planMaterials as $m): if (empty($m['cuttable'])) { continue; } $plan = (array) ($m['plan'] ?? []); $clbl = (string) ($m['cut_unit_label'] ?? 'واحد'); ?>
             <h4 style="margin:18px 0 6px">«<?= e($m['name']) ?>» — هر <?= e($clbl) ?>: <?= e(format_qty((float) ($m['unit_cm'] ?? 0))) ?> سانت</h4>
             <table>
@@ -1193,6 +1229,7 @@ function production_render_view(array $d): void
             <?php
             $totWaste += (float) ($plan['waste_cm'] ?? 0);
             $totLeft += (float) ($plan['leftover_cm'] ?? 0);
+            $totKerf += (float) ($plan['kerf_total_cm'] ?? 0);
             $totUnits += (int) ($plan['new_units'] ?? 0);
             $totPieces += (int) ($plan['pieces_count'] ?? 0);
             ?>
@@ -1200,7 +1237,7 @@ function production_render_view(array $d): void
 
         <h3>📊 میزان پرت این برگه</h3>
         <table>
-            <thead><tr><th>ماده</th><th>قطعه‌ها</th><th><?= 'هر ' ?>واحد تازه</th><th>پرت برگشتی به انبار</th><th>ضایعات</th></tr></thead>
+            <thead><tr><th>ماده</th><th>قطعه‌ها</th><th><?= 'هر ' ?>واحد تازه</th><th>پرت برگشتی به انبار</th><th>ضایعات</th><th>پرت تیغ اره</th></tr></thead>
             <tbody>
             <?php foreach ($planMaterials as $m): if (empty($m['cuttable'])) { continue; } $plan = (array) ($m['plan'] ?? []); ?>
                 <tr>
@@ -1209,6 +1246,7 @@ function production_render_view(array $d): void
                     <td><?= (int) ($plan['new_units'] ?? 0) ?> <?= e($m['cut_unit_label'] ?? 'واحد') ?> (<?= e(format_qty((float) ($plan['new_meters'] ?? 0))) ?> متر)</td>
                     <td><?= e(format_qty((float) ($plan['leftover_cm'] ?? 0))) ?> سانت</td>
                     <td><?= e(format_qty((float) ($plan['waste_cm'] ?? 0))) ?> سانت</td>
+                    <td><?= e(format_qty((float) ($plan['kerf_total_cm'] ?? 0))) ?> سانت</td>
                 </tr>
             <?php endforeach; ?>
                 <tr>
@@ -1217,6 +1255,7 @@ function production_render_view(array $d): void
                     <td><strong><?= $totUnits ?> واحد تازه</strong></td>
                     <td><strong><?= e(format_qty($totLeft)) ?> سانت</strong></td>
                     <td><strong><?= e(format_qty($totWaste)) ?> سانت</strong></td>
+                    <td><strong><?= e(format_qty($totKerf)) ?> سانت</strong></td>
                 </tr>
             </tbody>
         </table>
