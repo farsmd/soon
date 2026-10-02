@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.1.0');
+define('APP_VERSION', '9.1.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1789,6 +1789,10 @@ function template_context(string $key, array $settings, ?array $section = null, 
     } elseif ($section !== null) {
         $pageTitle = $heading !== '' ? $heading : (string) ($section['title'] ?? '');
         $pageContent = $body;
+    }
+    // پردازش پلیس‌هولدر فرم همکار داخل محتوای صفحه (نسخه ۹٫۱٫۱)
+    if (strpos($pageContent, '{{partner_form}}') !== false) {
+        $pageContent = str_replace('{{partner_form}}', partner_form_html(partner_form_state()), $pageContent);
     }
 
     $ctx = [
