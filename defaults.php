@@ -14,7 +14,7 @@ function factory_templates(): array
             'content' => <<<'HTML'
 <header class="site-header">
     <div class="container header-inner">
-        <a class="logo" href="index.php">{{site_title}}</a>
+        <a class="logo" href="index.php"><img class="logo-img" src="uploads/logo.png" alt="{{site_title}}" onerror="this.remove()"><span>{{site_title}}</span></a>
         {{menu}}
         <a class="btn btn-gold btn-sm header-cta" href="products.php">ثبت سفارش</a>
     </div>
@@ -283,6 +283,8 @@ section{scroll-margin-top:84px}
 .header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:70px;padding-block:10px}
 .logo{font-weight:900;font-size:20px;color:var(--header-text);display:flex;align-items:center;gap:10px}
 .logo::before{content:"";width:34px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--accent),transparent);box-shadow:var(--line-glow)}
+.logo-img{height:38px;width:auto;border-radius:8px}
+.logo:has(.logo-img)::before{display:none}
 .main-nav{display:flex;align-items:center}
 .nav-toggle{display:none;background:none;border:1px solid var(--surface-border);color:var(--text);
     border-radius:10px;padding:8px 14px;font-size:18px;cursor:pointer;font-family:inherit}
