@@ -288,7 +288,7 @@ if ($res === 'product') {
     if ($isWrite) {
         api_need_write($auth);
         $fields = [];
-        foreach (['category_id' => 'i', 'name' => 's', 'sku' => 's', 'description' => 's', 'price_per_meter' => 'i', 'partner_price_per_meter' => 'i', 'is_active' => 'i', 'sort_order' => 'i', 'order_form_config' => 's'] as $k => $t) {
+        foreach (['category_id' => 'i', 'name' => 's', 'sku' => 's', 'description' => 's', 'price_per_meter' => 'i', 'partner_price_per_meter' => 'i', 'is_active' => 'i', 'sort_order' => 'i', 'order_form_config' => 's', 'pricing_model' => 's', 'price_per_watt' => 'i', 'frame_options_json' => 's'] as $k => $t) {
             $v = api_in($k, null);
             if ($v !== null) {
                 if ($k === 'name' && trim((string) $v) === '') {
