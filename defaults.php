@@ -358,6 +358,10 @@ section{scroll-margin-top:84px}
 .workshop-showcase>*{position:relative;z-index:2}
 html[data-theme="light"] .workshop-showcase::before{filter:blur(8px) brightness(.55)}
 html[data-theme="light"] .workshop-showcase::after{background:linear-gradient(180deg,rgba(250,248,242,.75),rgba(250,248,242,.92))}
+@media(max-width:640px){.workshop-showcase{margin:20px 12px;padding:60px 0;border-radius:20px}
+.workshop-showcase .container{padding:0 16px}
+.features .cards{grid-template-columns:1fr;gap:14px}
+.features .card{padding:28px 20px}}
 .features{padding:110px 0 30px}
 /* ---------- کارت‌های خلاقانه ویژگی‌ها ---------- */
 .features .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:40px}
