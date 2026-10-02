@@ -447,6 +447,7 @@ $pageTitles = [
     'api'        => 'دسترسی API',
     'users'      => 'کاربران و نقش‌ها',
     'settings'   => 'تنظیمات سایت',
+    'sitemap'    => 'نقشه سایت (Sitemap)',
 ];
 $currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
 
@@ -499,6 +500,7 @@ $navGroups = [
     'system' => ['سیستم', [
         ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
+        ['admin.php?page=sitemap', 'map', 'نقشه سایت', 'sitemap'],
         ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
         ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
@@ -1194,6 +1196,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('seo_description', trim((string) ($_POST['seo_description'] ?? '')));
                 set_setting('seo_keywords', trim((string) ($_POST['seo_keywords'] ?? '')));
                 set_setting('site_url', trim((string) ($_POST['site_url'] ?? '')));
+                // نقشه سایت
+                set_setting('sitemap_enabled', isset($_POST['sitemap_enabled']) ? '1' : '0');
+                set_setting('sitemap_home_freq', trim((string) ($_POST['sitemap_home_freq'] ?? 'daily')));
+                set_setting('sitemap_home_priority', trim((string) ($_POST['sitemap_home_priority'] ?? '1.0')));
+                set_setting('sitemap_pages_freq', trim((string) ($_POST['sitemap_pages_freq'] ?? 'weekly')));
+                set_setting('sitemap_pages_priority', trim((string) ($_POST['sitemap_pages_priority'] ?? '0.8')));
+                set_setting('sitemap_products_freq', trim((string) ($_POST['sitemap_products_freq'] ?? 'weekly')));
+                set_setting('sitemap_products_priority', trim((string) ($_POST['sitemap_products_priority'] ?? '0.7')));
                 // فاز ۲: تنظیمات مشتری و کاتالوگ محصول
                 $discount = (int) ($_POST['partner_discount_percent'] ?? 10);
                 if ($discount < 0) { $discount = 0; }
@@ -2561,6 +2571,75 @@ if ($page === 'design') {
                     </label>
                     <button type="submit" class="btn primary">ذخیره تنظیمات آپدیت</button>
                 </form>
+            </section>
+
+        <?php elseif ($page === 'sitemap'): ?>
+            <h1>نقشه سایت (Sitemap)</h1>
+            <p class="muted">نقشه سایت XML به موتورهای جستجو کمک می‌کند صفحات شما را پیدا کنند. آدرس: <a href="sitemap.php" target="_blank" dir="ltr"><code>sitemap.php</code></a></p>
+
+            <section class="card wide">
+                <h2>تنظیمات نقشه سایت</h2>
+                <form method="post">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="save_settings">
+                    <label class="check"><input type="checkbox" name="sitemap_enabled" value="1" <?= ($settings['sitemap_enabled'] ?? '1') === '1' ? 'checked' : '' ?>> نقشه سایت فعال باشد</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:15px;">
+                        <label>تناوب صفحه اصلی
+                            <select name="sitemap_home_freq">
+                                <?php foreach (['always','hourly','daily','weekly','monthly','yearly','never'] as $f): ?>
+                                    <option value="<?= $f ?>" <?= ($settings['sitemap_home_freq'] ?? 'daily') === $f ? 'selected' : '' ?>><?= $f ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>اولویت صفحه اصلی (0 تا 1)
+                            <input type="number" name="sitemap_home_priority" min="0" max="1" step="0.1" value="<?= e($settings['sitemap_home_priority'] ?? '1.0') ?>">
+                        </label>
+                        <label>تناوب صفحه‌ها
+                            <select name="sitemap_pages_freq">
+                                <?php foreach (['always','hourly','daily','weekly','monthly','yearly','never'] as $f): ?>
+                                    <option value="<?= $f ?>" <?= ($settings['sitemap_pages_freq'] ?? 'weekly') === $f ? 'selected' : '' ?>><?= $f ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>اولویت صفحه‌ها
+                            <input type="number" name="sitemap_pages_priority" min="0" max="1" step="0.1" value="<?= e($settings['sitemap_pages_priority'] ?? '0.8') ?>">
+                        </label>
+                        <label>تناوب محصولات
+                            <select name="sitemap_products_freq">
+                                <?php foreach (['always','hourly','daily','weekly','monthly','yearly','never'] as $f): ?>
+                                    <option value="<?= $f ?>" <?= ($settings['sitemap_products_freq'] ?? 'weekly') === $f ? 'selected' : '' ?>><?= $f ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>اولویت محصولات
+                            <input type="number" name="sitemap_products_priority" min="0" max="1" step="0.1" value="<?= e($settings['sitemap_products_priority'] ?? '0.7') ?>">
+                        </label>
+                    </div>
+                    <button type="submit" class="btn primary" style="margin-top:15px;">ذخیره تنظیمات</button>
+                </form>
+            </section>
+
+            <section class="card wide">
+                <h2>پیش‌نمایش URLها</h2>
+                <?php
+                $smBase = rtrim((string)($settings['site_url'] ?? ''), '/');
+                if ($smBase === '') $smBase = 'https://linerlight.ir';
+                $smUrls = [$smBase . '/'];
+                try {
+                    foreach (db()->query("SELECT slug FROM pages WHERE is_active=1 ORDER BY sort_order")->fetchAll() as $pr) {
+                        $smUrls[] = $smBase . '/page.php?slug=' . urlencode($pr['slug']);
+                    }
+                    foreach (db()->query("SELECT id FROM products WHERE is_active=1 ORDER BY sort_order")->fetchAll() as $pr) {
+                        $smUrls[] = $smBase . '/products.php#' . (int)$pr['id'];
+                    }
+                    $smUrls[] = $smBase . '/products.php';
+                } catch (Throwable $e) {}
+                ?>
+                <p class="muted"><?= count($smUrls) ?> آدرس در نقشه سایت:</p>
+                <ul dir="ltr" style="text-align:left;max-height:300px;overflow:auto;">
+                    <?php foreach ($smUrls as $u): ?><li><code><?= e($u) ?></code></li><?php endforeach; ?>
+                </ul>
+                <p><a class="btn" href="sitemap.php" target="_blank">مشاهده XML</a></p>
             </section>
 
         <?php else: ?>

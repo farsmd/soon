@@ -21,9 +21,18 @@ header('X-Content-Type-Options: nosniff');
 
 $urls = [];
 
+// بررسی فعال بودن
+if (($settings['sitemap_enabled'] ?? '1') !== '1') {
+    header('HTTP/1.1 404 Not Found');
+    echo 'Sitemap disabled';
+    exit;
+}
+
 // صفحه اصلی
+$homeFreq = $settings['sitemap_home_freq'] ?? 'daily';
+$homePrio = $settings['sitemap_home_priority'] ?? '1.0';
 if ($baseUrl !== '') {
-    $urls[] = ['loc' => $baseUrl . '/', 'changefreq' => 'daily', 'priority' => '1.0'];
+    $urls[] = ['loc' => $baseUrl . '/', 'changefreq' => $homeFreq, 'priority' => $homePrio];
 }
 
 // صفحه‌ها
@@ -34,8 +43,8 @@ try {
         if ($slug !== '' && $baseUrl !== '') {
             $urls[] = [
                 'loc' => $baseUrl . '/page.php?slug=' . urlencode($slug),
-                'changefreq' => 'weekly',
-                'priority' => '0.8',
+                'changefreq' => $settings['sitemap_pages_freq'] ?? 'weekly',
+                'priority' => $settings['sitemap_pages_priority'] ?? '0.8',
             ];
         }
     }
@@ -50,8 +59,8 @@ try {
         if ($baseUrl !== '') {
             $urls[] = [
                 'loc' => $baseUrl . '/products.php#' . (int) $pr['id'],
-                'changefreq' => 'weekly',
-                'priority' => '0.7',
+                'changefreq' => $settings['sitemap_products_freq'] ?? 'weekly',
+                'priority' => $settings['sitemap_products_priority'] ?? '0.7',
             ];
         }
     }
