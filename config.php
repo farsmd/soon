@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.1.12');
+define('APP_VERSION', '9.1.13');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -577,7 +577,7 @@ function init_db(PDO $pdo): void
         'seo_title'           => '',
         'seo_description'     => '',
         'seo_keywords'        => 'چراغ خطی, نور خطی, لاینرلایت, نورپردازی کمد, نورپردازی کابینت',
-        'site_url'            => 'https://linerlight.ir/cms',
+        'site_url'            => 'https://linerlight.ir',
         // تنظیمات آپدیت یک‌کلیکی از گیت‌هاب (نسخه ۴)
         'update_repo'         => 'farsmd/soon',
         'update_branch'       => 'main',
