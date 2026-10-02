@@ -190,8 +190,9 @@ HTML,
             <div class="product-info">
                 <h1>{{product_name}}</h1>
                 {{#if product_description}}<div class="product-desc">{{product_description}}</div>{{/if}}
-                <p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_price_per_meter_formatted}} <span class="muted">| قیمت همکار: {{partner_price_per_meter_formatted}} تومان</span>{{/if}}</p>
+                <p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_price_per_meter_formatted}} <span class="muted">| تخفیف همکار: {{partner_price_per_meter_formatted}} تومان</span>{{/if}}</p>
                 {{product_specs}}
+                {{product_gallery}}
             </div>
         </div>
         {{estimator}}
@@ -403,7 +404,7 @@ section{scroll-margin-top:84px}
 .ps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
 .ps-card{display:block;background:rgba(255,255,255,.03);border:1px solid rgba(201,162,39,.18);border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .25s,box-shadow .25s,border-color .25s}
 .ps-card:hover{transform:translateY(-6px);border-color:rgba(201,162,39,.5);box-shadow:0 18px 40px rgba(0,0,0,.45)}
-.ps-img{aspect-ratio:16/10;overflow:hidden;background:#111}
+.ps-img{aspect-ratio:1/1;overflow:hidden;background:#111}
 .ps-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
 .ps-card:hover .ps-img img{transform:scale(1.06)}
 .ps-body{padding:16px}
@@ -473,7 +474,7 @@ section{scroll-margin-top:84px}
 .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:24px;padding-bottom:100px}
 .product-card{background:var(--surface);border:1px solid var(--surface-border);border-radius:20px;overflow:hidden;transition:.35s;display:flex;flex-direction:column}
 .product-card:hover{transform:translateY(-6px);border-color:rgba(232,198,106,.4);box-shadow:var(--shadow)}
-.product-card .product-media{aspect-ratio:16/10;overflow:hidden;background:#0a0d13}
+.product-card .product-media{aspect-ratio:1/1;overflow:hidden;background:#0a0d13;border-radius:16px 16px 0 0}
 .product-card .product-media img{width:100%;height:100%;object-fit:cover}
 .product-card-body{padding:22px;display:flex;flex-direction:column;gap:10px;flex:1}
 .product-card-body h3{margin:0;font-size:17px}
@@ -482,7 +483,8 @@ section{scroll-margin-top:84px}
 .product-breadcrumb{font-size:13.5px;color:var(--muted);margin-bottom:18px}
 .product-breadcrumb a{color:var(--accent)}
 .product-layout{display:grid;grid-template-columns:1fr 1fr;gap:44px;padding:150px 0 90px;align-items:start}
-.product-media img{border-radius:20px;box-shadow:var(--shadow);border:1px solid var(--surface-border)}
+.product-media{aspect-ratio:1/1;overflow:hidden;border-radius:20px}
+.product-media img{width:100%;height:100%;object-fit:cover;border-radius:20px;box-shadow:var(--shadow);border:1px solid var(--surface-border)}
 .product-info h1{font-size:clamp(24px,4vw,36px)}
 .product-price-line{display:flex;align-items:center;gap:14px;margin:18px 0;padding:16px 20px;background:var(--gold-soft);
     border:1px solid rgba(232,198,106,.3);border-radius:14px}
@@ -626,6 +628,28 @@ html[data-theme="light"] .product-card{background:#fff}
 html[data-theme="light"] .product-card h3 a{color:#221d12}
 html[data-theme="light"] .catalog-nav a{background:#fff;border-color:var(--surface-border);color:#5a5344}
 html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
+/* ===== فیلدهای سفارشی فرم سفارش (نسخه ۹٫۱) ===== */
+.so-custom-fields{margin:14px 0;padding:14px;border:1px dashed var(--surface-border);border-radius:12px;background:rgba(201,162,39,.04)}
+.so-custom-fields h4{margin:0 0 10px;font-size:14px;color:var(--accent)}
+/* ===== گالری محصول (نسخه ۹٫۱) ===== */
+.product-gallery{margin:28px 0}
+.product-gallery h3{margin:0 0 14px;font-size:18px}
+.pg-public-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.pg-public-item{margin:0;border-radius:14px;overflow:hidden;background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);cursor:zoom-in;transition:transform .25s}
+.pg-public-item:hover{transform:scale(1.03)}
+.pg-public-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+.pg-public-item figcaption{padding:8px 10px;font-size:12px;color:var(--muted,#6b7280)}
+/* ===== فرم ثبت‌نام همکار (نسخه ۹٫۱) ===== */
+.partner-form{max-width:640px;margin:24px auto;background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:16px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.pf-field{display:flex;flex-direction:column;gap:6px}
+.pf-field.pf-full{grid-column:1/-1}
+.pf-field label{font-size:13px;font-weight:600;color:var(--text,#374151)}
+.pf-field input,.pf-field textarea{border:1px solid var(--border,#d1d5db);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;background:var(--bg,#fff);color:var(--text,#111827);width:100%;box-sizing:border-box}
+.pf-field input:focus,.pf-field textarea:focus{outline:2px solid #c9a227;outline-offset:1px;border-color:#c9a227}
+.pf-field .muted{font-weight:400;font-size:12px}
+@media(max-width:560px){.pf-grid{grid-template-columns:1fr}.partner-form{padding:18px}}
+
 CSS;
 }
 
@@ -768,7 +792,7 @@ function product_estimator_html(array $product): string
     $html .= product_options_selects_html($product);
     $html .= '<p class="estimator-result">برآورد مشتری: <strong id="est-retail">' . e(format_price($retailBase)) . '</strong> تومان</p>';
     if ($partnerBase != $retailBase) {
-        $html .= '<p class="partner-line">برآورد همکار: <strong id="est-partner">' . e(format_price($partnerBase)) . '</strong> تومان</p>';
+        $html .= '<p class="partner-line">تخفیف همکار: <strong id="est-partner">' . e(format_price($partnerBase)) . '</strong> تومان</p>';
     }
 
     $html .= '<script>(function(){var box=document.getElementById("estimator");if(!box)return;'
@@ -863,6 +887,20 @@ function process_site_order(): void
             }
         }
         $note = trim((string) ($src['note'] ?? ''));
+        // فیلدهای سفارشی فرم سفارش (نسخه ۹٫۱)
+        $customVals = [];
+        $rawCustom = $src['custom'] ?? [];
+        if (is_array($rawCustom)) {
+            foreach (get_order_form_fields($pid) as $ff) {
+                $ffid = (int) $ff['id'];
+                $val = trim((string) ($rawCustom[$ffid] ?? $rawCustom[(string) $ffid] ?? ''));
+                if ($val !== '') {
+                    $customVals[] = ['field' => (string) $ff['label'], 'value' => mb_substr($val, 0, 500)];
+                } elseif ((int) ($ff['is_required'] ?? 0) === 1) {
+                    return [null, 'فیلد «' . (string) $ff['label'] . '» الزامی است.'];
+                }
+            }
+        }
         return [[
             'product_id' => $pid,
             'length_cm' => $lenCm,
@@ -871,6 +909,7 @@ function process_site_order(): void
             'has_endcap' => !empty($src['endcap']),
             'options' => $opts,
             'note' => ($lineNoteOn && $note !== '') ? mb_substr($note, 0, 500) : '',
+            'custom_fields' => $customVals,
         ], ''];
     };
 
@@ -966,8 +1005,8 @@ function process_site_order(): void
                         $optSnap[] = ['attr' => (string) $a['title'], 'option' => (string) $oo['title'], 'delta' => (float) ($oo['price_delta_per_meter'] ?? 0)];
                     }
                 }
-                $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, line_subtotal, line_total, sort_order)
-                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :ls, :lt, :so)')
+                $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, custom_fields_json, line_subtotal, line_total, sort_order)
+                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :cf, :ls, :lt, :so)')
                     ->execute([
                         ':o' => $oid, ':p' => (int) $tl['product_id'], ':pn' => (string) ($tl['product_id'] ? (string) (get_product((int) $tl['product_id'])['name'] ?? '') : ''),
                         ':len' => $tl['length_cm'], ':q' => $tl['qty'], ':bm' => $tl['billable_m'],
@@ -975,6 +1014,7 @@ function process_site_order(): void
                         ':oe' => $tl['options_extra_per_m'], ':w' => $tl['wire_length_cm'], ':ws' => $tl['wire_steps'],
                         ':we' => $tl['wire_extra_total'], ':ec' => !empty($ln['has_endcap']) ? 1 : 0,
                         ':note' => ($ln['note'] !== '' ? $ln['note'] : null),
+                        ':cf' => !empty($ln['custom_fields']) ? json_encode($ln['custom_fields'], JSON_UNESCAPED_UNICODE) : null,
                         ':ls' => $tl['line_subtotal'], ':lt' => $tl['line_total'], ':so' => $sort,
                     ]);
                 $sort += 10;
@@ -1109,6 +1149,23 @@ function site_order_form_html(array $product): string
             $attrs[] = $ao;
         }
         $catalog[$cpid] = ['name' => (string) $p['name'], 'price' => (float) product_base_price_per_meter($p, false), 'attrs' => $attrs];
+        // فیلدهای سفارشی و تنظیمات فرم سفارش (نسخه ۹٫۱)
+        $cf = [];
+        foreach (get_order_form_fields($cpid) as $ff) {
+            $opts = json_decode((string) ($ff['options_json'] ?? '[]'), true);
+            if (!is_array($opts)) { $opts = []; }
+            $cf[] = [
+                'id' => (int) $ff['id'],
+                'type' => (string) ($ff['field_type'] ?? 'text'),
+                'label' => (string) $ff['label'],
+                'options' => array_values(array_filter(array_map('trim', array_map('strval', $opts)))),
+                'placeholder' => (string) ($ff['placeholder'] ?? ''),
+                'help' => (string) ($ff['help_text'] ?? ''),
+                'required' => (int) ($ff['is_required'] ?? 0) === 1,
+            ];
+        }
+        $catalog[$cpid]['custom'] = $cf;
+        $catalog[$cpid]['formcfg'] = product_order_form_config($p);
     }
 
     $optHtml = function (?int $sel) use ($catalog): string {
@@ -1200,7 +1257,10 @@ function site_order_form_html(array $product): string
     $html .= '</form>';
     $html .= '<script>window.SO_CATALOG=' . json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) . ';window.SO_CFG=' . json_encode(['wireStep' => $step, 'wireDef' => $wireDef, 'wireMax' => $wireMax, 'minBill' => $minBill], JSON_UNESCAPED_UNICODE) . ';window.SO_DEF_PID=' . $pid . ';</script>';
     $html .= <<<'JS'
-<script>(function(){var f=document.getElementById('so-form');if(!f)return;var CAT=window.SO_CATALOG||{},CFG=window.SO_CFG||{},DEF=window.SO_DEF_PID||0;var wrap=document.getElementById('so-lines'),tpl=document.getElementById('so-line-tpl'),counter=1;function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}function fa(n,d){return Number(n).toLocaleString('fa-IR',{maximumFractionDigits:d});}function money(n){return Math.round(n).toLocaleString('fa-IR');}function attrsHtml(pid,idx){var p=CAT[pid];if(!p||!p.attrs||!p.attrs.length)return'';var h='';p.attrs.forEach(function(a){h+='<div class="so-field" data-attr-group><span class="so-label">'+esc(a.title)+'</span><div class="so-chips" role="radiogroup" data-attrs>';a.options.forEach(function(o){var d=parseFloat(o.delta)||0;h+='<label class="so-chip"><input type="radio" class="so-option" name="so_lines['+idx+'][options]['+a.id+']" value="'+o.id+'" data-delta="'+d+'"'+(o.id===a.def?' checked':'')+'><span>'+esc(o.title)+(d!==0?(' <small>('+(d>0?'+':'')+fa(d,0)+' تومان/متر)</small>'):'')+'</span></label>';});h+='</div></div>';});return h;}function paintAttrs(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var idx=line.getAttribute('data-idx');line.querySelectorAll('[data-attr-group]').forEach(function(g){g.remove();});var holder=document.createElement('div');holder.innerHTML=attrsHtml(sel.value,idx);var ref=sel.closest('.so-field');while(holder.firstChild){ref.parentNode.insertBefore(holder.firstChild,ref.nextSibling);}calc();}function renumber(){var ls=wrap.querySelectorAll('[data-line]');ls.forEach(function(el,k){var n=el.querySelector('[data-num]');if(n)n.textContent=fa(k+1,0);var rm=el.querySelector('[data-remove]');if(rm)rm.style.display=(ls.length>1)?'':'none';});}function lineVals(line){var sel=line.querySelector('.so-product-sel');var pid=sel?sel.value:'0';var p=CAT[pid];var price=p?parseFloat(p.price):0;var d=0;line.querySelectorAll('.so-option:checked').forEach(function(s){d+=parseFloat(s.getAttribute('data-delta')||'0');});var lenEl=line.querySelector('[data-len]');var qtyEl=line.querySelector('[data-qty]');var L=(parseFloat(lenEl?lenEl.value:'')||0)/100;var Q=parseInt(qtyEl?qtyEl.value:'10',10);if(!(Q>0))Q=0;var minB=parseFloat(CFG.minBill||'0.5');var billOne=Math.max(L,minB);return{L:L,Q:Q,billOne:billOne,unit:price+d,lineTotal:billOne*(price+d)*Q};}function calc(){var totM=0,totQ=0,totP=0;wrap.querySelectorAll('[data-line]').forEach(function(line){var v=lineVals(line);var lenEl=line.querySelector('[data-len]');var mEl=line.querySelector('[data-meters]');if(mEl)mEl.textContent=v.L>0?('≈ '+fa(v.L,2)+' متر'):'طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.';var wEl=line.querySelector('[data-wire]');var wv=line.querySelector('[data-wire-val]');if(wEl&&wv)wv.textContent=fa(parseInt(wEl.value,10)||0,0)+' سانت';var lt=line.querySelector('[data-line-total]');if(lt)lt.textContent=(v.L>0&&v.Q>0)?(money(v.lineTotal)+' تومان'):'۰ تومان';if(v.L>0&&v.Q>0){totM+=v.billOne*v.Q;totQ+=v.Q;totP+=v.lineTotal;}});document.getElementById('so-billm').textContent=(totQ>0)?(fa(totM,2)+' متر'):'—';document.getElementById('so-qtyv').textContent=(totQ>0)?(fa(totQ,0)+' چراغ'):'—';document.getElementById('so-total').textContent=money(totP);}function addLine(){var html=tpl.innerHTML.replace(/__I__/g,String(counter));var d=document.createElement('div');d.innerHTML=html;var line=d.firstElementChild;line.setAttribute('data-idx',String(counter));counter++;wrap.appendChild(line);var sel=line.querySelector('.so-product-sel');if(sel&&DEF)sel.value=String(DEF);paintAttrs(line);renumber();calc();if(line.scrollIntoView)line.scrollIntoView({behavior:'smooth',block:'nearest'});}document.getElementById('so-add').addEventListener('click',addLine);f.addEventListener('click',function(e){var rm=e.target.closest('[data-remove]');if(rm){var ls=wrap.querySelectorAll('[data-line]');if(ls.length>1){rm.closest('[data-line]').remove();renumber();calc();}return;}var st=e.target.closest('[data-step]');if(st){var q=st.closest('.so-stepper').querySelector('[data-qty]');var v=parseInt(q.value,10)||1;v=Math.max(1,v+parseInt(st.getAttribute('data-step'),10));q.value=v;calc();return;}if(e.target.closest('#so-toggle')){var s=document.getElementById('so-summary');var open=s.classList.toggle('open');document.getElementById('so-toggle').setAttribute('aria-expanded',open?'true':'false');}});f.addEventListener('input',function(e){calc();});f.addEventListener('change',function(e){var sel=e.target.closest?e.target.closest('.so-product-sel'):null;if(sel){paintAttrs(sel.closest('[data-line]'));}else{calc();}});f.addEventListener('submit',function(){var b=document.getElementById('so-submit');if(b){b.disabled=true;b.textContent='در حال ثبت…';}});wrap.querySelectorAll('[data-line]').forEach(function(line){paintAttrs(line);});renumber();calc();})();</script>
+<script>(function(){var f=document.getElementById('so-form');if(!f)return;var CAT=window.SO_CATALOG||{},CFG=window.SO_CFG||{},DEF=window.SO_DEF_PID||0;var wrap=document.getElementById('so-lines'),tpl=document.getElementById('so-line-tpl'),counter=1;function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}function fa(n,d){return Number(n).toLocaleString('fa-IR',{maximumFractionDigits:d});}function money(n){return Math.round(n).toLocaleString('fa-IR');}function attrsHtml(pid,idx){var p=CAT[pid];if(!p||!p.attrs||!p.attrs.length)return'';var h='';p.attrs.forEach(function(a){h+='<div class="so-field" data-attr-group><span class="so-label">'+esc(a.title)+'</span><div class="so-chips" role="radiogroup" data-attrs>';a.options.forEach(function(o){var d=parseFloat(o.delta)||0;h+='<label class="so-chip"><input type="radio" class="so-option" name="so_lines['+idx+'][options]['+a.id+']" value="'+o.id+'" data-delta="'+d+'"'+(o.id===a.def?' checked':'')+'><span>'+esc(o.title)+(d!==0?(' <small>('+(d>0?'+':'')+fa(d,0)+' تومان/متر)</small>'):'')+'</span></label>';});h+='</div></div>';});return h;}function paintAttrs(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var idx=line.getAttribute('data-idx');line.querySelectorAll('[data-attr-group]').forEach(function(g){g.remove();});var holder=document.createElement('div');holder.innerHTML=attrsHtml(sel.value,idx);var ref=sel.closest('.so-field');while(holder.firstChild){ref.parentNode.insertBefore(holder.firstChild,ref.nextSibling);}paintCustom(line);applyFormCfg(line);calc();}
+function customHtml(pid,idx){var p=CAT[pid];if(!p||!p.custom||!p.custom.length)return'';var h='<div class="so-custom-fields" data-custom-group><h4>مشخصات تکمیلی</h4>';p.custom.forEach(function(f){var nm='so_lines['+idx+'][custom]['+f.id+']';h+='<div class="so-field"><label>'+esc(f.label)+(f.required?' *':'')+'</label>';if(f.type==='select'){h+='<select name="'+nm+'"'+(f.required?' required':'')+'><option value="">— انتخاب کنید —</option>';f.options.forEach(function(o){h+='<option value="'+esc(o)+'">'+esc(o)+'</option>';});h+='</select>';}else if(f.type==='textarea'){h+='<textarea name="'+nm+'" rows="2"'+(f.required?' required':'')+(f.placeholder?' placeholder="'+esc(f.placeholder)+'"':'')+'></textarea>';}else if(f.type==='number'){h+='<input type="number" name="'+nm+'" step="any"'+(f.required?' required':'')+(f.placeholder?' placeholder="'+esc(f.placeholder)+'"':'')+'>';}else if(f.type==='checkbox'){h+='<label class="check"><input type="checkbox" name="'+nm+'" value="1"> '+esc(f.placeholder||'بله')+'</label>';}else{h+='<input type="text" name="'+nm+'"'+(f.required?' required':'')+(f.placeholder?' placeholder="'+esc(f.placeholder)+'"':'')+' maxlength="255">';}if(f.help){h+='<p class="so-help">'+esc(f.help)+'</p>';}h+='</div>';});h+='</div>';return h;}
+function paintCustom(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var idx=line.getAttribute('data-idx');line.querySelectorAll('[data-custom-group]').forEach(function(g){g.remove();});var html=customHtml(sel.value,idx);if(!html)return;var holder=document.createElement('div');holder.innerHTML=html;var total=line.querySelector('[data-line-total]');if(total){line.insertBefore(holder.firstChild,total);}else{line.appendChild(holder.firstChild);}}
+function applyFormCfg(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var p=CAT[sel.value];var cfg=(p&&p.formcfg)?p.formcfg:{show_length:true,show_qty:true,show_wire:true,show_endcap:true,show_options:true};var lenF=line.querySelector('[data-len]');if(lenF){var f=lenF.closest('.so-field');if(f)f.style.display=cfg.show_length?'':'none';lenF.required=!!cfg.show_length;}var qtyF=line.querySelector('[data-qty]');if(qtyF){var qf=qtyF.closest('.so-field');if(qf)qf.style.display=cfg.show_qty?'':'none';}var wireF=line.querySelector('[data-wire]');if(wireF){var wf=wireF.closest('.so-field');if(wf)wf.style.display=cfg.show_wire?'':'none';}var ecF=line.querySelector('input[name$="[endcap]"]');if(ecF){var ef=ecF.closest('.so-field');if(ef)ef.style.display=cfg.show_endcap?'':'none';}line.querySelectorAll('[data-attr-group]').forEach(function(g){g.style.display=cfg.show_options?'':'none';});}function renumber(){var ls=wrap.querySelectorAll('[data-line]');ls.forEach(function(el,k){var n=el.querySelector('[data-num]');if(n)n.textContent=fa(k+1,0);var rm=el.querySelector('[data-remove]');if(rm)rm.style.display=(ls.length>1)?'':'none';});}function lineVals(line){var sel=line.querySelector('.so-product-sel');var pid=sel?sel.value:'0';var p=CAT[pid];var price=p?parseFloat(p.price):0;var d=0;line.querySelectorAll('.so-option:checked').forEach(function(s){d+=parseFloat(s.getAttribute('data-delta')||'0');});var lenEl=line.querySelector('[data-len]');var qtyEl=line.querySelector('[data-qty]');var L=(parseFloat(lenEl?lenEl.value:'')||0)/100;var Q=parseInt(qtyEl?qtyEl.value:'10',10);if(!(Q>0))Q=0;var minB=parseFloat(CFG.minBill||'0.5');var billOne=Math.max(L,minB);return{L:L,Q:Q,billOne:billOne,unit:price+d,lineTotal:billOne*(price+d)*Q};}function calc(){var totM=0,totQ=0,totP=0;wrap.querySelectorAll('[data-line]').forEach(function(line){var v=lineVals(line);var lenEl=line.querySelector('[data-len]');var mEl=line.querySelector('[data-meters]');if(mEl)mEl.textContent=v.L>0?('≈ '+fa(v.L,2)+' متر'):'طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.';var wEl=line.querySelector('[data-wire]');var wv=line.querySelector('[data-wire-val]');if(wEl&&wv)wv.textContent=fa(parseInt(wEl.value,10)||0,0)+' سانت';var lt=line.querySelector('[data-line-total]');if(lt)lt.textContent=(v.L>0&&v.Q>0)?(money(v.lineTotal)+' تومان'):'۰ تومان';if(v.L>0&&v.Q>0){totM+=v.billOne*v.Q;totQ+=v.Q;totP+=v.lineTotal;}});document.getElementById('so-billm').textContent=(totQ>0)?(fa(totM,2)+' متر'):'—';document.getElementById('so-qtyv').textContent=(totQ>0)?(fa(totQ,0)+' چراغ'):'—';document.getElementById('so-total').textContent=money(totP);}function addLine(){var html=tpl.innerHTML.replace(/__I__/g,String(counter));var d=document.createElement('div');d.innerHTML=html;var line=d.firstElementChild;line.setAttribute('data-idx',String(counter));counter++;wrap.appendChild(line);var sel=line.querySelector('.so-product-sel');if(sel&&DEF)sel.value=String(DEF);paintAttrs(line);renumber();calc();if(line.scrollIntoView)line.scrollIntoView({behavior:'smooth',block:'nearest'});}document.getElementById('so-add').addEventListener('click',addLine);f.addEventListener('click',function(e){var rm=e.target.closest('[data-remove]');if(rm){var ls=wrap.querySelectorAll('[data-line]');if(ls.length>1){rm.closest('[data-line]').remove();renumber();calc();}return;}var st=e.target.closest('[data-step]');if(st){var q=st.closest('.so-stepper').querySelector('[data-qty]');var v=parseInt(q.value,10)||1;v=Math.max(1,v+parseInt(st.getAttribute('data-step'),10));q.value=v;calc();return;}if(e.target.closest('#so-toggle')){var s=document.getElementById('so-summary');var open=s.classList.toggle('open');document.getElementById('so-toggle').setAttribute('aria-expanded',open?'true':'false');}});f.addEventListener('input',function(e){calc();});f.addEventListener('change',function(e){var sel=e.target.closest?e.target.closest('.so-product-sel'):null;if(sel){paintAttrs(sel.closest('[data-line]'));}else{calc();}});f.addEventListener('submit',function(){var b=document.getElementById('so-submit');if(b){b.disabled=true;b.textContent='در حال ثبت…';}});wrap.querySelectorAll('[data-line]').forEach(function(line){paintAttrs(line);});renumber();calc();})();</script>
 JS;
     $html .= '</div>';
     return $html;

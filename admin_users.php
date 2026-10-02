@@ -19,6 +19,7 @@ function admin_page_catalog(): array
             'gallery'   => 'مدیریت گالری',
             'sections'  => 'بخش‌های صفحه اصلی',
             'messages'  => 'پیام‌های تماس',
+            'partners'  => 'درخواست‌های همکاری',
             'design'    => 'قالب و استایل',
         ],
         'کاتالوگ و مشتریان' => [
@@ -38,6 +39,7 @@ function admin_page_catalog(): array
             'order_new'   => 'سفارش تازه',
             'order_view'  => 'جزئیات سفارش',
             'order_rules' => 'قوانین قیمت‌گذاری',
+            'order_forms' => 'فرم‌های سفارش',
         ],
         'تولید' => [
             'production'       => 'تولید',

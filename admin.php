@@ -120,6 +120,7 @@ function nav_icon(string $name): string
         'cut'       => '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.7 8.7 20 20M8.7 15.3 20 4"/>',
         'key'       => '<circle cx="8" cy="15" r="4"/><path d="M11 12 21 2M16 7l3 3M13 10l2 2"/>',
         'image'     => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+        'handshake' => '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -416,6 +417,7 @@ $pageTitles = [
     'gallery'    => 'مدیریت گالری',
     'design'     => 'قالب و استایل',
     'messages'   => 'پیام‌های تماس',
+    'partners'   => 'درخواست‌های همکاری',
     'customers'  => 'مشتری‌ها',
     'categories' => 'دسته‌بندی‌های محصولات',
     'products'   => 'محصولات',
@@ -459,6 +461,7 @@ $navGroups = [
         ['admin.php?page=gallery', 'image', 'مدیریت گالری', 'gallery'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=messages', 'mail', 'پیام‌های تماس', 'messages'],
+        ['admin.php?page=partners', 'handshake', 'درخواست‌های همکاری', 'partners'],
         ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
     ]],
     'catalog' => ['کاتالوگ و مشتریان', [
@@ -477,6 +480,7 @@ $navGroups = [
         ['admin.php?page=orders', 'receipt', 'سفارش‌ها', 'orders'],
         ['admin.php?page=order_new', 'plus', 'سفارش تازه', 'order_new'],
         ['admin.php?page=order_rules', 'sliders', 'قوانین قیمت‌گذاری', 'order_rules'],
+        ['admin.php?page=order_forms', 'layout', 'فرم‌های سفارش', 'order_forms'],
     ]],
     'production' => ['تولید', [
         ['admin.php?page=production', 'cut', 'برگه‌های تولید', 'production'],
@@ -909,6 +913,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin('admin.php?page=messages');
                 // no break
 
+            case 'add_order_form_field':
+                $otype = (string) ($_POST['owner_type'] ?? 'global');
+                if (!in_array($otype, ['global', 'category'], true)) { $otype = 'global'; }
+                $oid = $otype === 'category' ? (int) ($_POST['owner_id'] ?? 0) : 0;
+                $flabel = trim((string) ($_POST['field_label'] ?? ''));
+                $ftype = (string) ($_POST['field_type'] ?? 'text');
+                if (!in_array($ftype, ['text', 'number', 'select', 'textarea', 'checkbox'], true)) { $ftype = 'text'; }
+                if ($flabel !== '') {
+                    $fopts = trim((string) ($_POST['field_options'] ?? ''));
+                    $optsArr = [];
+                    if ($fopts !== '') {
+                        foreach (explode('|', $fopts) as $op) {
+                            $op = trim($op);
+                            if ($op !== '') { $optsArr[] = $op; }
+                        }
+                    }
+                    $maxSort = (int) $pdo->query("SELECT COALESCE(MAX(sort_order), 0) FROM order_form_fields WHERE owner_type = '" . $otype . "' AND owner_id = " . $oid)->fetchColumn();
+                    $pdo->prepare("INSERT INTO order_form_fields (owner_type, owner_id, field_type, label, options_json, placeholder, help_text, is_required, sort_order) VALUES (:t, :o, :ft, :l, :oj, :ph, :ht, :r, :s)")
+                        ->execute([
+                            ':t' => $otype, ':o' => $oid, ':ft' => $ftype, ':l' => $flabel,
+                            ':oj' => $optsArr !== [] ? json_encode($optsArr, JSON_UNESCAPED_UNICODE) : null,
+                            ':ph' => trim((string) ($_POST['field_placeholder'] ?? '')),
+                            ':ht' => trim((string) ($_POST['field_help'] ?? '')),
+                            ':r' => !empty($_POST['field_required']) ? 1 : 0,
+                            ':s' => $maxSort + 10,
+                        ]);
+                    flash('ok', 'فیلد اضافه شد.');
+                } else {
+                    flash('error', 'برچسب فیلد را وارد کنید.');
+                }
+                redirect_admin('admin.php?page=order_forms');
+                // no break
+
+            case 'delete_order_form_field':
+                $fid = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('DELETE FROM order_form_fields WHERE id = :id')->execute([':id' => $fid]);
+                flash('ok', 'فیلد حذف شد.');
+                redirect_admin('admin.php?page=order_forms');
+                // no break
+
+            case 'toggle_order_form_field':
+                $fid = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('UPDATE order_form_fields SET is_active = 1 - is_active WHERE id = :id')->execute([':id' => $fid]);
+                redirect_admin('admin.php?page=order_forms');
+                // no break
+
+            case 'delete_partner_request':
+                $id = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('DELETE FROM partner_requests WHERE id = :id')->execute([':id' => $id]);
+                flash('ok', 'درخواست حذف شد.');
+                redirect_admin('admin.php?page=partners');
+                // no break
+
+            case 'partner_request_status':
+                $id = (int) ($_POST['id'] ?? 0);
+                $status = (string) ($_POST['status'] ?? 'new');
+                if (!in_array($status, ['new', 'contacted', 'approved', 'rejected'], true)) {
+                    $status = 'new';
+                }
+                $pdo->prepare('UPDATE partner_requests SET status = :s WHERE id = :id')->execute([':s' => $status, ':id' => $id]);
+                flash('ok', 'وضعیت درخواست به‌روز شد.');
+                redirect_admin('admin.php?page=partners');
+                // no break
+
             case 'restore_backup':
                 $f = $_FILES['backup_file'] ?? null;
                 if ($f === null || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -1139,6 +1207,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($sessHours > 720) { $sessHours = 720; }
                 set_setting('session_lifetime_hours', (string) $sessHours);
                 flash('ok', 'تنظیمات ذخیره شد.');
+                redirect_admin('admin.php?page=settings');
+                // no break
+
+            case 'save_favicon':
+                if (!empty($_FILES['favicon']['tmp_name'])) {
+                    $fup = handle_section_image_upload($_FILES['favicon'] ?? null, null);
+                    if ($fup['ok'] && !empty($fup['filename'])) {
+                        $oldFav = get_setting('favicon_path', '');
+                        if ($oldFav !== '' && $oldFav !== 'uploads/gallery/favicon.png') {
+                            @unlink(UPLOADS_DIR . '/' . basename($oldFav));
+                        }
+                        set_setting('favicon_path', 'uploads/' . basename((string) $fup['filename']));
+                        flash('ok', 'فاوآیکون به‌روز شد.');
+                    } else {
+                        flash('error', (string) ($fup['error'] ?? 'خطا در آپلود فاوآیکون.'));
+                    }
+                } else {
+                    flash('error', 'فایلی انتخاب نشده است.');
+                }
                 redirect_admin('admin.php?page=settings');
                 // no break
 
@@ -2103,6 +2190,42 @@ if ($page === 'design') {
                 </tbody>
             </table>
 
+        <?php elseif ($page === 'partners'): ?>
+            <h1>درخواست‌های همکاری</h1>
+            <p class="muted">درخواست‌هایی که از فرم «همکاری با ما» در سایت ثبت شده‌اند. صفحه عمومی: <a href="page.php?slug=partner" target="_blank" rel="noopener">page.php?slug=partner</a></p>
+            <?php
+            $partnerRequests = $pdo->query('SELECT * FROM partner_requests ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+            $partnerStatusLabels = ['new' => 'جدید', 'contacted' => 'تماس گرفته شد', 'approved' => 'تأیید شد', 'rejected' => 'رد شد'];
+            ?>
+            <table>
+                <thead><tr><th>تاریخ</th><th>نام مسئول</th><th>نام واحد همکاری</th><th>زمینه فعالیت</th><th>شماره تماس</th><th>ایمیل</th><th>آدرس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                <?php foreach ($partnerRequests as $pr): ?>
+                    <tr>
+                        <td><?= e($pr['created_at']) ?></td>
+                        <td><?= e($pr['manager_name']) ?></td>
+                        <td><?= e($pr['business_name']) ?></td>
+                        <td><?= e($pr['field_of_activity']) ?></td>
+                        <td dir="ltr"><?= e($pr['phone']) ?></td>
+                        <td dir="ltr"><?= e($pr['email'] ?? '—') ?></td>
+                        <td><?= nl2br(e($pr['address'] ?? '—')) ?></td>
+                        <td><span class="badge"><?= e($partnerStatusLabels[$pr['status']] ?? $pr['status']) ?></span></td>
+                        <td>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="partner_request_status"><input type="hidden" name="id" value="<?= (int) $pr['id'] ?>">
+                                <select name="status" onchange="this.form.submit()">
+                                    <?php foreach ($partnerStatusLabels as $sk => $sl): ?>
+                                        <option value="<?= $sk ?>"<?= $pr['status'] === $sk ? ' selected' : '' ?>><?= $sl ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </form>
+                            <form method="post" class="inline" onsubmit="return confirm('این درخواست حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_partner_request"><input type="hidden" name="id" value="<?= (int) $pr['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if ($partnerRequests === []): ?><tr><td colspan="9" class="muted">هنوز درخواستی ثبت نشده است.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
+
         <?php elseif ($page === 'customers'): ?>
             <?php catalog_render_customers($catalogData); ?>
 
@@ -2131,6 +2254,80 @@ if ($page === 'design') {
             <?php orders_render_view($ordersData); ?>
         <?php elseif ($page === 'order_rules'): ?>
             <?php orders_render_rules($ordersData); ?>
+        <?php elseif ($page === 'order_forms'): ?>
+            <h1>فرم‌های سفارش</h1>
+            <p class="muted">فیلدهای سفارشی فرم ثبت سفارش را اینجا مدیریت کنید. ترتیب اعمال: فیلد خاص محصول ← فیلد دسته‌بندی ← فیلد سراسری. اگر برای محصولی فیلد خاص تعریف شده باشد، فقط همان‌ها نمایش داده می‌شوند.</p>
+            <?php
+            $typeLabels = ['text' => 'متن', 'number' => 'عدد', 'select' => 'انتخابی', 'textarea' => 'متن بلند', 'checkbox' => 'تیک'];
+            $renderFieldTable = function (string $otype, int $oid, string $title) use ($pdo, $typeLabels) {
+                $fields = $pdo->query("SELECT * FROM order_form_fields WHERE owner_type = '" . $otype . "' AND owner_id = " . $oid . " ORDER BY sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+                echo '<h2>' . e($title) . '</h2>';
+                echo '<table><thead><tr><th>برچسب</th><th>نوع</th><th>الزامی</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>';
+                foreach ($fields as $ff) {
+                    echo '<tr><td>' . e($ff['label']) . '</td>';
+                    echo '<td>' . e($typeLabels[$ff['field_type']] ?? $ff['field_type']) . '</td>';
+                    echo '<td>' . ((int) $ff['is_required'] === 1 ? 'بله' : 'خیر') . '</td>';
+                    echo '<td>' . ((int) $ff['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>') . '</td>';
+                    echo '<td><form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle_order_form_field"><input type="hidden" name="id" value="' . (int) $ff['id'] . '"><button type="submit" class="btn small">' . ((int) $ff['is_active'] === 1 ? 'غیرفعال' : 'فعال') . '</button></form> ';
+                    echo '<form method="post" class="inline" onsubmit="return confirm(\'این فیلد حذف شود؟\')">' . csrf_field() . '<input type="hidden" name="action" value="delete_order_form_field"><input type="hidden" name="id" value="' . (int) $ff['id'] . '"><button type="submit" class="btn small danger-btn">حذف</button></form></td></tr>';
+                }
+                if ($fields === []) { echo '<tr><td colspan="5" class="muted">فیلدی تعریف نشده است.</td></tr>'; }
+                echo '</tbody></table>';
+            };
+            $renderFieldTable('global', 0, 'فیلدهای سراسری (همه محصولات)');
+            $cats = $pdo->query("SELECT id, title FROM categories ORDER BY sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($cats as $cc) {
+                $renderFieldTable('category', (int) $cc['id'], 'دسته: ' . (string) $cc['title']);
+            }
+            ?>
+            <h2>افزودن فیلد تازه</h2>
+            <form method="post" class="card wide">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="add_order_form_field">
+                <div class="inline-fields">
+                    <label>محدوده
+                        <select name="owner_type" id="off-otype">
+                            <option value="global">سراسری (همه محصولات)</option>
+                            <?php foreach ($cats as $cc): ?><option value="category" data-oid="<?= (int) $cc['id'] ?>">دسته: <?= e($cc['title']) ?></option><?php endforeach; ?>
+                        </select>
+                    </label>
+                    <input type="hidden" name="owner_id" id="off-oid" value="0">
+                    <label>برچسب فیلد *
+                        <input type="text" name="field_label" required maxlength="100">
+                    </label>
+                    <label>نوع
+                        <select name="field_type">
+                            <option value="text">متن</option>
+                            <option value="number">عدد</option>
+                            <option value="select">انتخابی</option>
+                            <option value="textarea">متن بلند</option>
+                            <option value="checkbox">تیک</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="inline-fields">
+                    <label>گزینه‌ها (با | جدا کنید، برای نوع انتخابی)
+                        <input type="text" name="field_options" dir="rtl" placeholder="مثلاً: آویز | سقفی | دیواری">
+                    </label>
+                    <label>متن راهنما (placeholder)
+                        <input type="text" name="field_placeholder" maxlength="150">
+                    </label>
+                    <label>توضیح زیر فیلد
+                        <input type="text" name="field_help" maxlength="255">
+                    </label>
+                    <label class="check"><input type="checkbox" name="field_required" value="1"> الزامی</label>
+                </div>
+                <button type="submit" class="btn add">+ افزودن فیلد</button>
+            </form>
+            <script>
+            (function(){
+                var sel = document.getElementById('off-otype');
+                var hid = document.getElementById('off-oid');
+                if (!sel || !hid) return;
+                function sync(){ var o = sel.options[sel.selectedIndex]; hid.value = o.getAttribute('data-oid') || '0'; }
+                sel.addEventListener('change', sync); sync();
+            })();
+            </script>
         <?php elseif ($page === 'remnants'): ?>
             <?php orders_render_remnants($ordersData); ?>
         <?php elseif ($page === 'production'): ?>
@@ -2407,6 +2604,18 @@ if ($page === 'design') {
                 <p class="muted">پیش‌فرض ۱۶۸ ساعت (یک هفته) است. نشست‌ها داخل پوشه داخلی خود سیستم نگه داشته می‌شوند تا روی هاست اشتراکی زود پاک نشوند. لاگ بازدید سایت و فعالیت مدیریت از منوی «لاگ‌ها» در گروه سیستم قابل مشاهده است.</p>
                 <p class="muted">مشتری‌ها، دسته‌ها، محصولات و ویژگی‌ها از منوهای «مشتری‌ها»، «دسته‌بندی‌ها»، «محصولات» و «ویژگی‌های محصول» مدیریت می‌شوند.</p>
                 <button type="submit" class="btn primary">ذخیره تنظیمات</button>
+            </form>
+
+            <h2>فاوآیکون سایت</h2>
+            <form method="post" enctype="multipart/form-data" class="card">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="save_favicon">
+                <?php $favPath = get_setting('favicon_path', 'uploads/gallery/favicon.png'); ?>
+                <p><img src="<?= e($favPath) ?>" alt="فاوآیکون فعلی" style="width:48px;height:48px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb"></p>
+                <label>انتخاب فاوآیکون جدید (PNG، ترجیحاً ۶۴×۶۴ یا ۱۲۸×۱۲۸)
+                    <input type="file" name="favicon" accept="image/png,image/x-icon,image/svg+xml">
+                </label>
+                <button type="submit" class="btn add">آپلود فاوآیکون</button>
             </form>
 
             <h2>تغییر پسورد مدیریت</h2>

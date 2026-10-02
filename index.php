@@ -17,6 +17,7 @@ track_public_request();
 
 // پردازش ارسال فرم تماس قبل از هر خروجی (نتیجه‌اش داخل قالب «تماس» نشان داده می‌شود)
 process_contact_form();
+process_partner_form();
 
 $settings = all_settings();
 $sections = get_sections(true); // فقط فعال‌ها، به ترتیب

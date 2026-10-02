@@ -304,8 +304,8 @@ function orders_handle_post(string $action): void
                     ':by' => 'admin',
                 ]);
                 $oid = (int) $pdo->lastInsertId();
-                $insItem = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, line_subtotal, line_total, sort_order)
-                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, :ls, :lt, :s)');
+                $insItem = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, length_cm, qty, billable_m, unit_price_per_m, options_json, options_extra_per_m, wire_length_cm, wire_steps, wire_extra_total, has_endcap, note, custom_fields_json, line_subtotal, line_total, sort_order)
+                    VALUES (:o, :p, :pn, :len, :q, :bm, :up, :oj, :oe, :w, :ws, :we, :ec, :note, NULL, :ls, :lt, :s)');
                 $so = 0;
                 foreach ($tot['lines'] as $li => $tl) {
                     $src = $lines[$li];
@@ -1086,6 +1086,9 @@ function orders_render_view(array $d): void
                         <?php if (!empty($it['note'])): ?>
                             <br><small>توضیح: <?= e($it['note']) ?></small>
                         <?php endif; ?>
+                        <?php $cfj = json_decode((string) ($it['custom_fields_json'] ?? ''), true); if (is_array($cfj) && $cfj !== []): ?>
+                            <br><small class="muted"><?php foreach ($cfj as $csnap): ?><?= e($csnap['field']) ?>: <?= e($csnap['value']) ?>؛ <?php endforeach; ?></small>
+                        <?php endif; ?>
                     </td>
                     <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
@@ -1143,6 +1146,9 @@ function orders_render_view(array $d): void
                         <?php endif; ?>
                         <?php if (!empty($it['note'])): ?>
                             <br><small>توضیح: <?= e($it['note']) ?></small>
+                        <?php endif; ?>
+                        <?php $cfj = json_decode((string) ($it['custom_fields_json'] ?? ''), true); if (is_array($cfj) && $cfj !== []): ?>
+                            <br><small class="muted"><?php foreach ($cfj as $csnap): ?><?= e($csnap['field']) ?>: <?= e($csnap['value']) ?>؛ <?php endforeach; ?></small>
                         <?php endif; ?>
                     </td>
                     <td><?= e(format_qty((float) $it['length_cm'])) ?></td>

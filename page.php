@@ -7,6 +7,8 @@ declare(strict_types=1);
 require __DIR__ . '/config.php';
 
 // لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲)
+cms_session_start();
+process_partner_form();
 track_public_request();
 
 $settings = all_settings();

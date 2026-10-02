@@ -74,6 +74,7 @@ if ($productId > 0) {
         'price_per_meter_formatted'         => format_price($retailBase),
         'partner_price_per_meter_formatted' => $partnerBase != $retailBase ? format_price($partnerBase) : '',
         'product_specs'      => product_specs_html($product),
+        'product_gallery'    => product_gallery_html((int) $product['id']),
         'attributes_options' => product_options_selects_html($product),
         'estimator'          => product_estimator_html($product),
     ];

@@ -187,6 +187,15 @@ function catalog_handle_post(string $action): void
                     throw new RuntimeException((string) $up['error']);
                 }
                 $image = (string) ($up['filename'] ?? '');
+                $laborMeter = max(0, (int) ($_POST['labor_cost_per_meter'] ?? 0));
+                $laborFixture = max(0, (int) ($_POST['labor_cost_per_fixture'] ?? 0));
+                $ofcCfg = json_encode([
+                    'show_length'  => isset($_POST['ofc_show_length']),
+                    'show_qty'     => isset($_POST['ofc_show_qty']),
+                    'show_wire'    => isset($_POST['ofc_show_wire']),
+                    'show_endcap'  => isset($_POST['ofc_show_endcap']),
+                    'show_options' => isset($_POST['ofc_show_options']),
+                ], JSON_UNESCAPED_UNICODE);
                 $data = [
                     ':cat'     => $catId,
                     ':name'    => $name,
@@ -195,6 +204,9 @@ function catalog_handle_post(string $action): void
                     ':image'   => $image ?: null,
                     ':price'   => $price,
                     ':pprice'  => $partnerPrice,
+                    ':labor_m' => $laborMeter,
+                    ':labor_f' => $laborFixture,
+                    ':ofc'      => $ofcCfg,
                     ':active'  => isset($_POST['is_active']) ? 1 : 0,
                     ':sort'    => (int) ($_POST['sort_order'] ?? 0),
                     ':prep'    => max(0, (int) ($_POST['prep_days'] ?? 0)),
@@ -204,10 +216,10 @@ function catalog_handle_post(string $action): void
                 ];
                 if ($action === 'update_product' && $pid > 0) {
                     $data[':id'] = $pid;
-                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, seo_title = :seo_t, seo_description = :seo_d, seo_keywords = :seo_k, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, labor_cost_per_meter = :labor_m, labor_cost_per_fixture = :labor_f, order_form_config = :ofc, seo_title = :seo_t, seo_description = :seo_d, seo_keywords = :seo_k, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                     flash('ok', 'محصول به‌روزرسانی شد.');
                 } else {
-                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :seo_t, :seo_d, :seo_k, :active, :sort, :prep)')->execute($data);
+                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, labor_cost_per_meter, labor_cost_per_fixture, order_form_config, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :labor_m, :labor_f, :ofc, :seo_t, :seo_d, :seo_k, :active, :sort, :prep)')->execute($data);
                     $pid = (int) $pdo->lastInsertId();
                     flash('ok', 'محصول جدید ثبت شد.');
                 }
@@ -277,7 +289,93 @@ function catalog_handle_post(string $action): void
                         $insBom->execute([':p' => $pid, ':m' => $acc[$key]['mid'], ':q' => round($acc[$key]['qty'], 6), ':b' => $acc[$key]['basis'], ':c' => $acc[$key]['cond'], ':s' => $bso]);
                     }
                 }
+                // افزودن فیلد سفارشی فرم سفارش (نسخه ۹٫۱)
+                if (!empty($_POST['add_order_field']) && $pid > 0) {
+                    $flabel = trim((string) ($_POST['new_field_label'] ?? ''));
+                    $ftype = (string) ($_POST['new_field_type'] ?? 'text');
+                    if (!in_array($ftype, ['text', 'number', 'select', 'textarea', 'checkbox'], true)) {
+                        $ftype = 'text';
+                    }
+                    if ($flabel !== '') {
+                        $fopts = trim((string) ($_POST['new_field_options'] ?? ''));
+                        $optsArr = [];
+                        if ($fopts !== '') {
+                            foreach (explode('|', $fopts) as $op) {
+                                $op = trim($op);
+                                if ($op !== '') { $optsArr[] = $op; }
+                            }
+                        }
+                        $maxSort = (int) $pdo->query("SELECT COALESCE(MAX(sort_order), 0) FROM order_form_fields WHERE owner_type = 'product' AND owner_id = " . $pid)->fetchColumn();
+                        $pdo->prepare("INSERT INTO order_form_fields (owner_type, owner_id, field_type, label, options_json, is_required, sort_order) VALUES ('product', :p, :t, :l, :o, :r, :s)")
+                            ->execute([':p' => $pid, ':t' => $ftype, ':l' => $flabel, ':o' => $optsArr !== [] ? json_encode($optsArr, JSON_UNESCAPED_UNICODE) : null, ':r' => !empty($_POST['new_field_required']) ? 1 : 0, ':s' => $maxSort + 10]);
+                        flash('ok', 'فیلد سفارشی اضافه شد.');
+                    } else {
+                        flash('error', 'برچسب فیلد را وارد کنید.');
+                    }
+                    redirect_admin('admin.php?page=products&edit_id=' . $pid);
+                }
+                // افزودن عکس به گالری محصول (نسخه ۹٫۱)
+                if (!empty($_POST['add_gallery_image']) && $pid > 0 && !empty($_FILES['gallery_image']['tmp_name'])) {
+                    $gup = handle_section_image_upload($_FILES['gallery_image'] ?? null, null);
+                    if ($gup['ok'] && !empty($gup['filename'])) {
+                        $maxSort = (int) $pdo->query('SELECT COALESCE(MAX(sort_order), 0) FROM product_images WHERE product_id = ' . $pid)->fetchColumn();
+                        $pdo->prepare('INSERT INTO product_images (product_id, image, caption, sort_order) VALUES (:p, :i, :c, :s)')
+                            ->execute([':p' => $pid, ':i' => $gup['filename'], ':c' => trim((string) ($_POST['gallery_caption'] ?? '')), ':s' => $maxSort + 10]);
+                        flash('ok', 'عکس به گالری محصول اضافه شد.');
+                    } else {
+                        flash('error', (string) ($gup['error'] ?? 'خطا در آپلود عکس.'));
+                    }
+                    redirect_admin('admin.php?page=products&edit_id=' . $pid . '#gallery');
+                }
                 redirect_admin('admin.php?page=products');
+                // no break
+
+            case 'delete_product_image':
+                $giid = (int) ($_POST['id'] ?? 0);
+                $gpid = (int) ($_POST['product_id'] ?? 0);
+                $grow = $pdo->query('SELECT * FROM product_images WHERE id = ' . $giid)->fetch(PDO::FETCH_ASSOC);
+                if ($grow) {
+                    @unlink(UPLOADS_DIR . '/' . basename((string) $grow['image']));
+                    $pdo->prepare('DELETE FROM product_images WHERE id = :id')->execute([':id' => $giid]);
+                    flash('ok', 'عکس از گالری حذف شد.');
+                }
+                redirect_admin('admin.php?page=products&edit_id=' . $gpid . '#gallery');
+                // no break
+
+            case 'move_product_image':
+                $giid = (int) ($_POST['id'] ?? 0);
+                $gpid = (int) ($_POST['product_id'] ?? 0);
+                $gdir = (int) ($_POST['dir'] ?? 0);
+                $cur = $pdo->query('SELECT * FROM product_images WHERE id = ' . $giid)->fetch(PDO::FETCH_ASSOC);
+                if ($cur) {
+                    $op = $gdir < 0 ? '<' : '>';
+                    $ord = $gdir < 0 ? 'DESC' : 'ASC';
+                    $nbr = $pdo->query('SELECT * FROM product_images WHERE product_id = ' . (int) $cur['product_id'] . ' AND sort_order ' . $op . ' ' . (int) $cur['sort_order'] . ' ORDER BY sort_order ' . $ord . ' LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+                    if ($nbr) {
+                        $pdo->prepare('UPDATE product_images SET sort_order = :s WHERE id = :id')->execute([':s' => $nbr['sort_order'], ':id' => $cur['id']]);
+                        $pdo->prepare('UPDATE product_images SET sort_order = :s WHERE id = :id')->execute([':s' => $cur['sort_order'], ':id' => $nbr['id']]);
+                    }
+                }
+                redirect_admin('admin.php?page=products&edit_id=' . $gpid . '#gallery');
+                // no break
+
+            case 'quick_price_product':
+                $qpid = (int) ($_POST['id'] ?? 0);
+                $qprice = max(0, (int) ($_POST['price_per_meter'] ?? 0));
+                $qpartnerRaw = trim((string) ($_POST['partner_price_per_meter'] ?? ''));
+                $qpartner = $qpartnerRaw === '' ? null : max(0, (int) $qpartnerRaw);
+                $pdo->prepare('UPDATE products SET price_per_meter = :p, partner_price_per_meter = :pp, updated_at = CURRENT_TIMESTAMP WHERE id = :id')
+                    ->execute([':p' => $qprice, ':pp' => $qpartner, ':id' => $qpid]);
+                flash('ok', 'قیمت محصول به‌روز شد.');
+                redirect_admin('admin.php?page=products');
+                // no break
+
+            case 'delete_order_field':
+                $ffid = (int) ($_POST['id'] ?? 0);
+                $fpid = (int) ($_POST['product_id'] ?? 0);
+                $pdo->prepare('DELETE FROM order_form_fields WHERE id = :id')->execute([':id' => $ffid]);
+                flash('ok', 'فیلد سفارشی حذف شد.');
+                redirect_admin('admin.php?page=products&edit_id=' . $fpid);
                 // no break
 
             case 'delete_product':
@@ -285,6 +383,11 @@ function catalog_handle_post(string $action): void
                 $prod = get_product($pid);
                 $pdo->prepare('DELETE FROM product_attribute_values WHERE product_id = :p')->execute([':p' => $pid]);
                 $pdo->prepare('DELETE FROM product_materials WHERE product_id = :p')->execute([':p' => $pid]);
+                $pdo->prepare('DELETE FROM order_form_fields WHERE owner_type = :t AND owner_id = :p')->execute([':t' => 'product', ':p' => $pid]);
+                foreach ($pdo->query('SELECT image FROM product_images WHERE product_id = ' . $pid)->fetchAll(PDO::FETCH_COLUMN) as $gimg) {
+                    @unlink(UPLOADS_DIR . '/' . basename((string) $gimg));
+                }
+                $pdo->prepare('DELETE FROM product_images WHERE product_id = :p')->execute([':p' => $pid]);
                 $pdo->prepare('DELETE FROM products WHERE id = :id')->execute([':id' => $pid]);
                 if ($prod !== null && !empty($prod['image'])) {
                     @unlink(UPLOADS_DIR . '/' . basename((string) $prod['image']));
@@ -794,7 +897,7 @@ function catalog_render_products(array $d): void
                 <label>قیمت متری مشتری (تومان) *
                     <input type="number" name="price_per_meter" id="pf-retail" min="0" step="any" required value="<?= (int) ($editProduct['price_per_meter'] ?? 0) ?>">
                 </label>
-                <label>قیمت متری همکار (تومان) — خالی بماند تا درصد تخفیف همکار از تنظیمات اعمال شود
+                <label>تخفیف همکار — قیمت متری همکار (تومان) — خالی بماند تا درصد تخفیف همکار از تنظیمات اعمال شود
                     <input type="number" name="partner_price_per_meter" id="pf-partner" min="0" step="any" value="<?= ($editProduct['partner_price_per_meter'] ?? null) !== null && ($editProduct['partner_price_per_meter'] ?? '') !== '' ? (int) $editProduct['partner_price_per_meter'] : '' ?>" placeholder="خالی = خودکار با درصد همکار">
                 </label>
                 <label>ترتیب نمایش
@@ -852,6 +955,18 @@ function catalog_render_products(array $d): void
                 </div>
 
                 <h3>مواد مصرفی و بهای تمام‌شده (فرمول ساخت)</h3>
+                <div class="card" style="background:#fffbeb;margin:10px 0">
+                    <strong>هزینه تولید (دستمزد و سربار)</strong>
+                    <p class="muted">علاوه بر مواد، هزینه ساخت هر متر و هر چراغ را وارد کنید تا در بهای تمام‌شده لحاظ شود.</p>
+                    <div class="inline-fields">
+                        <label>هزینه تولید هر متر (تومان)
+                            <input type="number" name="labor_cost_per_meter" min="0" step="any" value="<?= (int) ($editProduct['labor_cost_per_meter'] ?? 0) ?>">
+                        </label>
+                        <label>هزینه تولید هر چراغ (تومان)
+                            <input type="number" name="labor_cost_per_fixture" min="0" step="any" value="<?= (int) ($editProduct['labor_cost_per_fixture'] ?? 0) ?>">
+                        </label>
+                    </div>
+                </div>
                 <p class="muted">برای ساخت این محصول چه مواد خامی مصرف می‌شود؟ مصرف «به‌ازای هر متر» برای موادی است که با طول چراغ کم‌وزیاد می‌شوند (اعشاری هم می‌شود؛ مثلاً چسب حرارتی: یک بسته در ۵۰ متر = <span dir="ltr">0.02</span> بسته در متر) و مصرف «به‌ازای هر چراغ» برای موادی مثل درایور و درپوش که برای هر چراغ یک بار مصرف می‌شوند. بهای تمام‌شده فقط در پنل دیده می‌شود و هرگز در سایت عمومی نمایش داده نمی‌شود.</p>
                 <div id="bom-rows">
                     <?php
@@ -918,9 +1033,9 @@ function catalog_render_products(array $d): void
                     $pmargin = product_margin((int) $editProduct['id']);
                 ?>
                 <div class="card" style="background:#f9fafb;margin:10px 0">
-                    <strong>بهای تمام‌شده مواد (با آخرین قیمت خرید):</strong>
-                    <div>بهای مواد هر متر: <strong><?= e(format_price($pcost['per_meter'])) ?></strong> تومان</div>
-                    <div>بهای مواد ثابت هر چراغ: <strong><?= e(format_price($pcost['per_fixture'])) ?></strong> تومان <span class="muted">(به‌ازای هر چراغ/سفارش جدا از متری)</span></div>
+                    <strong>بهای تمام‌شده (مواد با آخرین قیمت خرید + هزینه تولید):</strong>
+                    <div>بهای تمام‌شده هر متر: <strong><?= e(format_price($pcost['per_meter'])) ?></strong> تومان</div>
+                    <div>بهای تمام‌شده ثابت هر چراغ: <strong><?= e(format_price($pcost['per_fixture'])) ?></strong> تومان <span class="muted">(به‌ازای هر چراغ/سفارش جدا از متری)</span></div>
                     <div>حاشیه سود متری مشتری: <strong><?= e(format_price($pmargin['retail_margin'])) ?></strong> تومان (<?= e(format_price($pmargin['retail_margin_percent'])) ?>٪ از قیمت فروش)</div>
                     <div>حاشیه سود متری همکار: <strong><?= e(format_price($pmargin['partner_margin'])) ?></strong> تومان (<?= e(format_price($pmargin['partner_margin_percent'])) ?>٪ از قیمت همکار)</div>
                     <?php if ($pmargin['partner_margin'] < 0): ?>
@@ -971,6 +1086,87 @@ function catalog_render_products(array $d): void
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
+                <h3>تنظیمات فرم سفارش</h3>
+                <p class="muted">مشخص کنید در فرم ثبت سفارش این محصول کدام فیلدها نمایش داده شوند. مثلاً برای چراغ رشد گیاه، طول و سیم لازم نیست.</p>
+                <?php $ofc = $editProduct !== null ? product_order_form_config($editProduct) : ['show_length' => true, 'show_qty' => true, 'show_wire' => true, 'show_endcap' => true, 'show_options' => true]; ?>
+                <div class="inline-fields">
+                    <label class="check"><input type="checkbox" name="ofc_show_length" value="1"<?= $ofc['show_length'] ? ' checked' : '' ?>> طول چراغ</label>
+                    <label class="check"><input type="checkbox" name="ofc_show_qty" value="1"<?= $ofc['show_qty'] ? ' checked' : '' ?>> تعداد</label>
+                    <label class="check"><input type="checkbox" name="ofc_show_wire" value="1"<?= $ofc['show_wire'] ? ' checked' : '' ?>> طول سیم</label>
+                    <label class="check"><input type="checkbox" name="ofc_show_endcap" value="1"<?= $ofc['show_endcap'] ? ' checked' : '' ?>> درپوش</label>
+                    <label class="check"><input type="checkbox" name="ofc_show_options" value="1"<?= $ofc['show_options'] ? ' checked' : '' ?>> آپشن‌ها (ویژگی‌ها)</label>
+                </div>
+                <?php if ($editProduct !== null):
+                    $formFields = $pdo->query("SELECT * FROM order_form_fields WHERE owner_type = 'product' AND owner_id = " . (int) $editProduct['id'] . " ORDER BY sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+                ?>
+                <div class="card" style="background:#f9fafb;margin:10px 0">
+                    <strong>فیلدهای سفارشی فرم سفارش</strong>
+                    <p class="muted">فیلدهای اضافه‌ای که فقط برای این محصول در فرم سفارش نمایش داده می‌شوند (مثلاً مساحت، نوع نصب).</p>
+                    <table>
+                        <thead><tr><th>برچسب</th><th>نوع</th><th>گزینه‌ها</th><th>الزامی</th><th>ترتیب</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($formFields as $ff): ?>
+                            <tr>
+                                <td><?= e($ff['label']) ?></td>
+                                <td><?= e(['text' => 'متن', 'number' => 'عدد', 'select' => 'انتخابی', 'textarea' => 'متن بلند', 'checkbox' => 'تیک'][($ff['field_type'] ?? 'text')] ?? $ff['field_type']) ?></td>
+                                <td><?= e($ff['options_json'] ?? '') ?></td>
+                                <td><?= (int) $ff['is_required'] === 1 ? 'بله' : 'خیر' ?></td>
+                                <td><?= (int) $ff['sort_order'] ?></td>
+                                <td>
+                                    <form method="post" class="inline" onsubmit="return confirm('این فیلد حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_order_field"><input type="hidden" name="id" value="<?= (int) $ff['id'] ?>"><input type="hidden" name="product_id" value="<?= (int) $editProduct['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if ($formFields === []): ?><tr><td colspan="6" class="muted">فیلد سفارشی تعریف نشده است.</td></tr><?php endif; ?>
+                        </tbody>
+                    </table>
+                    <div class="inline-fields" style="margin-top:10px">
+                        <label>برچسب فیلد <input type="text" name="new_field_label" maxlength="100"></label>
+                        <label>نوع
+                            <select name="new_field_type">
+                                <option value="text">متن</option>
+                                <option value="number">عدد</option>
+                                <option value="select">انتخابی</option>
+                                <option value="textarea">متن بلند</option>
+                                <option value="checkbox">تیک</option>
+                            </select>
+                        </label>
+                        <label>گزینه‌ها (با | جدا کنید، برای نوع انتخابی)
+                            <input type="text" name="new_field_options" dir="rtl" placeholder="مثلاً: آویز | سقفی | دیواری">
+                        </label>
+                        <label class="check"><input type="checkbox" name="new_field_required" value="1"> الزامی</label>
+                        <button type="submit" name="add_order_field" value="1" class="btn small add">+ افزودن فیلد</button>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php if ($editProduct !== null):
+                    $galleryImages = get_product_images((int) $editProduct['id']);
+                ?>
+                <h3>گالری تصاویر محصول</h3>
+                <p class="muted">علاوه بر عکس اصلی، می‌توانید چند عکس دیگر برای گالری این محصول اضافه کنید.</p>
+                <div class="pg-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:10px 0">
+                    <?php foreach ($galleryImages as $gi): ?>
+                    <div class="pg-item" style="position:relative;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                        <img src="<?= e(UPLOADS_URL . '/' . basename((string) $gi['image'])) ?>" alt="" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block">
+                        <?php if (!empty($gi['caption'])): ?><div style="padding:4px 8px;font-size:11px"><?= e($gi['caption']) ?></div><?php endif; ?>
+                        <div style="display:flex;gap:4px;padding:4px">
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_product_image"><input type="hidden" name="id" value="<?= (int) $gi['id'] ?>"><input type="hidden" name="dir" value="-1"><input type="hidden" name="product_id" value="<?= (int) $editProduct['id'] ?>"><button type="submit" class="btn small" title="قبلی">→</button></form>
+                            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_product_image"><input type="hidden" name="id" value="<?= (int) $gi['id'] ?>"><input type="hidden" name="dir" value="1"><input type="hidden" name="product_id" value="<?= (int) $editProduct['id'] ?>"><button type="submit" class="btn small" title="بعدی">←</button></form>
+                            <form method="post" class="inline" onsubmit="return confirm('این عکس حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_product_image"><input type="hidden" name="id" value="<?= (int) $gi['id'] ?>"><input type="hidden" name="product_id" value="<?= (int) $editProduct['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if ($galleryImages === []): ?><p class="muted">هنوز عکسی در گالری نیست.</p><?php endif; ?>
+                </div>
+                <div class="card" style="background:#f9fafb;margin:10px 0">
+                    <strong>افزودن عکس به گالری</strong>
+                    <div class="inline-fields" style="margin-top:8px">
+                        <label>فایل عکس <input type="file" name="gallery_image" accept="image/*"></label>
+                        <label>توضیح (اختیاری) <input type="text" name="gallery_caption" maxlength="150"></label>
+                        <button type="submit" name="add_gallery_image" value="1" class="btn small add">+ افزودن به گالری</button>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <button type="submit" class="btn <?= $editProduct !== null ? 'edit' : 'add' ?>"><?= $editProduct !== null ? 'ذخیره تغییرات' : 'ثبت محصول' ?></button>
                 <?php if ($editProduct !== null): ?><a class="btn" href="admin.php?page=products">انصراف</a><?php endif; ?>
             </form>
@@ -1016,14 +1212,23 @@ function catalog_render_products(array $d): void
                 <div class="card wide"><p class="muted">هنوز محصولی ثبت نشده است. اولین محصول را با دکمه «+ افزودن محصول» بسازید تا در کاتالوگ عمومی سایت نمایش داده شود.</p></div>
             <?php else: ?>
             <table>
-                <thead><tr><th>نام محصول</th><th>دسته</th><th>قیمت متری مشتری</th><th>قیمت متری همکار</th><th>بهای مواد (هر متر)</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <thead><tr><th>نام محصول</th><th>دسته</th><th>قیمت متری (مشتری / همکار)</th><th>بهای مواد (هر متر)</th><th>ترتیب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                 <tbody>
                 <?php foreach ($productsList as $p): ?>
                     <tr>
                         <td><?= e($p['name']) ?><?php if (!empty($p['sku'])): ?> <span class="muted" dir="ltr">(<?= e($p['sku']) ?>)</span><?php endif; ?></td>
                         <td><?= e($p['category_title'] ?? '—') ?></td>
-                        <td><?= e(format_price($p['price_per_meter'])) ?> تومان</td>
-                        <td><?= ($p['partner_price_per_meter'] ?? null) !== null && ($p['partner_price_per_meter'] ?? '') !== '' && (float) $p['partner_price_per_meter'] > 0 ? e(format_price($p['partner_price_per_meter'])) . ' تومان' : '<span class="muted">خودکار: ' . e(format_price(product_base_price_per_meter($p, true))) . ' تومان</span>' ?></td>
+                        <td>
+                            <form method="post" class="inline quick-price">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="quick_price_product">
+                                <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+                                <input type="number" name="price_per_meter" min="0" step="any" value="<?= (int) $p['price_per_meter'] ?>" style="width:110px" title="قیمت متری مشتری (تومان)">
+                                <input type="number" name="partner_price_per_meter" min="0" step="any" value="<?= ($p['partner_price_per_meter'] ?? null) !== null && ($p['partner_price_per_meter'] ?? '') !== '' ? (int) $p['partner_price_per_meter'] : '' ?>" placeholder="خودکار" style="width:90px" title="تخفیف همکار — خالی = خودکار">
+                                <button type="submit" class="btn small edit" title="ذخیره قیمت">💾</button>
+                            </form>
+                            <?php if (($p['partner_price_per_meter'] ?? null) === null || ($p['partner_price_per_meter'] ?? '') === '' || (float) ($p['partner_price_per_meter'] ?? 0) <= 0): ?><div class="muted" style="font-size:11px">خودکار: <?= e(format_price(product_base_price_per_meter($p, true))) ?></div><?php endif; ?>
+                        </td>
                         <td><?php $pmc = product_material_cost((int) $p['id']); ?><?= $pmc['lines'] !== [] ? e(format_price($pmc['per_meter'])) . ' تومان' : '<span class="muted">فرمول ندارد</span>' ?></td>
                         <td>
                             <form method="post" class="inline">
