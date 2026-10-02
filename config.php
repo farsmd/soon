@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.10.0');
+define('APP_VERSION', '8.10.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -751,6 +751,12 @@ GALLERYHTML;
         seed_product_seo_v810_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('product seo migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
+    try {
+        seed_reveal_fix_v8101_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('reveal fix migration failed: ' . $e->getMessage());
     }
 }
 
@@ -3249,6 +3255,32 @@ function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
 }
 
 
+
+/**
+ * نسخه ۸٫۱۰٫۱ — رفع مخفی ماندن کارت‌های ویژگی‌ها (فقط یک بار).
+ * اسکریپت reveal در قالب اسلایدر قبل از لود DOM اجرا می‌شد؛ اصلاح شد.
+ */
+function seed_reveal_fix_v8101_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('reveal_fix_8101', '') === '1') {
+        return;
+    }
+    $st = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    $st->execute([':k' => 'slider']);
+    $old = $st->fetchColumn();
+    if ($old !== false && trim((string) $old) !== '') {
+        archive_design_revision($pdo, 'template', 'slider', (string) $old, 'template-archive: قالب «اسلایدر» قبل از رفع اسکریپت reveal (نسخه ۸٫۱۰٫۱).');
+    }
+    $tpls = factory_templates();
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    $up->execute([':c' => $tpls['slider']['content'], ':k' => 'slider']);
+    set_setting('reveal_fix_8101', '1');
+}
 
 /**
  * نسخه ۸٫۱۰٫۰ — افزودن فیلدهای سئو به جدول محصولات (فقط یک بار).
