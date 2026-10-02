@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.1.10');
+define('APP_VERSION', '9.1.9');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -871,6 +871,21 @@ PARTNERHTML;
         }
     } catch (Throwable $e) {
         error_log('custom_fields_json column failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱٫۱۰: ستون‌های قیمت‌گذاری کاستم (پر وات + قاب) ---
+    try {
+        $cols = $pdo->query("PRAGMA table_info(products)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('pricing_model', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN pricing_model TEXT NOT NULL DEFAULT 'per_meter'");
+        }
+        if (!in_array('price_per_watt', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN price_per_watt INTEGER NOT NULL DEFAULT 0");
+        }
+        if (!in_array('frame_options_json', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN frame_options_json TEXT");
+        }
+    } catch (Throwable $e) {
+        error_log('custom pricing columns failed: ' . $e->getMessage());
     }
     // --- نسخه ۹٫۱: ستون‌های هزینه تولید در جدول محصولات ---
     try {
