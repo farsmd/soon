@@ -1267,6 +1267,10 @@ if ($page === 'pages' && isset($_GET['edit_id'])) {
     foreach ($pages as $p) {
         if ((int) $p['id'] === (int) $_GET['edit_id']) { $editPage = $p; break; }
     }
+    // نسخه ۹٫۰٫۲: ویرایش صفحه گالری مستقیم به مدیریت گالری می‌رود — بدون دست‌زدن به کد
+    if ($editPage !== null && (string) ($editPage['slug'] ?? '') === 'gallery' && !isset($_GET['raw'])) {
+        redirect_admin('admin.php?page=gallery');
+    }
     if ($editPage !== null) {
         $pageBlocks = get_page_blocks((int) $editPage['id'], false);
         if (isset($_GET['edit_block'])) {
@@ -1413,7 +1417,7 @@ if ($page === 'design') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($currentPageTitle) ?> — پنل مدیریت</title>
 <link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
-<?php if (($page ?? '') === 'design'): ?>
+<?php if (in_array(($page ?? ''), ['design', 'pages'], true)): ?>
 <link rel="stylesheet" href="assets/codemirror/lib/codemirror.min.css">
 <link rel="stylesheet" href="assets/codemirror/theme/dracula.min.css">
 <style>
@@ -1772,7 +1776,7 @@ if ($page === 'design') {
                     <span class="file-input">page.php?slug=<input type="text" name="slug" required pattern="[A-Za-z0-9\-_]+" value="<?= e($editPage['slug'] ?? '') ?>" placeholder="about"></span>
                 </label>
                 <label>محتوای صفحه <span class="muted">(HTML ساده مجاز است)</span>
-                    <textarea name="content" rows="10"><?= e($editPage['content'] ?? '') ?></textarea>
+                    <textarea name="content" rows="10" class="code-editor" data-mode="htmlmixed" dir="ltr"><?= e($editPage['content'] ?? '') ?></textarea>
                 </label>
                 <label>عنوان سئو (SEO) — اگر خالی باشد عنوان صفحه استفاده می‌شود
                     <input type="text" name="seo_title" value="<?= e($editPage['seo_title'] ?? '') ?>">
@@ -1808,7 +1812,11 @@ if ($page === 'design') {
                             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="up"><button type="submit" class="btn small">↑ بالا</button></form>
                             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><input type="hidden" name="direction" value="down"><button type="submit" class="btn small">↓ پایین</button></form>
                             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="btn small warn"><?= (int) $p['is_active'] === 1 ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?></button></form>
+                            <?php if ((string) ($p['slug'] ?? '') === 'gallery'): ?>
+                            <a class="btn small add" href="admin.php?page=gallery">🖼 مدیریت گالری</a>
+                            <?php else: ?>
                             <a class="btn small edit" href="admin.php?page=pages&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
+                            <?php endif; ?>
                             <form method="post" class="inline" onsubmit="return confirm('این صفحه حذف شود؟')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_page"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"><button type="submit" class="btn small danger-btn">حذف</button></form>
                         </td>
                     </tr>
@@ -2433,7 +2441,7 @@ if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){
 (function(){document.addEventListener('click',function(ev){var btn=ev.target;while(btn&&btn!==document&&!(btn.getAttribute&&btn.getAttribute('data-toggle-panel'))){btn=btn.parentNode}if(!btn||btn===document){return}var el=document.getElementById(btn.getAttribute('data-toggle-panel'));if(!el){return}var show=el.hasAttribute('hidden');if(show){el.removeAttribute('hidden');var f=el.querySelector('input,select,textarea');if(f){try{f.focus()}catch(e){}}}else{el.setAttribute('hidden','')}btn.setAttribute('aria-expanded',show?'true':'false')});
 var op=document.querySelector('.crud-panel[data-open],.help-panel[data-open]');if(op){try{op.scrollIntoView({block:'start'})}catch(e){}}})();
 </script>
-<?php if (($page ?? '') === 'design'): ?>
+<?php if (in_array(($page ?? ''), ['design', 'pages'], true)): ?>
 <script src="assets/codemirror/lib/codemirror.min.js"></script>
 <script src="assets/codemirror/mode/xml.min.js"></script>
 <script src="assets/codemirror/mode/css.min.js"></script>

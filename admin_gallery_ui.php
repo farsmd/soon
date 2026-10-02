@@ -18,12 +18,18 @@ $editIdx = isset($_GET['edit_idx']) ? (int) $_GET['edit_idx'] : -1;
 
 <div class="crud-panel" id="gallery-upload-panel" hidden>
     <h2>آپلود عکس جدید</h2>
-    <form method="post" enctype="multipart/form-data" class="card wide">
+    <form method="post" enctype="multipart/form-data" class="card wide" id="galleryUploadForm">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="gallery_upload">
-        <label>فایل عکس <span class="muted">(JPG، PNG یا WebP — حداکثر ۸ مگابایت)</span>
-            <input type="file" name="gallery_image" accept="image/jpeg,image/png,image/webp" required>
-        </label>
+        <div class="dropzone" id="galleryDropzone">
+            <input type="file" name="gallery_image" id="galleryFileInput" accept="image/jpeg,image/png,image/webp" required hidden>
+            <div class="dz-inner">
+                <div class="dz-icon">📷</div>
+                <p><strong>عکس را اینجا رها کنید</strong> یا <span class="dz-browse">کلیک کنید و انتخاب کنید</span></p>
+                <p class="muted" style="font-size:12px">JPG، PNG یا WebP — حداکثر ۸ مگابایت</p>
+                <div class="dz-preview" id="dzPreview" hidden><img id="dzImg" alt=""><span id="dzName"></span></div>
+            </div>
+        </div>
         <label>کپشن (عنوان عکس)
             <input type="text" name="caption" placeholder="مثلاً نور خطی آشپزخانه">
         </label>
@@ -80,7 +86,38 @@ $editIdx = isset($_GET['edit_idx']) ? (int) $_GET['edit_idx'] : -1;
 </div>
 <?php endif; ?>
 
+<script>
+(function(){
+    var dz = document.getElementById('galleryDropzone');
+    var fi = document.getElementById('galleryFileInput');
+    if(!dz || !fi){ return; }
+    dz.addEventListener('click', function(){ fi.click(); });
+    ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('dz-over'); }); });
+    ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('dz-over'); }); });
+    dz.addEventListener('drop', function(e){
+        var files = e.dataTransfer.files;
+        if(files && files.length){ fi.files = files; showPreview(files[0]); }
+    });
+    fi.addEventListener('change', function(){ if(fi.files.length){ showPreview(fi.files[0]); } });
+    function showPreview(file){
+        var pv = document.getElementById('dzPreview');
+        var img = document.getElementById('dzImg');
+        var nm = document.getElementById('dzName');
+        if(pv && img){
+            img.src = URL.createObjectURL(file);
+            if(nm){ nm.textContent = file.name; }
+            pv.hidden = false;
+        }
+    }
+})();
+</script>
 <style>
+.dropzone{border:2px dashed #cbd5e1;border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:14px}
+.dropzone:hover,.dropzone.dz-over{border-color:#2563eb;background:#eff6ff}
+.dz-icon{font-size:40px;margin-bottom:8px}
+.dz-browse{color:#2563eb;text-decoration:underline}
+.dz-preview{margin-top:12px;display:flex;align-items:center;gap:10px;justify-content:center}
+.dz-preview img{width:80px;height:60px;object-fit:cover;border-radius:8px}
 .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:12px}
 .gallery-card{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff}
 .gallery-card img{width:100%;height:150px;object-fit:cover;display:block}
