@@ -72,11 +72,14 @@ HTML,
             x.globalAlpha=1;requestAnimationFrame(t);
         })();
     }
-    /* ظهور هنگام اسکرول */
-    var els=document.querySelectorAll('.rv');
-    if(!('IntersectionObserver' in window)||reduce){for(var j=0;j<els.length;j++){els[j].classList.add('in');}return;}
-    var o=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){if(es[k].isIntersecting){es[k].target.classList.add('in');o.unobserve(es[k].target);}}},{threshold:.12});
-    for(var j=0;j<els.length;j++){o.observe(els[j]);}
+    /* ظهور هنگام اسکرول — نسخه ۸٫۱۰٫۱: بعد از لود کامل DOM اجرا شود */
+    function initReveal(){
+        var els=document.querySelectorAll('.rv');
+        if(!('IntersectionObserver' in window)||reduce){for(var j=0;j<els.length;j++){els[j].classList.add('in');}return;}
+        var o=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){if(es[k].isIntersecting){es[k].target.classList.add('in');o.unobserve(es[k].target);}}},{threshold:.12});
+        for(var j=0;j<els.length;j++){o.observe(els[j]);}
+    }
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initReveal);}else{initReveal();}
 })();
 </script>
 HTML,
