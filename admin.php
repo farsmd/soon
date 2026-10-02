@@ -19,6 +19,8 @@ require_once __DIR__ . '/admin_production.php';
 require_once __DIR__ . '/admin_finance.php';
 // گزارش‌های مدیریتی (فاز ۶ / نسخه ۸٫۶): فروش، محصولات، مصرف مواد، مشتریان و تولید
 require_once __DIR__ . '/admin_reports.php';
+// کاربران و نقش‌های پنل (فاز ۰ / نسخه ۸٫۷): ورود چندکاربره و سطح دسترسی صفحه/اکشن
+require_once __DIR__ . '/admin_users.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
 
@@ -241,6 +243,14 @@ if ($passwordHash === '') {
             $error = 'تکرار پسورد با پسورد یکسان نیست.';
         } else {
             set_setting('admin_password_hash', password_hash($pw, PASSWORD_DEFAULT));
+            // کاربر مالک «admin» هم ساخته می‌شود تا ورود از این به بعد با نام کاربری باشد
+            try {
+                $pdo->prepare("INSERT INTO admin_users (username, pass_hash, display_name, role_key, is_active) VALUES ('admin', ?, 'مدیر', 'owner', 1)")
+                    ->execute([password_hash($pw, PASSWORD_DEFAULT)]);
+                $_SESSION['admin_user_id'] = (int) $pdo->lastInsertId();
+                $_SESSION['admin_username'] = 'admin';
+            } catch (Throwable $ignored) {
+            }
             cms_regenerate_session_id();
             $_SESSION['admin_logged_in'] = true;
             log_admin_event('setup', 'ساخت پسورد اولیه و ورود');
@@ -284,15 +294,50 @@ if (!is_logged_in()) {
     $error = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login') {
         check_csrf();
+        $loginName = trim((string) ($_POST['username'] ?? ''));
+        if ($loginName === '') {
+            $loginName = 'admin';
+        }
         $pw = (string) ($_POST['password'] ?? '');
-        if (password_verify($pw, $passwordHash)) {
+        $loginUser = null;
+        try {
+            $st = $pdo->prepare('SELECT * FROM admin_users WHERE username = ? AND is_active = 1');
+            $st->execute([$loginName]);
+            $row = $st->fetch();
+            if ($row && password_verify($pw, (string) $row['pass_hash'])) {
+                $loginUser = $row;
+            }
+        } catch (Throwable $ignored) {
+        }
+        // مسیر جایگزین: فقط اگر جدول کاربران هنوز خالی است، پسورد قدیمی مدیریت
+        // برای ساخت و ورود کاربر admin کار می‌کند (نباید راه ورود کاربر غیرفعال شود)
+        if ($loginUser === null && $loginName === 'admin' && $passwordHash !== '' && password_verify($pw, $passwordHash)) {
+            try {
+                if ((int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn() === 0) {
+                    $pdo->prepare("INSERT INTO admin_users (username, pass_hash, display_name, role_key, is_active) VALUES ('admin', ?, 'مدیر', 'owner', 1)")
+                        ->execute([$passwordHash]);
+                    $loginUser = ['id' => (int) $pdo->lastInsertId(), 'username' => 'admin', 'role_key' => 'owner'];
+                }
+            } catch (Throwable $ignored) {
+            }
+        }
+        if ($loginUser !== null) {
             cms_regenerate_session_id();
             $_SESSION['admin_logged_in'] = true;
-            log_admin_event('login', 'ورود موفق به پنل');
+            $_SESSION['admin_user_id'] = (int) ($loginUser['id'] ?? 0);
+            $_SESSION['admin_username'] = (string) ($loginUser['username'] ?? 'admin');
+            if ((int) ($loginUser['id'] ?? 0) > 0) {
+                try {
+                    $pdo->prepare("UPDATE admin_users SET last_login_at = datetime('now') WHERE id = ?")
+                        ->execute([(int) $loginUser['id']]);
+                } catch (Throwable $ignored) {
+                }
+            }
+            log_admin_event('login', 'ورود موفق به پنل (' . (string) ($loginUser['username'] ?? '') . ')');
             redirect_admin();
         }
-        log_admin_event('login', 'تلاش ناموفق برای ورود (پسورد اشتباه)', false);
-        $error = 'پسورد اشتباه است.';
+        log_admin_event('login', 'تلاش ناموفق برای ورود (' . $loginName . ')', false);
+        $error = 'نام کاربری یا پسورد اشتباه است.';
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // فرمی از نشستی تمام‌شده رسیده است (مثلاً صفحه از قبل باز بوده و نشست
         // منقضی شده)؛ فرم اجرا نمی‌شود و کاربر با یک پیام روشن به ورود برمی‌گردد.
@@ -318,8 +363,11 @@ if (!is_logged_in()) {
     <form method="post">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="login">
+        <label>نام کاربری
+            <input type="text" name="username" dir="ltr" autocomplete="username" placeholder="admin" autofocus>
+        </label>
         <label>پسورد
-            <input type="password" name="password" required autocomplete="current-password" autofocus>
+            <input type="password" name="password" required autocomplete="current-password">
         </label>
         <button type="submit" class="btn primary block">ورود</button>
     </form>
@@ -337,6 +385,24 @@ $page  = (string) ($_GET['page'] ?? 'dashboard');
 // نام قدیمی صفحه «قالب‌ها» به صفحه جدید «قالب و استایل» نگاشت می‌شود (قالب‌ها دیگر فایلی نیستند)
 if ($page === 'templates') {
     $page = 'design';
+}
+
+// ---------- گارد سطح دسترسی (نسخه ۸٫۷٫۰) ----------
+// نشست هست ولی کاربرش حذف/غیرفعال شده → خروج تمیز به صفحهٔ ورود
+if (current_admin_user() === null) {
+    logout_admin();
+    redirect_admin();
+}
+// صفحه‌ای بیرون از نقش کاربر → برگشت به اولین صفحهٔ مجاز او
+if (!admin_can_page($page)) {
+    $firstAllowed = admin_first_allowed_page();
+    if ($firstAllowed === $page) {
+        // هیچ صفحه‌ای برای این نقش باز نیست؛ نشست بسته می‌شود تا حلقهٔ ریدایرکت ساخته نشود
+        logout_admin();
+        redirect_admin();
+    }
+    flash('error', 'به این بخش دسترسی نداری. اگر لازمش داری، از مدیر کل بخواه دسترسی نقش تو را از صفحهٔ «کاربران و نقش‌ها» تنظیم کند.');
+    redirect_admin('admin.php?page=' . $firstAllowed);
 }
 
 // عنوان صفحه‌ها
@@ -373,6 +439,7 @@ $pageTitles = [
     'update'     => 'آپدیت سیستم',
     'logs'       => 'لاگ‌ها',
     'api'        => 'دسترسی API',
+    'users'      => 'کاربران و نقش‌ها',
     'settings'   => 'تنظیمات سایت',
 ];
 $currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
@@ -421,6 +488,7 @@ $navGroups = [
         ['admin.php?page=reports', 'chart', 'گزارش‌ها', 'reports'],
     ]],
     'system' => ['سیستم', [
+        ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
         ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
         ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
@@ -444,6 +512,14 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $action = (string) ($_POST['action'] ?? '');
+
+    // گارد اکشن (نسخه ۸٫۷٫۰): اکشن هر صفحه فقط برای نقش‌هایی که آن صفحه را دارند اجرا می‌شود
+    if ($action !== '' && !admin_can_action($action)) {
+        log_admin_event($action, 'تلاش برای اجرای اکشن بدون دسترسی', false, $page);
+        flash('error', 'اجازهٔ انجام این کار را نداری.');
+        header('Location: admin.php?page=' . $page);
+        exit;
+    }
 
     // ---------- مدیریت توکن API ----------
     if ($action === 'api_save') {
@@ -518,6 +594,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۶ (گزارش‌ها) در admin_reports.php پردازش می‌شوند
         if (in_array($action, reports_post_actions(), true)) {
             reports_handle_post($action);
+        }
+        if (in_array($action, users_post_actions(), true)) {
+            users_handle_post($action);
         }
         // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
         if (in_array($action, logs_post_actions(), true)) {
@@ -940,7 +1019,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $current = (string) ($_POST['current_password'] ?? '');
                 $new     = (string) ($_POST['new_password'] ?? '');
                 $confirm = (string) ($_POST['new_password_confirm'] ?? '');
-                if (!password_verify($current, get_setting('admin_password_hash', ''))) {
+                // از نسخه ۸٫۷ پسوردِ خودِ کاربرِ واردشده عوض می‌شود، نه یک پسورد سراسری
+                $meUser = current_admin_user();
+                $myHash = $meUser !== null ? (string) ($meUser['pass_hash'] ?? '') : '';
+                if ($myHash === '') {
+                    $myHash = (string) get_setting('admin_password_hash', '');
+                }
+                if (!password_verify($current, $myHash)) {
                     throw new RuntimeException('پسورد فعلی اشتباه است.');
                 }
                 if (strlen($new) < 8) {
@@ -949,7 +1034,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($new !== $confirm) {
                     throw new RuntimeException('تکرار پسورد جدید یکسان نیست.');
                 }
-                set_setting('admin_password_hash', password_hash($new, PASSWORD_DEFAULT));
+                $newPassHash = password_hash($new, PASSWORD_DEFAULT);
+                if ($meUser !== null) {
+                    $pdo->prepare('UPDATE admin_users SET pass_hash = ? WHERE id = ?')
+                        ->execute([$newPassHash, (int) $meUser['id']]);
+                    if ((string) ($meUser['username'] ?? '') === 'admin') {
+                        set_setting('admin_password_hash', $newPassHash);
+                    }
+                } else {
+                    set_setting('admin_password_hash', $newPassHash);
+                }
                 flash('ok', 'پسورد تغییر کرد.');
                 redirect_admin('admin.php?page=settings');
                 // no break
@@ -1031,6 +1125,10 @@ extract($financeData);
 // داده‌های فاز ۶ (گزارش‌ها): فروش، محصولات، مصرف مواد، مشتریان و تولید
 $reportsData = reports_load_data($page);
 extract($reportsData);
+
+// داده‌های کاربران و نقش‌ها (فاز ۰ / نسخه ۸٫۷)
+$usersData = users_load_data($page);
+extract($usersData);
 
 // ---------- داشبورد: شمارنده‌های کارت‌ها (کوئری‌های COUNT سبک) ----------
 $dashCounts = ['customers' => 0, 'products' => 0, 'orders' => 0, 'new_orders' => 0];
@@ -1149,9 +1247,11 @@ if ($page === 'design') {
         <strong class="topbar-title"><?= e($currentPageTitle) ?></strong>
     </div>
     <nav class="topbar-actions">
-        <a href="admin.php?page=products" class="quick-add">محصول جدید</a>
-        <a href="admin.php?page=customers" class="quick-add">مشتری جدید</a>
+        <?php if (admin_can_page('products')): ?><a href="admin.php?page=products" class="quick-add">محصول جدید</a><?php endif; ?>
+        <?php if (admin_can_page('customers')): ?><a href="admin.php?page=customers" class="quick-add">مشتری جدید</a><?php endif; ?>
         <a href="index.php" target="_blank" rel="noopener">مشاهده سایت</a>
+        <?php $topbarMe = current_admin_user(); ?>
+        <?php if ($topbarMe !== null): ?><span class="muted"><?= e((string) ($topbarMe['display_name'] ?? '') !== '' ? (string) $topbarMe['display_name'] : (string) $topbarMe['username']) ?> · <?= e(user_role_title((string) $topbarMe['role_key'])) ?></span><?php endif; ?>
         <a href="admin.php?logout=1">خروج</a>
     </nav>
 </header>
@@ -1165,9 +1265,11 @@ if ($page === 'design') {
         </div>
 
         <?php foreach ($navGroups as $gKey => $gData): ?>
+        <?php $navVisible = 0; foreach ($gData[1] as $navItem) { if (($navItem[3] ?? '') === '' || admin_can_page((string) $navItem[3])) { $navVisible++; } } if ($navVisible === 0) { continue; } ?>
         <details class="nav-group" data-group="<?= $gKey ?>"<?= $activeNavGroup === $gKey ? ' open' : '' ?>>
             <summary><?= e($gData[0]) ?></summary>
             <?php foreach ($gData[1] as $it): ?>
+            <?php if (($it[3] ?? '') !== '' && !admin_can_page((string) $it[3])) { continue; } ?>
             <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'production' && (int) ($productionActiveCount ?? 0) > 0): ?><span class="nav-badge" title="برگه‌های تولید در جریان"><?= (int) $productionActiveCount ?></span><?php endif; ?><?php if ($it[3] === 'expenses' && (int) ($finPending['count'] ?? 0) > 0): ?><span class="nav-badge" title="هزینه‌های در انتظار تأیید"><?= (int) $finPending['count'] ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
             <?php endforeach; ?>
         </details>
@@ -1198,6 +1300,22 @@ if ($page === 'design') {
                 'chart_orders'        => ['نمودار وضعیت سفارش‌ها', 'chart'],
                 'chart_expenses'      => ['نمودار هزینه‌ها برحسب دسته', 'chart'],
                 'chart_production'    => ['نمودار برگه‌های تولید برحسب مرحله', 'chart'],
+            ];
+            $dashWidgetPages = [
+                'stat_customers'     => 'customers',
+                'stat_products'      => 'products',
+                'stat_orders'        => 'orders',
+                'stat_new_orders'    => 'orders',
+                'stat_production'    => 'production',
+                'stat_finance_month' => 'finance',
+                'stat_pending'       => 'expenses',
+                'stat_debt'          => 'statements',
+                'stat_messages'      => 'messages',
+                'stat_version'       => 'dashboard',
+                'chart_income'       => 'finance',
+                'chart_orders'       => 'orders',
+                'chart_expenses'     => 'expenses',
+                'chart_production'   => 'production',
             ];
             $dashEnabledRaw = json_decode((string) get_setting('dash_widgets', ''), true);
             $dashEnabled = (is_array($dashEnabledRaw) && $dashEnabledRaw !== [])
@@ -1241,7 +1359,10 @@ if ($page === 'design') {
                 $out .= '</svg>';
                 return $out;
             };
-            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal): string {
+            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages): string {
+                if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
+                    return '';
+                }
                 switch ($key) {
                     case 'stat_customers':
                         return '<a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong>' . (int) $dashCounts['customers'] . '</strong></a>';
@@ -1266,7 +1387,10 @@ if ($page === 'design') {
                 }
                 return '';
             };
-            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $renderBarChart): string {
+            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $renderBarChart, $dashWidgetPages): string {
+                if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
+                    return '';
+                }
                 switch ($key) {
                     case 'chart_income':
                         $bars = [];
@@ -1285,8 +1409,9 @@ if ($page === 'design') {
             };
             ?>
             <h1>داشبورد</h1>
-            <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد. ویجت‌ها از دکمه «شخصی‌سازی داشبورد» قابل افزودن، حذف و جابه‌جایی‌اند.</p>
+            <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد. هر کاربر فقط کارت‌ها و نمودارهای مربوط به بخش‌های مجاز خودش را می‌بیند.</p>
 
+            <?php if (admin_can_page('settings')): ?>
             <div class="crud-toolbar">
                 <button type="button" class="btn" data-toggle-panel="dash-customize-panel" aria-expanded="false">⚙ شخصی‌سازی داشبورد</button>
             </div>
@@ -1330,23 +1455,24 @@ if ($page === 'design') {
                     </script>
                 </section>
             </div>
+            <?php endif; ?>
 
             <div class="stat-grid dash-cards">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat') { continue; } echo $renderStat($wk); ?>
-                <?php if ($wk === 'stat_orders' && $lowStockCount > 0): ?>
+                <?php if ($wk === 'stat_orders' && $lowStockCount > 0 && admin_can_page('materials')): ?>
                 <a class="stat-card" href="admin.php?page=materials" style="border-color:#fda4af;background:#fef2f2"><span style="color:#b91c1c">⚠ مواد رو به اتمام</span><strong style="color:#b91c1c"><?= (int) $lowStockCount ?> ماده</strong></a>
                 <?php endif; ?>
                 <?php endforeach; ?>
             </div>
 
-            <?php $hasChart = false; foreach ($dashEnabled as $wk) { if (($dashWidgetDefs[$wk][1] ?? '') === 'chart') { $hasChart = true; break; } } ?>
+            <?php $hasChart = false; foreach ($dashEnabled as $wk) { if (($dashWidgetDefs[$wk][1] ?? '') === 'chart' && (!isset($dashWidgetPages[$wk]) || admin_can_page($dashWidgetPages[$wk]))) { $hasChart = true; break; } } ?>
             <?php if ($hasChart): ?>
             <div class="stat-grid" style="margin-top:18px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'chart') { continue; } echo $renderChart($wk); endforeach; ?>
             </div>
             <?php endif; ?>
 
-            <?php if ($lowStockCount > 0): ?>
+            <?php if ($lowStockCount > 0 && admin_can_page('materials')): ?>
             <div class="alert error">
                 موجودی این مواد به حد هشدار رسیده است:
                 <?php foreach ($lowStockList as $lm): ?>
@@ -1825,6 +1951,8 @@ if ($page === 'design') {
             <?php finance_render_rules($financeData); ?>
         <?php elseif ($page === 'reports'): ?>
             <?php reports_render($reportsData); ?>
+        <?php elseif ($page === 'users'): ?>
+            <?php users_render($usersData); ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
