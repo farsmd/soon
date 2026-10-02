@@ -454,6 +454,7 @@ html[data-theme="light"] .mani-kicker{color:#8a6d1f}
 .ps-price small{font-size:12px;font-weight:400;color:#9aa3b2}
 .ps-partner{font-size:13px;color:#9aa3b2;margin-top:2px}
 .ps-link{display:inline-block;margin-top:12px;font-size:14px;color:#c9a227}
+.ps-cta{display:inline-block;margin-top:12px}
 .ps-more{text-align:center;margin-top:32px}
 
 /* ---------- نوار گالری ---------- */
@@ -609,8 +610,7 @@ textarea{min-height:120px;resize:vertical}
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
     .rv{opacity:1;transform:none}
     .hero-canvas{display:none}
-    /* نوار متحرک محصولات: به خواست کاربر، حتی با Reduce Motion هم باید بچرخد */
-    .mq-track{-webkit-animation:mq 34s linear infinite!important;animation:mq 34s linear infinite!important}
+    .mq-track{animation:none}
 }
 
 /* ---------- چاپ ---------- */
