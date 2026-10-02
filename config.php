@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.1.15');
+define('APP_VERSION', '9.2.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -534,7 +534,7 @@ function init_db(PDO $pdo): void
         'visit_log_enabled'      => '1',
         'admin_log_enabled'      => '1',
         'log_retention_days'     => '90',
-        'log_skip_bots'          => '1',
+        'log_timezone'           => 'Asia/Tehran',
     ] as $logKey => $logDef) {
         if (get_setting($logKey, '') === '') {
             set_setting($logKey, $logDef);
@@ -916,6 +916,20 @@ PARTNERHTML;
         }
     } catch (Throwable $e) {
         error_log('labor cost columns failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۲٫۰: ستون‌های تشخیص ربات و ادمین در لاگ بازدید ---
+    try {
+        $cols = $pdo->query("PRAGMA table_info(visit_logs)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('is_bot', $cols, true)) {
+            $pdo->exec("ALTER TABLE visit_logs ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0");
+            // پر کردن برای رکوردهای قدیمی بر اساس user_agent
+            $pdo->exec("UPDATE visit_logs SET is_bot = 1 WHERE lower(user_agent) LIKE '%bot%' OR lower(user_agent) LIKE '%crawl%' OR lower(user_agent) LIKE '%spider%' OR lower(user_agent) LIKE '%slurp%' OR user_agent = '' OR lower(user_agent) LIKE '%headless%' OR lower(user_agent) LIKE '%curl%' OR lower(user_agent) LIKE '%wget%' OR lower(user_agent) LIKE '%python-requests%' OR lower(user_agent) LIKE '%scrapy%' OR lower(user_agent) LIKE '%semrush%' OR lower(user_agent) LIKE '%ahrefs%'");
+        }
+        if (!in_array('admin_user', $cols, true)) {
+            $pdo->exec("ALTER TABLE visit_logs ADD COLUMN admin_user TEXT NOT NULL DEFAULT ''");
+        }
+    } catch (Throwable $e) {
+        error_log('visit_logs bot/admin columns failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
@@ -2364,7 +2378,13 @@ function track_public_request(): void
         if (get_setting('visit_log_enabled', '1') !== '1') { return; }
         $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
         $ua = substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 300);
-        if (get_setting('log_skip_bots', '1') === '1' && ua_is_bot($ua)) { return; }
+        // ربات‌ها هم ثبت می‌شوند (is_bot=1) تا با فیلتر جدا قابل مشاهده باشند
+        $isBot = ua_is_bot($ua) ? 1 : 0;
+        // اگر بازدیدکننده با نشست ادمین وارد فرانت‌اند شده، نام کاربری‌اش ثبت می‌شود
+        $adminUser = '';
+        if (isset($_SESSION) && !empty($_SESSION['admin_logged_in']) && !empty($_SESSION['admin_username'])) {
+            $adminUser = substr((string) $_SESSION['admin_username'], 0, 60);
+        }
         $sessionKey = '';
         if (defined('CMS_SESSION_STARTED') && ($GLOBALS['CMS_SID'] ?? '') !== '') {
             $sessionKey = substr(md5((string) $GLOBALS['CMS_SID']), 0, 10);
@@ -2378,15 +2398,15 @@ function track_public_request(): void
             }
             $path = substr((string) ($_POST['p'] ?? ($_SERVER['REQUEST_URI'] ?? '')), 0, 300);
             $target = substr(trim((string) ($_POST['t'] ?? '')), 0, 200);
-            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key) VALUES ('click', ?, ?, ?, ?, ?, ?)")
-                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey]);
+            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user) VALUES ('click', ?, ?, ?, ?, ?, ?, ?, ?)")
+                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey, $isBot, $adminUser]);
             prune_logs_maybe();
             http_response_code(204);
             exit;
         }
         if ($method === 'GET') {
-            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key) VALUES ('visit', ?, ?, ?, ?, '', ?)")
-                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey]);
+            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user) VALUES ('visit', ?, ?, ?, ?, '', ?, ?, ?)")
+                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey, $isBot, $adminUser]);
             prune_logs_maybe();
         }
     } catch (Throwable $ignored) {
