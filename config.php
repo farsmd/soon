@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.0.4');
+define('APP_VERSION', '9.0.5');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -769,6 +769,12 @@ GALLERYHTML;
         seed_v904_theme_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('v904 theme failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۰٫۵: به‌روزرسانی CSS ---
+    try {
+        seed_v905_css_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('v905 css failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
@@ -2064,7 +2070,7 @@ function skeleton_head(array $settings, string $title, string $description, arra
     $out .= '<link rel="stylesheet" href="style.php?v=' . e(site_css_version($settings)) . '">' . "\n";
     $out .= '<link rel="icon" type="image/png" href="uploads/gallery/favicon.png">' . "\n";
     $out .= '<link rel="apple-touch-icon" href="uploads/gallery/favicon.png">' . "\n";
-    $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t!==\'dark\'&&t!==\'light\'){t=' . $themeJson . ';if(t===\'system\'){t=(window.matchMedia&&window.matchMedia(\'(prefers-color-scheme: dark)\').matches)?\'dark\':\'light\';}}if(t===\'light\'){document.documentElement.setAttribute(\'data-theme\',\'light\');}}catch(e){}})();</script>' . "\n";
+    $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t===\'light\'){document.documentElement.setAttribute(\'data-theme\',\'light\');}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
     return $out;
@@ -3363,6 +3369,32 @@ function seed_v9_if_needed(PDO $pdo): void
         ]);
     }
     set_setting('seeded_v9', '1');
+}
+
+/**
+ * نسخه ۹٫۰٫۵ — به‌روزرسانی CSS (فونت‌های تیره‌تر، منوی روشن، فرم کوچک‌تر، سافاری) (فقط یک بار).
+ */
+function seed_v905_css_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('seeded_v905_css', '') === '1') {
+        return;
+    }
+    if (function_exists('default_site_css')) {
+        $oldCss = get_setting('site_css', '');
+        // اگر نسخه جدید CSS (با -webkit-keyframes) نباشد، به‌روز کن
+        if (strpos($oldCss, '-webkit-keyframes mq') === false) {
+            if (trim($oldCss) !== '') {
+                archive_design_revision($pdo, 'setting', 'site_css', $oldCss, 'setting-archive: CSS سایت قبل از ۹٫۰٫۵.');
+            }
+            set_setting('site_css', default_site_css());
+        }
+    }
+    set_setting('seeded_v905_css', '1');
 }
 
 /**
