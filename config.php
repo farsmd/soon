@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.1.14');
+define('APP_VERSION', '9.1.15');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -871,6 +871,18 @@ PARTNERHTML;
         }
     } catch (Throwable $e) {
         error_log('custom_fields_json column failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱٫۱۵: تنظیمات نقشه سایت ---
+    try {
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_enabled', '1')");
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_home_freq', 'daily')");
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_home_priority', '1.0')");
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_pages_freq', 'weekly')");
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_pages_priority', '0.8')");
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_products_freq', 'weekly')");
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('sitemap_products_priority', '0.7')");
+    } catch (Throwable $e) {
+        error_log('sitemap settings failed: ' . $e->getMessage());
     }
     // --- نسخه ۹٫۱٫۱۲: تنظیم واحد طول (میلی‌متر) ---
     try {
