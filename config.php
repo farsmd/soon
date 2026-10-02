@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.0.5');
+define('APP_VERSION', '9.1.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -701,6 +701,23 @@ GALLERYHTML;
             ]);
     }
 
+    // --- نسخه ۹٫۱: صفحه «همکاری با ما» (فقط اگر با همین اسلاگ وجود نداشته باشد) ---
+    $partnerPageExists = (int) $pdo->query("SELECT COUNT(*) FROM pages WHERE slug = 'partner'")->fetchColumn();
+    if ($partnerPageExists === 0) {
+        $partnerHtml = <<<'PARTNERHTML'
+<p>اگر در زمینه نورپردازی، دکوراسیون، کابینت‌سازی یا برق فعالیت می‌کنید، می‌توانید به‌عنوان همکار لاینرلایت ثبت‌نام کنید و از تخفیف همکار بهره‌مند شوید. فرم زیر را پر کنید تا با شما تماس بگیریم.</p>
+{{partner_form}}
+PARTNERHTML;
+        $pdo->prepare('INSERT INTO pages (title, slug, content, seo_title, seo_description, is_active, sort_order, show_in_menu) VALUES (:t,:s,:c,:st,:sd,1,30,1)')
+            ->execute([
+                ':t'  => 'همکاری با ما',
+                ':s'  => 'partner',
+                ':c'  => $partnerHtml,
+                ':st' => 'همکاری با ما | لاینرلایت',
+                ':sd' => 'ثبت‌نام همکاران لاینرلایت؛ فعالان نورپردازی، دکوراسیون و کابینت‌سازی از تخفیف همکار بهره‌مند شوند.',
+            ]);
+    }
+
     // --- نسخه ۵: سید قالب‌ها و CSS داخل دیتابیس (فقط آیتم‌های غایب؛ داده کاربر دست نمی‌خورد) ---
     seed_design_if_needed($pdo);
 
@@ -775,6 +792,97 @@ GALLERYHTML;
         seed_v905_css_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('v905 css failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: به‌روزرسانی CSS ---
+    try {
+        seed_v91_css_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('v91 css failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: جدول درخواست‌های همکاری ---
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS partner_requests (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                manager_name     TEXT NOT NULL,
+                business_name    TEXT NOT NULL,
+                field_of_activity TEXT NOT NULL,
+                phone            TEXT NOT NULL,
+                email            TEXT,
+                address          TEXT,
+                status           TEXT NOT NULL DEFAULT 'new',
+                created_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_partner_requests_status ON partner_requests (status, created_at)");
+    } catch (Throwable $e) {
+        error_log('partner_requests table failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: جدول تصاویر محصول ---
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS product_images (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                image      TEXT NOT NULL,
+                caption    TEXT NOT NULL DEFAULT '',
+                sort_order INTEGER NOT NULL DEFAULT 0
+            )
+        ");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_product_images_product ON product_images (product_id, sort_order)");
+    } catch (Throwable $e) {
+        error_log('product_images table failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: ستون تنظیمات فرم سفارش محصول ---
+    try {
+        $cols = $pdo->query("PRAGMA table_info(products)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('order_form_config', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN order_form_config TEXT");
+        }
+    } catch (Throwable $e) {
+        error_log('order_form_config column failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: جدول فیلدهای فرم سفارش ---
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS order_form_fields (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_type   TEXT NOT NULL DEFAULT 'product',
+                owner_id     INTEGER NOT NULL DEFAULT 0,
+                field_type   TEXT NOT NULL DEFAULT 'text',
+                label        TEXT NOT NULL,
+                options_json TEXT,
+                placeholder  TEXT NOT NULL DEFAULT '',
+                help_text    TEXT NOT NULL DEFAULT '',
+                is_required  INTEGER NOT NULL DEFAULT 0,
+                sort_order   INTEGER NOT NULL DEFAULT 0,
+                is_active    INTEGER NOT NULL DEFAULT 1
+            )
+        ");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_off_owner ON order_form_fields (owner_type, owner_id, sort_order)");
+    } catch (Throwable $e) {
+        error_log('order_form_fields table failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: ستون مقادیر فیلدهای سفارشی در آیتم‌های سفارش ---
+    try {
+        $cols = $pdo->query("PRAGMA table_info(order_items)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('custom_fields_json', $cols, true)) {
+            $pdo->exec("ALTER TABLE order_items ADD COLUMN custom_fields_json TEXT");
+        }
+    } catch (Throwable $e) {
+        error_log('custom_fields_json column failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱: ستون‌های هزینه تولید در جدول محصولات ---
+    try {
+        $cols = $pdo->query("PRAGMA table_info(products)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('labor_cost_per_meter', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN labor_cost_per_meter REAL NOT NULL DEFAULT 0");
+        }
+        if (!in_array('labor_cost_per_fixture', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN labor_cost_per_fixture REAL NOT NULL DEFAULT 0");
+        }
+    } catch (Throwable $e) {
+        error_log('labor cost columns failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
@@ -1700,6 +1808,8 @@ function template_context(string $key, array $settings, ?array $section = null, 
         'page_title'        => $pageTitle,
         'page_content'      => $pageContent,
         'contact_form'      => '',
+        'partner_form'      => '',
+        'product_gallery'   => '',
         'slider_slides'     => '',
         'products_showcase' => '',
     ];
@@ -1708,6 +1818,9 @@ function template_context(string $key, array $settings, ?array $section = null, 
     }
     if ($key === 'contact' && !array_key_exists('contact_form', $extra)) {
         $ctx['contact_form'] = contact_form_html(contact_state());
+    }
+    if (!array_key_exists('partner_form', $extra)) {
+        $ctx['partner_form'] = partner_form_html(partner_form_state());
     }
     if (!array_key_exists('slider_slides', $extra)) {
         $ctx['slider_slides'] = slider_slides_html();
@@ -2068,8 +2181,10 @@ function skeleton_head(array $settings, string $title, string $description, arra
         }
     }
     $out .= '<link rel="stylesheet" href="style.php?v=' . e(site_css_version($settings)) . '">' . "\n";
-    $out .= '<link rel="icon" type="image/png" href="uploads/gallery/favicon.png">' . "\n";
-    $out .= '<link rel="apple-touch-icon" href="uploads/gallery/favicon.png">' . "\n";
+    $favIcon = (string) ($settings['favicon_path'] ?? '');
+    if ($favIcon === '') { $favIcon = 'uploads/gallery/favicon.png'; }
+    $out .= '<link rel="icon" href="' . e($favIcon) . '">' . "\n";
+    $out .= '<link rel="apple-touch-icon" href="' . e($favIcon) . '">' . "\n";
     $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t===\'light\'){document.documentElement.setAttribute(\'data-theme\',\'light\');}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
@@ -2833,6 +2948,36 @@ function product_material_cost(int $productId): array
             'line_cost'   => $lineCost,
         ];
     }
+    // هزینه تولید (نسخه ۹٫۱): دستمزد/سربار به‌ازای هر متر و هر چراغ
+    $prod = get_product($productId);
+    $laborMeter = (float) ($prod['labor_cost_per_meter'] ?? 0);
+    $laborFixture = (float) ($prod['labor_cost_per_fixture'] ?? 0);
+    if ($laborMeter > 0) {
+        $lines[] = [
+            'material_id' => 0,
+            'name'        => 'هزینه تولید (هر متر)',
+            'unit'        => '',
+            'qty'         => 1,
+            'basis'       => 'per_meter',
+            'unit_price'  => (int) round($laborMeter),
+            'line_cost'   => $laborMeter,
+            'is_labor'    => true,
+        ];
+        $perMeter += $laborMeter;
+    }
+    if ($laborFixture > 0) {
+        $lines[] = [
+            'material_id' => 0,
+            'name'        => 'هزینه تولید (هر چراغ)',
+            'unit'        => '',
+            'qty'         => 1,
+            'basis'       => 'per_fixture',
+            'unit_price'  => (int) round($laborFixture),
+            'line_cost'   => $laborFixture,
+            'is_labor'    => true,
+        ];
+        $perFixture += $laborFixture;
+    }
     return ['per_meter' => (int) round($perMeter), 'per_fixture' => (int) round($perFixture), 'lines' => $lines];
 }
 
@@ -3398,6 +3543,31 @@ function seed_v905_css_if_needed(PDO $pdo): void
 }
 
 /**
+ * نسخه ۹٫۱ — CSS فرم همکار و گالری محصول (فقط یک بار).
+ */
+function seed_v91_css_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('seeded_v91_css', '') === '1') {
+        return;
+    }
+    if (function_exists('default_site_css')) {
+        $oldCss = get_setting('site_css', '');
+        if (strpos($oldCss, '/* ===== فرم ثبت‌نام همکار (نسخه ۹٫۱) ===== */') === false || strpos($oldCss, '.product-card .product-media{aspect-ratio:1/1') === false || strpos($oldCss, '/* ===== گالری محصول (نسخه ۹٫۱) ===== */') === false || strpos($oldCss, '/* ===== فیلدهای سفارشی فرم سفارش (نسخه ۹٫۱) ===== */') === false) {
+            if (trim($oldCss) !== '') {
+                archive_design_revision($pdo, 'setting', 'site_css', $oldCss, 'setting-archive: CSS سایت قبل از ۹٫۱.');
+            }
+            set_setting('site_css', default_site_css());
+        }
+    }
+    set_setting('seeded_v91_css', '1');
+}
+
+/**
  * نسخه ۹٫۰٫۴ — تم روشن/تیره با دکمه تغییر (فقط یک بار).
  * CSS سایت را با تم روشن به‌روز می‌کند.
  */
@@ -3782,7 +3952,7 @@ function products_showcase_html(): string
             $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
         }
         if ($partnerPrice > 0 && $partnerPrice != $price) {
-            $out .= '<div class="ps-partner">همکار: ' . e(format_price($partnerPrice)) . '</div>';
+            $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
         }
         $out .= '<span class="ps-link">مشاهده و برآورد قیمت ←</span>';
         $out .= '</div></a>';
@@ -3925,4 +4095,215 @@ function render_page_blocks(int $pageId): string
         $out .= render_page_block($block) . "\n";
     }
     return $out;
+}
+
+/**
+ * نسخه ۹٫۱ — فرم ثبت‌نام همکار
+ */
+
+function partner_form_state(?array $set = null): array
+{
+    static $state = ['submitted' => false, 'ok' => false, 'msg' => '', 'err' => ''];
+    if ($set !== null) {
+        $state = $set;
+    }
+    return $state;
+}
+
+function process_partner_form(): void
+{
+    if (!defined('CMS_SESSION_STARTED')) {
+        return;
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || ($_POST['partner_form'] ?? '') !== '1') {
+        return;
+    }
+    if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+    $tokenOk = hash_equals((string) ($_SESSION['csrf'] ?? ''), (string) ($_POST['csrf'] ?? ''));
+    $honeyOk = trim((string) ($_POST['website'] ?? '')) === '';
+    $manager = trim((string) ($_POST['p_manager'] ?? ''));
+    $business = trim((string) ($_POST['p_business'] ?? ''));
+    $field = trim((string) ($_POST['p_field'] ?? ''));
+    $phone = trim((string) ($_POST['p_phone'] ?? ''));
+    $email = trim((string) ($_POST['p_email'] ?? ''));
+    $address = trim((string) ($_POST['p_address'] ?? ''));
+
+    if (!$tokenOk) {
+        partner_form_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'درخواست نامعتبر است؛ صفحه را تازه کنید.']);
+    } elseif (!$honeyOk) {
+        partner_form_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'ارسال انجام نشد.']);
+    } elseif ($manager === '' || $business === '' || $field === '' || $phone === '') {
+        partner_form_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'نام مسئول، نام واحد، زمینه فعالیت و شماره تماس الزامی است.']);
+    } else {
+        try {
+            db()->prepare('INSERT INTO partner_requests (manager_name, business_name, field_of_activity, phone, email, address) VALUES (:m, :b, :f, :p, :e, :a)')->execute([
+                ':m' => $manager, ':b' => $business, ':f' => $field, ':p' => $phone,
+                ':e' => $email !== '' ? $email : null, ':a' => $address !== '' ? $address : null,
+            ]);
+            partner_form_state(['submitted' => true, 'ok' => true, 'msg' => 'درخواست همکاری شما ثبت شد. به‌زودی با شما تماس می‌گیریم.', 'err' => '']);
+        } catch (Throwable $e) {
+            partner_form_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'خطا در ثبت درخواست.']);
+        }
+    }
+}
+
+function partner_form_html(array $state): string
+{
+    if (defined('CMS_SESSION_STARTED') && empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+    $csrf = defined('CMS_SESSION_STARTED') ? (string) ($_SESSION['csrf'] ?? '') : '';
+    $html = '<form method="post" class="partner-form" id="partner-form">';
+    $html .= '<input type="hidden" name="partner_form" value="1">';
+    $html .= '<input type="hidden" name="csrf" value="' . e($csrf) . '">';
+    $html .= '<input type="text" name="website" value="" style="display:none" tabindex="-1" autocomplete="off">';
+    if ($state['submitted'] && $state['ok']) {
+        $html .= '<div class="alert ok">' . e($state['msg']) . '</div>';
+    } elseif ($state['submitted'] && !$state['ok']) {
+        $html .= '<div class="alert error">' . e($state['err']) . '</div>';
+    }
+    $html .= '<div class="pf-grid">';
+    $html .= '<div class="pf-field"><label for="p_manager">نام مسئول *</label><input type="text" id="p_manager" name="p_manager" required maxlength="120" autocomplete="name"></div>';
+    $html .= '<div class="pf-field"><label for="p_business">نام واحد همکاری *</label><input type="text" id="p_business" name="p_business" required maxlength="150" placeholder="مثلاً کابینت‌سازی مدرن"></div>';
+    $html .= '<div class="pf-field"><label for="p_field">زمینه فعالیت *</label><input type="text" id="p_field" name="p_field" required maxlength="150" placeholder="مثلاً طراحی و اجرای کابینت"></div>';
+    $html .= '<div class="pf-field"><label for="p_phone">شماره تماس *</label><input type="text" id="p_phone" name="p_phone" required inputmode="tel" dir="ltr" maxlength="15" autocomplete="tel"></div>';
+    $html .= '<div class="pf-field"><label for="p_email">ایمیل <span class="muted">(اختیاری)</span></label><input type="email" id="p_email" name="p_email" dir="ltr" maxlength="150" autocomplete="email"></div>';
+    $html .= '<div class="pf-field pf-full"><label for="p_address">آدرس <span class="muted">(اختیاری)</span></label><textarea id="p_address" name="p_address" rows="2" maxlength="500"></textarea></div>';
+    $html .= '</div>';
+    $html .= '<button type="submit" class="btn btn-gold">ثبت درخواست همکاری</button>';
+    $html .= '</form>';
+    return $html;
+}
+
+/** تصاویر گالری یک محصول */
+function get_product_images(int $productId): array
+{
+    $st = db()->prepare('SELECT * FROM product_images WHERE product_id = :p ORDER BY sort_order ASC, id ASC');
+    $st->execute([':p' => $productId]);
+    return $st->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** HTML گالری تصاویر محصول برای صفحه عمومی */
+function product_gallery_html(int $productId): string
+{
+    $images = get_product_images($productId);
+    if ($images === []) {
+        return '';
+    }
+    $html = '<div class="product-gallery"><h3>گالری تصاویر</h3><div class="pg-public-grid">';
+    foreach ($images as $img) {
+        $url = uploaded_image_url($img['image'] ?? '');
+        if ($url === '') {
+            continue;
+        }
+        $cap = (string) ($img['caption'] ?? '');
+        $html .= '<figure class="pg-public-item"><img loading="lazy" src="' . e($url) . '" alt="' . e($cap) . '">';
+        if ($cap !== '') {
+            $html .= '<figcaption>' . e($cap) . '</figcaption>';
+        }
+        $html .= '</figure>';
+    }
+    $html .= '</div></div>';
+    return $html;
+}
+
+/**
+ * نسخه ۹٫۱ — فیلدهای سفارشی فرم سفارش (per محصول/دسته)
+ */
+
+/** فیلدهای فرم سفارش برای یک محصول: اول محصول، بعد دسته، بعد سراسری */
+function get_order_form_fields(int $productId): array
+{
+    $product = get_product($productId);
+    $catId = (int) ($product['category_id'] ?? 0);
+    // ۱. فیلدهای خاص محصول
+    $st = db()->prepare("SELECT * FROM order_form_fields WHERE owner_type = 'product' AND owner_id = :id AND is_active = 1 ORDER BY sort_order ASC, id ASC");
+    $st->execute([':id' => $productId]);
+    $fields = $st->fetchAll(PDO::FETCH_ASSOC);
+    if ($fields !== []) {
+        return $fields;
+    }
+    // ۲. فیلدهای دسته‌بندی
+    if ($catId > 0) {
+        $st = db()->prepare("SELECT * FROM order_form_fields WHERE owner_type = 'category' AND owner_id = :id AND is_active = 1 ORDER BY sort_order ASC, id ASC");
+        $st->execute([':id' => $catId]);
+        $fields = $st->fetchAll(PDO::FETCH_ASSOC);
+        if ($fields !== []) {
+            return $fields;
+        }
+    }
+    // ۳. فیلدهای سراسری
+    $st = db()->query("SELECT * FROM order_form_fields WHERE owner_type = 'global' AND owner_id = 0 AND is_active = 1 ORDER BY sort_order ASC, id ASC");
+    return $st->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** تنظیمات فرم سفارش یک محصول (کدام فیلدهای استاندارد نمایش داده شوند) */
+function product_order_form_config(array $product): array
+{
+    $defaults = ['show_length' => true, 'show_qty' => true, 'show_wire' => true, 'show_endcap' => true, 'show_options' => true];
+    $raw = (string) ($product['order_form_config'] ?? '');
+    if ($raw === '') {
+        return $defaults;
+    }
+    $cfg = json_decode($raw, true);
+    if (!is_array($cfg)) {
+        return $defaults;
+    }
+    foreach ($defaults as $k => $v) {
+        if (!array_key_exists($k, $cfg)) {
+            $cfg[$k] = $v;
+        } else {
+            $cfg[$k] = (bool) $cfg[$k];
+        }
+    }
+    return $cfg;
+}
+
+/** HTML فیلدهای سفارشی برای فرم سفارش */
+function order_custom_fields_html(int $productId, string $namePrefix = 'cf'): array
+{
+    $fields = get_order_form_fields($productId);
+    if ($fields === []) {
+        return ['', []];
+    }
+    $html = '<div class="so-custom-fields"><h4>مشخصات تکمیلی</h4>';
+    $meta = [];
+    foreach ($fields as $f) {
+        $fid = (int) $f['id'];
+        $name = $namePrefix . '[' . $fid . ']';
+        $label = (string) $f['label'];
+        $req = (int) $f['is_required'] === 1;
+        $ph = (string) ($f['placeholder'] ?? '');
+        $help = (string) ($f['help_text'] ?? '');
+        $type = (string) ($f['field_type'] ?? 'text');
+        $meta[$fid] = ['label' => $label, 'type' => $type];
+        $html .= '<div class="so-field"><label>' . e($label) . ($req ? ' *' : '') . '</label>';
+        if ($type === 'select') {
+            $opts = json_decode((string) ($f['options_json'] ?? '[]'), true);
+            if (!is_array($opts)) { $opts = []; }
+            $html .= '<select name="' . e($name) . '"' . ($req ? ' required' : '') . '><option value="">— انتخاب کنید —</option>';
+            foreach ($opts as $op) {
+                $op = trim((string) $op);
+                if ($op === '') { continue; }
+                $html .= '<option value="' . e($op) . '">' . e($op) . '</option>';
+            }
+            $html .= '</select>';
+        } elseif ($type === 'textarea') {
+            $html .= '<textarea name="' . e($name) . '" rows="2"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . '></textarea>';
+        } elseif ($type === 'number') {
+            $html .= '<input type="number" name="' . e($name) . '" step="any"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . '>';
+        } elseif ($type === 'checkbox') {
+            $html .= '<label class="check"><input type="checkbox" name="' . e($name) . '" value="1"> ' . e($ph !== '' ? $ph : 'بله') . '</label>';
+        } else {
+            $html .= '<input type="text" name="' . e($name) . '"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . ' maxlength="255">';
+        }
+        if ($help !== '') {
+            $html .= '<p class="so-help">' . e($help) . '</p>';
+        }
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+    return [$html, $meta];
 }
