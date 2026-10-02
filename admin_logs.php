@@ -35,7 +35,13 @@ function logs_handle_post(string $action): void
             set_setting('session_lifetime_hours', (string) $hours);
             set_setting('visit_log_enabled', isset($_POST['visit_log_enabled']) ? '1' : '0');
             set_setting('admin_log_enabled', isset($_POST['admin_log_enabled']) ? '1' : '0');
-            set_setting('log_skip_bots', isset($_POST['log_skip_bots']) ? '1' : '0');
+            $tz = trim((string) ($_POST['log_timezone'] ?? 'Asia/Tehran'));
+            try {
+                new DateTimeZone($tz);
+            } catch (Throwable $e) {
+                $tz = 'Asia/Tehran';
+            }
+            set_setting('log_timezone', $tz);
             $days = (int) ($_POST['log_retention_days'] ?? 90);
             if ($days < 1) { $days = 1; }
             if ($days > 3650) { $days = 3650; }
@@ -124,57 +130,181 @@ function log_referer_host(string $referer): string
     return $host !== '' ? $host : $referer;
 }
 
+/** منطقه زمانی نمایشی لاگ‌ها (قابل تنظیم از پنل). */
+function logs_tz(): DateTimeZone
+{
+    static $tz = null;
+    if ($tz === null) {
+        try {
+            $tz = new DateTimeZone((string) get_setting('log_timezone', 'Asia/Tehran'));
+        } catch (Throwable $e) {
+            $tz = new DateTimeZone('Asia/Tehran');
+        }
+    }
+    return $tz;
+}
+
+/** تبدیل زمان UTC دیتابیس به وقت محلی تنظیم‌شده برای نمایش. */
+function log_local_time(string $utc): string
+{
+    try {
+        $dt = new DateTime($utc, new DateTimeZone('UTC'));
+        $dt->setTimezone(logs_tz());
+        return $dt->format('Y-m-d H:i');
+    } catch (Throwable $e) {
+        return $utc;
+    }
+}
+
+/** بازه UTC «امروز/دیروز/۷روز/۳۰روز» بر اساس وقت محلی تنظیم‌شده. */
+function logs_day_range(string $which): array
+{
+    try {
+        $tz = logs_tz();
+        $utc = new DateTimeZone('UTC');
+        $now = new DateTime('now', $tz);
+        switch ($which) {
+            case 'today':
+                $s = (clone $now)->setTime(0, 0, 0);
+                $e = (clone $s)->modify('+1 day');
+                break;
+            case 'yesterday':
+                $s = (clone $now)->setTime(0, 0, 0)->modify('-1 day');
+                $e = (clone $s)->modify('+1 day');
+                break;
+            case '7d':
+                $e = (clone $now)->setTime(0, 0, 0)->modify('+1 day');
+                $s = (clone $e)->modify('-7 days');
+                break;
+            case '30d':
+                $e = (clone $now)->setTime(0, 0, 0)->modify('+1 day');
+                $s = (clone $e)->modify('-30 days');
+                break;
+            default:
+                return ['', ''];
+        }
+        return [$s->setTimezone($utc)->format('Y-m-d H:i:s'), $e->setTimezone($utc)->format('Y-m-d H:i:s')];
+    } catch (Throwable $e) {
+        return ['', ''];
+    }
+}
+
+/**
+ * شرط SQL تشخیص «بازدید ادمین»: یا نام کاربری ادمین مستقیم ثبت شده،
+ * یا آی‌پی در ورودهای موفق اخیر به پنل دیده شده است.
+ */
+function logs_admin_cond(string $alias = 'v'): string
+{
+    $hours = max(1, (int) get_setting('session_lifetime_hours', '168'));
+    $a = $alias !== '' ? $alias . '.' : '';
+    return "({$a}admin_user != '' OR {$a}ip IN (SELECT DISTINCT ip FROM admin_logs WHERE action = 'login' AND detail LIKE 'ورود موفق%' AND created_at >= datetime('now', '-{$hours} hours')))";
+}
+
+/** حدس نام ادمین از روی آی‌پی (تطبیق با ورودهای موفق اخیر به پنل). */
+function visit_admin_guess(string $ip): string
+{
+    static $cache = [];
+    if (array_key_exists($ip, $cache)) {
+        return $cache[$ip];
+    }
+    $name = '';
+    try {
+        if ($ip !== '') {
+            $hours = max(1, (int) get_setting('session_lifetime_hours', '168'));
+            $st = db()->prepare("SELECT detail FROM admin_logs WHERE action = 'login' AND ip = ? AND detail LIKE 'ورود موفق%' AND created_at >= datetime('now', '-{$hours} hours') ORDER BY id DESC LIMIT 1");
+            $st->execute([$ip]);
+            $detail = (string) ($st->fetchColumn() ?: '');
+            if ($detail !== '' && preg_match('/ورود موفق به پنل \(([^)]+)\)/u', $detail, $m)) {
+                $name = trim((string) $m[1]);
+            }
+        }
+    } catch (Throwable $ignored) {
+    }
+    $cache[$ip] = $name;
+    return $name;
+}
+
 /** آماده‌سازی داده‌های صفحه لاگ‌ها (آمار، فهرست صفحه‌بندی‌شده، تنظیمات) */
 function logs_prepare(array $get): array
 {
     $pdo = db();
     $tab = ((string) ($get['tab'] ?? 'visits') === 'admin') ? 'admin' : 'visits';
     $q = trim((string) ($get['q'] ?? ''));
+    $kind = (string) ($get['kind'] ?? 'all');
+    if (!in_array($kind, ['all', 'visit', 'click'], true)) { $kind = 'all'; }
+    $bot = (string) ($get['bot'] ?? 'all');
+    if (!in_array($bot, ['all', 'human', 'bot'], true)) { $bot = 'all'; }
+    $adminf = (string) ($get['adminf'] ?? 'hide');
+    if (!in_array($adminf, ['hide', 'show', 'only'], true)) { $adminf = 'hide'; }
+    $dr = (string) ($get['dr'] ?? 'all');
+    if (!in_array($dr, ['all', 'today', 'yesterday', '7d', '30d'], true)) { $dr = 'all'; }
     $pageNum = max(1, (int) ($get['p'] ?? 1));
     $perPage = 30;
+    $tzName = logs_tz()->getName();
 
-    // آمار بالای صفحه (امروز)
+    [$todayStart, $todayEnd] = logs_day_range('today');
+    $adminCond = logs_admin_cond('v');
+    $adminCondBare = logs_admin_cond('');
+
+    // آمار امروز به وقت محلی تنظیم‌شده
     $stats = [
-        'visits_today'  => (int) $pdo->query("SELECT COUNT(*) FROM visit_logs WHERE kind='visit' AND date(created_at)=date('now')")->fetchColumn(),
-        'clicks_today'  => (int) $pdo->query("SELECT COUNT(*) FROM visit_logs WHERE kind='click' AND date(created_at)=date('now')")->fetchColumn(),
-        'ips_today'     => (int) $pdo->query("SELECT COUNT(DISTINCT ip) FROM visit_logs WHERE date(created_at)=date('now')")->fetchColumn(),
-        'admin_today'   => (int) $pdo->query("SELECT COUNT(*) FROM admin_logs WHERE date(created_at)=date('now')")->fetchColumn(),
-        'visits_total'  => (int) $pdo->query('SELECT COUNT(*) FROM visit_logs')->fetchColumn(),
-        'admin_total'   => (int) $pdo->query('SELECT COUNT(*) FROM admin_logs')->fetchColumn(),
+        'visits_today'       => (int) $pdo->query("SELECT COUNT(*) FROM visit_logs v WHERE v.kind='visit' AND v.is_bot=0 AND NOT ($adminCond) AND v.created_at>='$todayStart' AND v.created_at<'$todayEnd'")->fetchColumn(),
+        'clicks_today'       => (int) $pdo->query("SELECT COUNT(*) FROM visit_logs v WHERE v.kind='click' AND v.created_at>='$todayStart' AND v.created_at<'$todayEnd'")->fetchColumn(),
+        'bots_today'         => (int) $pdo->query("SELECT COUNT(*) FROM visit_logs v WHERE v.is_bot=1 AND v.created_at>='$todayStart' AND v.created_at<'$todayEnd'")->fetchColumn(),
+        'admin_visits_today' => (int) $pdo->query("SELECT COUNT(*) FROM visit_logs v WHERE ($adminCond) AND v.created_at>='$todayStart' AND v.created_at<'$todayEnd'")->fetchColumn(),
+        'ips_today'          => (int) $pdo->query("SELECT COUNT(DISTINCT v.ip) FROM visit_logs v WHERE v.created_at>='$todayStart' AND v.created_at<'$todayEnd'")->fetchColumn(),
+        'admin_today'        => (int) $pdo->query("SELECT COUNT(*) FROM admin_logs WHERE date(created_at)=date('now')")->fetchColumn(),
+        'visits_total'       => (int) $pdo->query('SELECT COUNT(*) FROM visit_logs')->fetchColumn(),
+        'admin_total'        => (int) $pdo->query('SELECT COUNT(*) FROM admin_logs')->fetchColumn(),
     ];
 
     $rows = [];
     $total = 0;
     if ($tab === 'visits') {
-        $sql = 'SELECT * FROM visit_logs';
-        $countSql = 'SELECT COUNT(*) FROM visit_logs';
+        $where = [];
         $params = [];
         if ($q !== '') {
-            $where = ' WHERE (ip LIKE :q OR path LIKE :q OR target LIKE :q OR referer LIKE :q)';
-            $sql .= $where;
-            $countSql .= $where;
+            $where[] = '(v.ip LIKE :q OR v.path LIKE :q OR v.target LIKE :q OR v.referer LIKE :q OR v.admin_user LIKE :q)';
             $params[':q'] = '%' . $q . '%';
         }
-        $st = $pdo->prepare($countSql);
+        if ($kind !== 'all') {
+            $where[] = 'v.kind = :kind';
+            $params[':kind'] = $kind;
+        }
+        if ($bot === 'human') {
+            $where[] = 'v.is_bot = 0';
+        } elseif ($bot === 'bot') {
+            $where[] = 'v.is_bot = 1';
+        }
+        if ($adminf === 'hide') {
+            $where[] = "NOT ($adminCond)";
+        } elseif ($adminf === 'only') {
+            $where[] = "($adminCond)";
+        }
+        if ($dr !== 'all') {
+            [$ds, $de] = logs_day_range($dr);
+            $where[] = 'v.created_at >= :ds AND v.created_at < :de';
+            $params[':ds'] = $ds;
+            $params[':de'] = $de;
+        }
+        $whereSql = $where !== [] ? ' WHERE ' . implode(' AND ', $where) : '';
+        $st = $pdo->prepare('SELECT COUNT(*) FROM visit_logs v' . $whereSql);
         $st->execute($params);
         $total = (int) $st->fetchColumn();
-        $st = $pdo->prepare($sql . ' ORDER BY id DESC LIMIT ' . $perPage . ' OFFSET ' . (($pageNum - 1) * $perPage));
+        $st = $pdo->prepare('SELECT v.* FROM visit_logs v' . $whereSql . ' ORDER BY v.id DESC LIMIT ' . $perPage . ' OFFSET ' . (($pageNum - 1) * $perPage));
         $st->execute($params);
         $rows = $st->fetchAll();
     } else {
-        $sql = 'SELECT * FROM admin_logs';
-        $countSql = 'SELECT COUNT(*) FROM admin_logs';
+        $where = '';
         $params = [];
         if ($q !== '') {
             $where = ' WHERE (ip LIKE :q OR action LIKE :q OR detail LIKE :q)';
-            $sql .= $where;
-            $countSql .= $where;
             $params[':q'] = '%' . $q . '%';
         }
-        $st = $pdo->prepare($countSql);
+        $st = $pdo->prepare('SELECT COUNT(*) FROM admin_logs' . $where);
         $st->execute($params);
         $total = (int) $st->fetchColumn();
-        $st = $pdo->prepare($sql . ' ORDER BY id DESC LIMIT ' . $perPage . ' OFFSET ' . (($pageNum - 1) * $perPage));
+        $st = $pdo->prepare('SELECT * FROM admin_logs' . $where . ' ORDER BY id DESC LIMIT ' . $perPage . ' OFFSET ' . (($pageNum - 1) * $perPage));
         $st->execute($params);
         $rows = $st->fetchAll();
     }
@@ -182,22 +312,26 @@ function logs_prepare(array $get): array
     return [
         'tab' => $tab,
         'q' => $q,
+        'kind' => $kind,
+        'bot' => $bot,
+        'adminf' => $adminf,
+        'dr' => $dr,
         'page' => $pageNum,
         'per_page' => $perPage,
         'total' => $total,
         'pages' => max(1, (int) ceil($total / $perPage)),
         'rows' => $rows,
         'stats' => $stats,
+        'tz' => $tzName,
         'settings' => [
             'session_lifetime_hours' => get_setting('session_lifetime_hours', '168'),
             'visit_log_enabled' => get_setting('visit_log_enabled', '1'),
             'admin_log_enabled' => get_setting('admin_log_enabled', '1'),
-            'log_skip_bots' => get_setting('log_skip_bots', '1'),
+            'log_timezone' => get_setting('log_timezone', 'Asia/Tehran'),
             'log_retention_days' => get_setting('log_retention_days', '90'),
         ],
     ];
 }
-
 /** نمایش صفحه لاگ‌ها */
 function logs_render(?array $d): void
 {
@@ -209,17 +343,35 @@ function logs_render(?array $d): void
     $hoursFa = $hours >= 24 && $hours % 24 === 0
         ? logs_num($hours / 24) . ' روز'
         : logs_num($hours) . ' ساعت';
-    $tabUrl = static fn (string $t, int $p = 1): string => 'admin.php?page=logs&tab=' . $t
-        . ($d['q'] !== '' ? '&q=' . urlencode($d['q']) : '')
-        . ($p > 1 ? '&p=' . $p : '');
+    // ساخت نشانی تب/صفحه‌بندی با حفظ همه فیلترها
+    $tabUrl = static function (string $t, int $p = 1) use ($d): string {
+        $u = 'admin.php?page=logs&tab=' . $t
+            . '&kind=' . $d['kind'] . '&bot=' . $d['bot'] . '&adminf=' . $d['adminf'] . '&dr=' . $d['dr']
+            . ($d['q'] !== '' ? '&q=' . urlencode($d['q']) : '')
+            . ($p > 1 ? '&p=' . $p : '');
+        return $u;
+    };
+    $timezones = [
+        'Asia/Tehran' => 'تهران (Asia/Tehran)',
+        'Asia/Dubai' => 'دبی (Asia/Dubai)',
+        'Asia/Karachi' => 'کراچی (Asia/Karachi)',
+        'Asia/Istanbul' => 'استانبول (Asia/Istanbul)',
+        'Europe/Berlin' => 'برلین (Europe/Berlin)',
+        'Europe/London' => 'لندن (Europe/London)',
+        'America/New_York' => 'نیویورک (America/New_York)',
+        'UTC' => 'UTC',
+    ];
     ?>
     <h1>لاگ‌ها</h1>
     <div class="stat-grid">
-        <div class="stat-card"><span>بازدید امروز</span><strong><?= logs_num($d['stats']['visits_today']) ?></strong></div>
+        <div class="stat-card"><span>بازدید انسانی امروز</span><strong><?= logs_num($d['stats']['visits_today']) ?></strong></div>
         <div class="stat-card"><span>کلیک امروز</span><strong><?= logs_num($d['stats']['clicks_today']) ?></strong></div>
+        <div class="stat-card"><span>ربات امروز</span><strong><?= logs_num($d['stats']['bots_today']) ?></strong></div>
+        <div class="stat-card"><span>بازدید ادمین امروز</span><strong><?= logs_num($d['stats']['admin_visits_today']) ?></strong></div>
         <div class="stat-card"><span>آی‌پی یکتای امروز</span><strong><?= logs_num($d['stats']['ips_today']) ?></strong></div>
         <div class="stat-card"><span>رویداد مدیریت امروز</span><strong><?= logs_num($d['stats']['admin_today']) ?></strong></div>
     </div>
+    <p class="muted">ساعت‌ها به وقت <strong><?= e($d['tz']) ?></strong> نمایش داده می‌شوند. (از تنظیمات زیر قابل تغییر است)</p>
 
     <form method="post" class="card wide">
         <?= csrf_field() ?>
@@ -230,12 +382,19 @@ function logs_render(?array $d): void
             <input type="number" name="session_lifetime_hours" min="1" max="720" step="1" value="<?= e((string) $hours) ?>">
         </label>
         <p class="muted">در حال حاضر: <strong><?= e($hoursFa) ?></strong>. نشست‌ها داخل پوشه داخلی خود سیستم نگه داشته می‌شوند تا روی هاست اشتراکی زود پاک نشوند؛ این مقدار از درخواست بعدی اعمال می‌شود.</p>
+        <label>منطقه زمانی نمایش لاگ‌ها
+            <select name="log_timezone">
+                <?php foreach ($timezones as $tzKey => $tzLabel): ?>
+                    <option value="<?= e($tzKey) ?>" <?= ($s['log_timezone'] ?? 'Asia/Tehran') === $tzKey ? 'selected' : '' ?>><?= e($tzLabel) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
         <label>مدت نگهداری لاگ‌ها (روز) — قدیمی‌تر از این به‌صورت خودکار پاک می‌شود
             <input type="number" name="log_retention_days" min="1" max="3650" step="1" value="<?= e((string) $s['log_retention_days']) ?>">
         </label>
         <label class="check"><input type="checkbox" name="visit_log_enabled" value="1" <?= $s['visit_log_enabled'] === '1' ? 'checked' : '' ?>> ثبت لاگ بازدید سایت (بازدید صفحه و کلیک‌ها)</label>
-        <label class="check"><input type="checkbox" name="log_skip_bots" value="1" <?= $s['log_skip_bots'] === '1' ? 'checked' : '' ?>> ربات‌ها و خزنده‌ها (مثل موتورهای جستجو) در لاگ بازدید ثبت نشوند</label>
         <label class="check"><input type="checkbox" name="admin_log_enabled" value="1" <?= $s['admin_log_enabled'] === '1' ? 'checked' : '' ?>> ثبت لاگ فعالیت مدیریت (ورود، خروج و اکشن‌ها)</label>
+        <p class="muted">ربات‌ها و خزنده‌ها هم ثبت می‌شوند و با فیلتر «ربات» در فهرست زیر قابل جداسازی‌اند.</p>
         <button type="submit" class="btn primary">ذخیره تنظیمات</button>
     </form>
 
@@ -244,15 +403,64 @@ function logs_render(?array $d): void
             <a class="tab<?= $d['tab'] === 'visits' ? ' active' : '' ?>" href="<?= e($tabUrl('visits')) ?>">لاگ بازدید سایت (<?= logs_num($d['stats']['visits_total']) ?>)</a>
             <a class="tab<?= $d['tab'] === 'admin' ? ' active' : '' ?>" href="<?= e($tabUrl('admin')) ?>">لاگ فعالیت مدیریت (<?= logs_num($d['stats']['admin_total']) ?>)</a>
         </nav>
+
+        <?php if ($d['tab'] === 'visits'): ?>
+        <form method="get" class="card wide" style="margin-bottom:15px">
+            <input type="hidden" name="page" value="logs">
+            <input type="hidden" name="tab" value="visits">
+            <h3 style="margin-top:0">فیلترها</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+                <label>جستجو
+                    <input type="text" name="q" value="<?= e($d['q']) ?>" placeholder="آی‌پی، صفحه، ادمین…">
+                </label>
+                <label>نوع رویداد
+                    <select name="kind">
+                        <option value="all" <?= $d['kind'] === 'all' ? 'selected' : '' ?>>همه</option>
+                        <option value="visit" <?= $d['kind'] === 'visit' ? 'selected' : '' ?>>بازدید</option>
+                        <option value="click" <?= $d['kind'] === 'click' ? 'selected' : '' ?>>کلیک</option>
+                    </select>
+                </label>
+                <label>نوع بازدیدکننده
+                    <select name="bot">
+                        <option value="all" <?= $d['bot'] === 'all' ? 'selected' : '' ?>>همه</option>
+                        <option value="human" <?= $d['bot'] === 'human' ? 'selected' : '' ?>>انسان</option>
+                        <option value="bot" <?= $d['bot'] === 'bot' ? 'selected' : '' ?>>ربات / خزنده</option>
+                    </select>
+                </label>
+                <label>بازدید ادمین
+                    <select name="adminf">
+                        <option value="hide" <?= $d['adminf'] === 'hide' ? 'selected' : '' ?>>پنهان</option>
+                        <option value="show" <?= $d['adminf'] === 'show' ? 'selected' : '' ?>>نمایش</option>
+                        <option value="only" <?= $d['adminf'] === 'only' ? 'selected' : '' ?>>فقط ادمین</option>
+                    </select>
+                </label>
+                <label>بازه زمانی
+                    <select name="dr">
+                        <option value="all" <?= $d['dr'] === 'all' ? 'selected' : '' ?>>همه زمان‌ها</option>
+                        <option value="today" <?= $d['dr'] === 'today' ? 'selected' : '' ?>>امروز</option>
+                        <option value="yesterday" <?= $d['dr'] === 'yesterday' ? 'selected' : '' ?>>دیروز</option>
+                        <option value="7d" <?= $d['dr'] === '7d' ? 'selected' : '' ?>>۷ روز اخیر</option>
+                        <option value="30d" <?= $d['dr'] === '30d' ? 'selected' : '' ?>>۳۰ روز اخیر</option>
+                    </select>
+                </label>
+            </div>
+            <div style="margin-top:12px">
+                <button type="submit" class="btn primary">اعمال فیلتر</button>
+                <a class="btn" href="admin.php?page=logs&tab=visits">حذف فیلترها</a>
+            </div>
+        </form>
+        <?php else: ?>
         <form method="get" class="inline">
             <input type="hidden" name="page" value="logs">
-            <input type="hidden" name="tab" value="<?= e($d['tab']) ?>">
+            <input type="hidden" name="tab" value="admin">
             <label style="display:inline-block;min-width:260px">جستجو
-                <input type="text" name="q" value="<?= e($d['q']) ?>" placeholder="<?= $d['tab'] === 'visits' ? 'آی‌پی، نشانی صفحه، منبع ورود…' : 'آی‌پی، اکشن، توضیح…' ?>">
+                <input type="text" name="q" value="<?= e($d['q']) ?>" placeholder="آی‌پی، اکشن، توضیح…">
             </label>
             <button type="submit" class="btn">جستجو</button>
-            <?php if ($d['q'] !== ''): ?><a class="btn" href="<?= e($tabUrl($d['tab'])) ?>">حذف فیلتر</a><?php endif; ?>
+            <?php if ($d['q'] !== ''): ?><a class="btn" href="<?= e($tabUrl('admin')) ?>">حذف فیلتر</a><?php endif; ?>
         </form>
+        <?php endif; ?>
+
         <?php if ($d['tab'] === 'visits'): ?>
         <form method="post" class="inline" onsubmit="return confirm('همه لاگ بازدید پاک شود؟')" style="float:left">
             <?= csrf_field() ?><input type="hidden" name="action" value="clear_visit_logs">
@@ -267,15 +475,35 @@ function logs_render(?array $d): void
         <div style="clear:both"></div>
 
         <?php if ($d['rows'] === []): ?>
-            <p class="muted">هنوز چیزی ثبت نشده است<?= $d['q'] !== '' ? ' (برای این جستجو)' : '' ?>.</p>
+            <p class="muted">هنوز چیزی ثبت نشده است (برای این فیلتر).</p>
         <?php elseif ($d['tab'] === 'visits'): ?>
         <table>
-            <thead><tr><th>زمان</th><th>نوع</th><th>آی‌پی</th><th>از کجا آمده</th><th>صفحه / کلیک‌شده</th></tr></thead>
+            <thead><tr><th>زمان (<?= e($d['tz']) ?>)</th><th>نوع</th><th>بازدیدکننده</th><th>آی‌پی</th><th>از کجا آمده</th><th>صفحه / کلیک‌شده</th></tr></thead>
             <tbody>
             <?php foreach ($d['rows'] as $r): ?>
-                <tr>
-                    <td dir="ltr" style="white-space:nowrap"><?= e((string) $r['created_at']) ?></td>
+                <?php
+                $isBot = (int) ($r['is_bot'] ?? 0) === 1;
+                $adminUser = trim((string) ($r['admin_user'] ?? ''));
+                $isAdmin = $adminUser !== '';
+                $guessed = '';
+                if (!$isAdmin) {
+                    $guessed = visit_admin_guess((string) ($r['ip'] ?? ''));
+                }
+                ?>
+                <tr<?= $isBot ? ' style="opacity:.75"' : '' ?>>
+                    <td dir="ltr" style="white-space:nowrap"><?= e(log_local_time((string) $r['created_at'])) ?></td>
                     <td><?= ($r['kind'] ?? 'visit') === 'click' ? '<span class="badge off">کلیک</span>' : '<span class="badge ok">بازدید</span>' ?></td>
+                    <td>
+                        <?php if ($isAdmin): ?>
+                            <span class="badge" style="background:#fef3c7;color:#92400e" title="این بازدید با نشست ادمین انجام شده">👤 ادمین: <?= e($adminUser) ?></span>
+                        <?php elseif ($guessed !== ''): ?>
+                            <span class="badge" style="background:#fef3c7;color:#92400e" title="این آی‌پی اخیراً وارد پنل مدیریت شده است">👤 احتمالاً ادمین: <?= e($guessed) ?></span>
+                        <?php elseif ($isBot): ?>
+                            <span class="badge" style="background:#e0e7ff;color:#3730a3">🤖 ربات</span>
+                        <?php else: ?>
+                            <span class="muted">انسان</span>
+                        <?php endif; ?>
+                    </td>
                     <td dir="ltr"><?= e((string) $r['ip']) ?></td>
                     <td><?php $rh = log_referer_host((string) ($r['referer'] ?? '')); ?>
                         <?php if ($rh === ''): ?><span class="muted">مستقیم</span>
@@ -292,11 +520,11 @@ function logs_render(?array $d): void
         </table>
         <?php else: ?>
         <table>
-            <thead><tr><th>زمان</th><th>آی‌پی</th><th>کار</th><th>توضیح</th><th>نتیجه</th></tr></thead>
+            <thead><tr><th>زمان (<?= e($d['tz']) ?>)</th><th>آی‌پی</th><th>کار</th><th>توضیح</th><th>نتیجه</th></tr></thead>
             <tbody>
             <?php foreach ($d['rows'] as $r): ?>
                 <tr>
-                    <td dir="ltr" style="white-space:nowrap"><?= e((string) $r['created_at']) ?></td>
+                    <td dir="ltr" style="white-space:nowrap"><?= e(log_local_time((string) $r['created_at'])) ?></td>
                     <td dir="ltr"><?= e((string) $r['ip']) ?></td>
                     <td><?= e(log_action_label((string) $r['action'])) ?><?php if ((string) ($r['page'] ?? '') !== ''): ?> <span class="muted">(<?= e((string) $r['page']) ?>)</span><?php endif; ?></td>
                     <td><?= e((string) ($r['detail'] ?? '')) ?></td>
