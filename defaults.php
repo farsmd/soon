@@ -421,14 +421,20 @@ html[data-theme="light"] .mani-kicker{color:#8a6d1f}
 
 /* ---------- نوار گالری ---------- */
 .g-wrap{padding:20px 0 90px}
-.g-strip{display:flex;gap:16px;overflow-x:auto;padding:10px 20px 24px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:var(--primary) transparent}
-.g-strip::-webkit-scrollbar{height:6px}
-.g-strip::-webkit-scrollbar-thumb{background:var(--primary);border-radius:6px}
-.g-item{flex:0 0 min(400px,78vw);scroll-snap-align:center;border-radius:18px;overflow:hidden;position:relative;border:1px solid var(--surface-border)}
-.g-item img{width:100%;aspect-ratio:16/10;object-fit:cover;transition:transform .6s ease}
-.g-item:hover img{transform:scale(1.06)}
-.g-item figcaption{position:absolute;inset-inline:0;bottom:0;padding:26px 16px 14px;font-size:13.5px;color:#fff;
-    background:linear-gradient(180deg,transparent,rgba(0,0,0,.78))}
+.g-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;grid-auto-flow:dense;padding:10px 20px 24px}
+.g-item{border-radius:16px;overflow:hidden;position:relative;border:1px solid var(--surface-border);cursor:pointer;
+    transition:transform .4s cubic-bezier(.2,.7,.3,1.2),box-shadow .4s,border-color .4s}
+.g-item:nth-child(6n+1){grid-row:span 2}
+.g-item:nth-child(6n+1) img{aspect-ratio:3/4}
+.g-item img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;transition:transform .6s ease}
+.g-item:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 50px rgba(0,0,0,.35),0 0 30px rgba(201,162,39,.15);border-color:rgba(232,198,106,.5);z-index:2}
+.g-item:hover img{transform:scale(1.08)}
+.g-item figcaption{position:absolute;inset-inline:0;bottom:0;padding:28px 14px 12px;font-size:12.5px;font-weight:600;color:#fff;
+    background:linear-gradient(180deg,transparent,rgba(0,0,0,.82));opacity:0;transform:translateY(10px);transition:opacity .35s,transform .35s}
+.g-item:hover figcaption{opacity:1;transform:translateY(0)}
+@media(max-width:640px){.g-strip{grid-template-columns:repeat(2,1fr);gap:10px}
+.g-item:nth-child(6n+1){grid-row:span 1}
+.g-item:nth-child(6n+1) img{aspect-ratio:4/3}}
 .g-more{text-align:center;margin-top:26px}
 
 /* ---------- روند کار ---------- */
@@ -470,6 +476,21 @@ html[data-theme="light"] .mani-kicker{color:#8a6d1f}
 .page-head h1{font-size:clamp(28px,5vw,46px)}
 .page-body{font-size:15.5px;color:var(--text);line-height:2.1;max-width:860px;margin:0 auto;padding-bottom:90px}
 .page-body img{border-radius:var(--radius)}
+/* ---------- گالری تایلی مدرن ---------- */
+.page-body .gallery-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;grid-auto-flow:dense}
+.page-body .gallery-tiles figure{margin:0;border-radius:16px;overflow:hidden;position:relative;cursor:pointer;
+    border:1px solid var(--surface-border);background:var(--surface);transition:transform .4s cubic-bezier(.2,.7,.3,1.2),box-shadow .4s,border-color .4s}
+.page-body .gallery-tiles figure:nth-child(5n+1){grid-row:span 2}
+.page-body .gallery-tiles figure:nth-child(5n+1) img{aspect-ratio:3/4}
+.page-body .gallery-tiles figure img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;transition:transform .6s ease,filter .6s}
+.page-body .gallery-tiles figure:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 50px rgba(0,0,0,.35),0 0 30px rgba(201,162,39,.15);border-color:rgba(232,198,106,.5);z-index:2}
+.page-body .gallery-tiles figure:hover img{transform:scale(1.08)}
+.page-body .gallery-tiles figcaption{position:absolute;inset-inline:0;bottom:0;padding:30px 14px 12px;font-size:12.5px;font-weight:600;color:#fff;
+    background:linear-gradient(180deg,transparent,rgba(0,0,0,.82));opacity:0;transform:translateY(10px);transition:opacity .35s,transform .35s}
+.page-body .gallery-tiles figure:hover figcaption{opacity:1;transform:translateY(0)}
+@media(max-width:640px){.page-body .gallery-tiles{grid-template-columns:repeat(2,1fr);gap:10px}
+.page-body .gallery-tiles figure:nth-child(5n+1){grid-row:span 1}
+.page-body .gallery-tiles figure:nth-child(5n+1) img{aspect-ratio:4/3}}
 .catalog-nav{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 40px}
 .cat{padding:9px 22px;border-radius:999px;border:1px solid var(--surface-border);color:var(--muted);font-size:14px;font-weight:600;transition:.25s;background:rgba(255,255,255,.02)}
 .cat:hover{color:#fff;border-color:var(--accent)}
