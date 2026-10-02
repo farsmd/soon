@@ -239,6 +239,8 @@ function cinematic_base_css(): string
     --footer-bg:#04060a;
     --footer-text:#8f8775;
     --input-bg:#0e131b;
+    --card:#0e131b;
+    --border:#1f2836;
     --input-border:#2a3547;
     --alert-ok-bg:#12351f;
     --alert-ok-text:#b9e6c5;
@@ -348,7 +350,7 @@ section{scroll-margin-top:84px}
 /* ---------- بخش‌ها ---------- */
 .features{padding:110px 0 30px}
 .content-section{padding:70px 0}
-.section-body{font-size:15.5px;color:#d9d2bf}
+.section-body{font-size:15.5px;color:var(--text)}
 .content-section h2:empty{display:none}
 .section-image{margin:0 0 26px}
 .section-image img{border-radius:var(--radius);box-shadow:var(--shadow)}
@@ -408,7 +410,7 @@ section{scroll-margin-top:84px}
 .ps-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
 .ps-card:hover .ps-img img{transform:scale(1.06)}
 .ps-body{padding:16px}
-.ps-body h3{margin:0 0 6px;font-size:17px;color:#fff}
+.ps-body h3{margin:0 0 6px;font-size:17px;color:var(--text)}
 .ps-cat{font-size:12px;color:#c9a227;background:rgba(201,162,39,.12);padding:2px 10px;border-radius:99px}
 .ps-price{margin-top:10px;font-size:18px;font-weight:700;color:#f0d488}
 .ps-price small{font-size:12px;font-weight:400;color:#9aa3b2}
@@ -453,10 +455,10 @@ section{scroll-margin-top:84px}
 /* ---------- فوتر ---------- */
 .site-footer{background:var(--footer-bg);border-top:1px solid rgba(232,198,106,.12);padding:70px 0 0;margin-top:40px;color:var(--footer-text)}
 .footer-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:36px;padding-bottom:46px}
-.f-logo{font-size:22px;font-weight:900;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.f-logo{font-size:22px;font-weight:900;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:10px}
 .f-logo::before{content:"";width:30px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--accent),transparent);box-shadow:var(--line-glow)}
 .f-brand p{font-size:14px;line-height:2}
-.f-title{font-size:15px;font-weight:800;color:#fff;margin-bottom:16px}
+.f-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:16px}
 .f-links{display:flex;flex-direction:column;gap:10px}
 .f-links a{color:var(--footer-text);font-size:14px;transition:.25s}
 .f-links a:hover{color:var(--accent);padding-right:6px}
@@ -465,7 +467,7 @@ section{scroll-margin-top:84px}
 /* ---------- صفحات داخلی ---------- */
 .page-head{padding:150px 0 40px;text-align:center}
 .page-head h1{font-size:clamp(28px,5vw,46px)}
-.page-body{font-size:15.5px;color:#d9d2bf;line-height:2.1;max-width:860px;margin:0 auto;padding-bottom:90px}
+.page-body{font-size:15.5px;color:var(--text);line-height:2.1;max-width:860px;margin:0 auto;padding-bottom:90px}
 .page-body img{border-radius:var(--radius)}
 .catalog-nav{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 40px}
 .cat{padding:9px 22px;border-radius:999px;border:1px solid var(--surface-border);color:var(--muted);font-size:14px;font-weight:600;transition:.25s;background:rgba(255,255,255,.02)}
@@ -577,6 +579,8 @@ html[data-theme="light"]{
     --footer-text:#3a3428;
     --input-bg:#ffffff;
     --input-border:#d9cfb4;
+    --card:#ffffff;
+    --border:#e6dcc4;
     --alert-ok-bg:#e2f3e7;
     --alert-ok-text:#1c5c2e;
     --alert-error-bg:#fbe3e3;
@@ -640,12 +644,12 @@ html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 .pg-public-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
 .pg-public-item figcaption{padding:8px 10px;font-size:12px;color:var(--muted,#6b7280)}
 /* ===== فرم ثبت‌نام همکار (نسخه ۹٫۱) ===== */
-.partner-form{max-width:640px;margin:24px auto;background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:16px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.partner-form{max-width:640px;margin:24px auto;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
 .pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
 .pf-field{display:flex;flex-direction:column;gap:6px}
 .pf-field.pf-full{grid-column:1/-1}
-.pf-field label{font-size:13px;font-weight:600;color:var(--text,#374151)}
-.pf-field input,.pf-field textarea{border:1px solid var(--border,#d1d5db);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;background:var(--bg,#fff);color:var(--text,#111827);width:100%;box-sizing:border-box}
+.pf-field label{font-size:13px;font-weight:600;color:var(--text)}
+.pf-field input,.pf-field textarea{border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);width:100%;box-sizing:border-box}
 .pf-field input:focus,.pf-field textarea:focus{outline:2px solid #c9a227;outline-offset:1px;border-color:#c9a227}
 .pf-field .muted{font-weight:400;font-size:12px}
 @media(max-width:560px){.pf-grid{grid-template-columns:1fr}.partner-form{padding:18px}}
