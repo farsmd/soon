@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.1.11');
+define('APP_VERSION', '9.1.12');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -871,6 +871,12 @@ PARTNERHTML;
         }
     } catch (Throwable $e) {
         error_log('custom_fields_json column failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱٫۱۲: تنظیم واحد طول (میلی‌متر) ---
+    try {
+        $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('length_unit', 'mm')");
+    } catch (Throwable $e) {
+        error_log('length_unit setting failed: ' . $e->getMessage());
     }
     // --- نسخه ۹٫۱٫۱۰: ستون‌های قیمت‌گذاری کاستم (پر وات + قاب) ---
     try {
@@ -3973,7 +3979,7 @@ function products_showcase_html(): string
         if ($partnerPrice > 0 && $partnerPrice != $price) {
             $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
         }
-        $out .= '<span class="ps-link">مشاهده و برآورد قیمت ←</span>';
+        $out .= '<span class="btn btn-gold ps-cta">مشاهده و ثبت سفارش ←</span>';
         $out .= '</div></a>';
     }
     $out .= '</div>';
