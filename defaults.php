@@ -319,8 +319,9 @@ section{scroll-margin-top:84px}
 .hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 .hero-scroll{position:absolute;bottom:26px;right:50%;transform:translateX(50%);z-index:2;width:26px;height:44px;
     border:2px solid rgba(232,198,106,.5);border-radius:14px;display:flex;justify-content:center;padding-top:8px}
-.hero-scroll span{width:4px;height:9px;border-radius:4px;background:var(--accent);animation:scrollDot 1.8s ease-in-out infinite}
-@keyframes scrollDot{0%{transform:translateY(0);opacity:1}70%{transform:translateY(14px);opacity:0}100%{opacity:0}}
+.hero-scroll span{width:4px;height:9px;border-radius:4px;background:var(--accent);-webkit-animation:scrollDot 1.8s ease-in-out infinite;animation:scrollDot 1.8s ease-in-out infinite}
+@-webkit-keyframes scrollDot{0%{-webkit-transform:translateY(0);transform:translateY(0);opacity:1}70%{-webkit-transform:translateY(14px);transform:translateY(14px);opacity:0}100%{opacity:0}}
+@keyframes scrollDot{0%{-webkit-transform:translateY(0);transform:translateY(0);opacity:1}70%{-webkit-transform:translateY(14px);transform:translateY(14px);opacity:0}100%{opacity:0}}
 
 /* ---------- نوار متحرک (نسخه بهبودیافته ۸٫۹٫۴) ---------- */
 .marquee{position:relative;overflow:hidden;padding:20px 0;z-index:2;direction:ltr;
@@ -329,12 +330,13 @@ section{scroll-margin-top:84px}
 .marquee::before,.marquee::after{content:"";position:absolute;left:0;right:0;height:1px;
     background:linear-gradient(90deg,transparent,rgba(232,198,106,.55),transparent)}
 .marquee::before{top:0}.marquee::after{bottom:0}
-.mq-track{display:flex;align-items:center;width:max-content;animation:mq 34s linear infinite;white-space:nowrap}
-.mq-track:hover{animation-play-state:paused}
+.mq-track{display:flex;align-items:center;width:max-content;-webkit-animation:mq 34s linear infinite;animation:mq 34s linear infinite;white-space:nowrap;will-change:transform}
+.mq-track:hover{-webkit-animation-play-state:paused;animation-play-state:paused}
 .mq-item{display:inline-flex;align-items:center;padding:0 30px;font-size:15px;font-weight:500;color:#ddd6c4;direction:rtl;letter-spacing:.2px}
 .mq-item b{color:var(--accent);font-weight:800;text-shadow:0 0 22px rgba(232,198,106,.4)}
 .mq-dot{color:var(--accent);font-size:9px;opacity:.75;text-shadow:0 0 14px rgba(232,198,106,.7);flex-shrink:0}
-@keyframes mq{to{transform:translateX(-50%)}}
+@-webkit-keyframes mq{to{-webkit-transform:translateX(-50%);transform:translateX(-50%)}}
+@keyframes mq{to{-webkit-transform:translateX(-50%);transform:translateX(-50%)}}
 
 /* ---------- تیتر بخش‌ها ---------- */
 .sec-kicker{color:var(--accent);font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:12px;justify-content:center}
@@ -486,7 +488,7 @@ section{scroll-margin-top:84px}
     border:1px solid rgba(232,198,106,.3);border-radius:14px}
 .partner-line{font-size:13.5px;color:var(--muted);background:rgba(255,255,255,.03);border:1px dashed var(--surface-border);
     padding:10px 16px;border-radius:12px;margin-top:12px}
-.estimator{background:var(--surface);border:1px solid var(--surface-border);border-radius:18px;padding:26px;margin-top:26px}
+.estimator{background:var(--surface);border:1px solid var(--surface-border);border-radius:14px;padding:18px;margin-top:18px}
 .estimator h3{margin-top:0;font-size:17px}
 .est-option{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--surface-border);font-size:14px}
 .est-option:last-child{border-bottom:0}
@@ -508,8 +510,8 @@ textarea{min-height:120px;resize:vertical}
 .empty-state h1{font-size:30px;margin-bottom:12px}
 
 /* ---------- انیمیشن ظهور ---------- */
-.rv{opacity:0;transform:translateY(28px);transition:opacity .8s ease,transform .8s ease}
-.rv.in{opacity:1;transform:none}
+.rv{opacity:0;-webkit-transform:translateY(28px);transform:translateY(28px);-webkit-transition:opacity .8s ease,-webkit-transform .8s ease;transition:opacity .8s ease,transform .8s ease}
+.rv.in{opacity:1;-webkit-transform:none;transform:none}
 
 /* ---------- ریسپانسیو ---------- */
 @media (max-width:1024px){
@@ -563,14 +565,14 @@ html[data-theme="light"]{
     --bg-soft:#f4efe3;
     --surface:#ffffff;
     --surface-border:#e6dcc4;
-    --text:#221d12;
-    --muted:#7a7260;
+    --text:#1a1510;
+    --muted:#4a4436;
     --gold-soft:rgba(201,162,39,.13);
     --header-bg:rgba(250,248,242,.88);
-    --header-text:#221d12;
-    --header-link:#5a5344;
-    --footer-bg:#efe9d9;
-    --footer-text:#7a7260;
+    --header-text:#1a1510;
+    --header-link:#3a3428;
+    --footer-bg:#e8e0cd;
+    --footer-text:#3a3428;
     --input-bg:#ffffff;
     --input-border:#d9cfb4;
     --alert-ok-bg:#e2f3e7;
@@ -588,13 +590,13 @@ html[data-theme="light"] .cinematic-hero .hero-shade{
     background:linear-gradient(180deg,rgba(250,248,242,.55) 0%,rgba(250,248,242,.25) 45%,var(--bg) 100%)}
 html[data-theme="light"] .cinematic-hero h1{color:#2a2417}
 html[data-theme="light"] .hero-kicker{color:#8a6d1f;background:rgba(201,162,39,.16);border-color:rgba(201,162,39,.35)}
-html[data-theme="light"] .hero-lead{color:#5a5344}
+html[data-theme="light"] .hero-lead{color:#3a3428}
 html[data-theme="light"] .btn-ghost{border-color:#c9a227;color:#7a5f14}
 html[data-theme="light"] .btn-ghost:hover{background:rgba(201,162,39,.14)}
 html[data-theme="light"] .marquee{background:linear-gradient(180deg,rgba(201,162,39,.1),rgba(201,162,39,.05))}
 html[data-theme="light"] .mq-item{color:#5a4d2e}
 html[data-theme="light"] .section-head h2{color:#2a2417}
-html[data-theme="light"] .section-head p{color:#7a7260}
+html[data-theme="light"] .section-head p{color:#4a4436}
 html[data-theme="light"] .ps-card{background:#fff;box-shadow:0 8px 28px rgba(120,90,20,.1)}
 html[data-theme="light"] .ps-card:hover{box-shadow:0 18px 40px rgba(120,90,20,.18)}
 html[data-theme="light"] .ps-body h3{color:#221d12}
@@ -606,14 +608,20 @@ html[data-theme="light"] .g-card{background:#fff}
 html[data-theme="light"] .g-card figcaption{background:#fff;color:#3a3423}
 html[data-theme="light"] .step{background:#fff;border-color:var(--surface-border)}
 html[data-theme="light"] .step h3{color:#2a2417}
-html[data-theme="light"] .step p{color:#7a7260}
+html[data-theme="light"] .step p{color:#4a4436}
 html[data-theme="light"] .stat-num{color:#8a6d1f}
-html[data-theme="light"] .stat-label{color:#7a7260}
+html[data-theme="light"] .stat-label{color:#4a4436}
 html[data-theme="light"] .final-cta{background:linear-gradient(135deg,#2a2417,#4a3d1c)}
 html[data-theme="light"] .pb-fcard{background:#fff;box-shadow:0 8px 24px rgba(120,90,20,.08)}
 html[data-theme="light"] .pb-fcard h3{color:#8a6d1f}
 html[data-theme="light"] .gallery-card{background:#fff}
-html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{color:#221d12}
+html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{color:#1a1510}
+html[data-theme="light"] .nav-list a{color:#3a3428}
+html[data-theme="light"] .nav-list a:hover{color:#1a1510;background:rgba(201,162,39,.16)}
+@media (max-width:768px){
+    html[data-theme="light"] .nav-list{background:rgba(250,248,242,.98);border-color:#e6dcc4;box-shadow:0 24px 60px rgba(120,90,20,.2)}
+    html[data-theme="light"] .theme-toggle{background:rgba(201,162,39,.14);border-color:#e6dcc4}
+}
 html[data-theme="light"] .product-card{background:#fff}
 html[data-theme="light"] .product-card h3 a{color:#221d12}
 html[data-theme="light"] .catalog-nav a{background:#fff;border-color:var(--surface-border);color:#5a5344}
@@ -762,7 +770,7 @@ function product_estimator_html(array $product): string
     if ($partnerBase != $retailBase) {
         $html .= '<p class="partner-line">برآورد همکار: <strong id="est-partner">' . e(format_price($partnerBase)) . '</strong> تومان</p>';
     }
-    $html .= '<p><a class="btn" href="index.php#contact">برای ثبت سفارش و مشاوره با ما در تماس باشید</a></p>';
+
     $html .= '<script>(function(){var box=document.getElementById("estimator");if(!box)return;'
         . 'var len=document.getElementById("est-length"),r=document.getElementById("est-retail"),p=document.getElementById("est-partner");'
         . 'function fmt(n){return Math.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g,",");}'
@@ -991,8 +999,8 @@ function order_form_css(): string
 {
     return <<<'CSS'
 /* ===== فرم ثبت سفارش (بازطراحی نسخه ۸٫۲٫۳) ===== v8.2.3-order-form */
-.site-order{margin:26px 0 120px;background:var(--surface);border:1px solid var(--surface-border);border-radius:calc(var(--radius) + 6px);padding:20px;box-shadow:0 8px 28px rgba(15,23,42,.07)}
-.site-order h2{margin:0;font-size:21px;line-height:1.5}
+.site-order{margin:20px 0 120px;background:var(--surface);border:1px solid var(--surface-border);border-radius:calc(var(--radius) + 6px);padding:16px;box-shadow:0 8px 28px rgba(15,23,42,.07)}
+.site-order h2{margin:0;font-size:18px;line-height:1.5}
 .site-order .alert{max-width:none;margin:0 0 16px}
 .so-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--surface-border);margin-bottom:18px}
 .so-product{display:flex;align-items:center;gap:12px;min-width:0}
@@ -1000,13 +1008,13 @@ function order_form_css(): string
 .so-product-name{font-weight:700;font-size:16px}
 .so-price{margin:0;font-size:13px;color:var(--muted);text-align:end}
 .so-price strong{display:block;color:var(--primary);font-size:18px;line-height:1.6}
-.so-body{display:grid;gap:22px}
+.so-body{display:grid;gap:16px}
 .so-section h3{margin:0 0 12px;font-size:15px}
 .so-grid{display:grid;grid-template-columns:1fr;gap:14px}
 .so-field{min-width:0}
 .so-grid .so-full{grid-column:1/-1}
 .site-order .so-field>label,.site-order .so-label{display:block;margin-bottom:6px;font-size:13.5px;font-weight:600}
-.site-order input[type=text],.site-order input[type=tel],.site-order input[type=number],.site-order textarea,.site-order select{width:100%;padding:11px 12px;min-height:48px;border:1px solid var(--input-border);border-radius:var(--radius);background:var(--input-bg);color:var(--text);font:inherit;font-size:16px}
+.site-order input[type=text],.site-order input[type=tel],.site-order input[type=number],.site-order textarea,.site-order select{width:100%;padding:9px 10px;min-height:44px;border:1px solid var(--input-border);border-radius:var(--radius);background:var(--input-bg);color:var(--text);font:inherit;font-size:16px}
 .site-order select{appearance:auto}
 .site-order textarea{min-height:84px;resize:vertical}
 .site-order input:focus,.site-order textarea:focus,.site-order select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.18);outline:none}
@@ -1039,7 +1047,9 @@ function order_form_css(): string
 .so-line-total strong{color:var(--primary);font-size:16px}
 .so-add{width:100%;margin-top:2px;border:1.5px dashed var(--input-border);background:transparent;color:var(--primary);border-radius:var(--radius);padding:12px;min-height:52px;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
 .so-add:hover{border-color:var(--primary);background:rgba(37,99,235,.05)}
-.so-summary{position:sticky;bottom:10px;z-index:5;background:var(--bg);border:1px solid var(--surface-border);border-radius:calc(var(--radius) + 4px);padding:12px 16px 14px;box-shadow:var(--shadow)}
+.so-summary{position:sticky;bottom:10px;z-index:5;background:var(--bg);border:1px solid var(--surface-border);border-radius:calc(var(--radius) + 4px);padding:10px 14px 12px;box-shadow:var(--shadow)}
+.so-minbill{display:none;font-size:11.5px;color:var(--muted);margin:8px 0 0;line-height:1.8}
+.so-summary.open .so-minbill{display:block}
 .so-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:2px 0 8px;min-height:36px}
 .so-toggle svg{transition:transform .2s ease;flex:none}
 .so-summary.open .so-toggle svg{transform:rotate(180deg)}

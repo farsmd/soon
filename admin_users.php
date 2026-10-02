@@ -16,6 +16,7 @@ function admin_page_catalog(): array
         'اصلی و محتوا' => [
             'dashboard' => 'داشبورد',
             'pages'     => 'صفحه‌ها',
+            'gallery'   => 'مدیریت گالری',
             'sections'  => 'بخش‌های صفحه اصلی',
             'messages'  => 'پیام‌های تماس',
             'design'    => 'قالب و استایل',
@@ -270,6 +271,8 @@ function admin_action_page_map(): array
         'stat_messages' => 'dashboard', 'stat_version' => 'dashboard',
         'chart_income' => 'dashboard', 'chart_orders' => 'dashboard', 'chart_expenses' => 'dashboard', 'chart_production' => 'dashboard',
         'add_page' => 'pages', 'update_page' => 'pages', 'delete_page' => 'pages', 'move_page' => 'pages', 'toggle_page' => 'pages',
+        'gallery_upload' => 'gallery', 'gallery_update' => 'gallery', 'gallery_delete' => 'gallery', 'gallery_move' => 'gallery',
+        'add_block' => 'pages', 'update_block' => 'pages', 'delete_block' => 'pages', 'move_block' => 'pages', 'toggle_block' => 'pages',
         'add_section' => 'sections', 'update_section' => 'sections', 'delete_section' => 'sections', 'move_section' => 'sections', 'toggle_section' => 'sections',
         'delete_message' => 'messages',
         'save_css' => 'design', 'reset_css' => 'design', 'save_visual_settings' => 'design', 'restore_revision' => 'design',
