@@ -454,7 +454,7 @@ function inventory_render_price_list(array $d): void
             <?php if ($materialsList === []): ?>
                 <div class="card wide"><p class="muted">هنوز ماده‌ای ثبت نشده است.</p></div>
             <?php else: ?>
-            <form method="post">
+            <form method="post" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="update_material_prices">
                 <table>

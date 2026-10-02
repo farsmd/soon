@@ -1193,7 +1193,7 @@ function finance_render_expenses(array $d): void
         <?php if ($edit !== null && (string) $edit['source'] === 'material_purchase'): ?>
             <p class="muted">این هزینه از خرید مواد انبار به‌صورت خودکار ساخته شده است؛ عنوان، مبلغ و دسته‌اش از روی همان تراکنش قفل است و فقط تاریخ/توضیح/وصل‌کردن به سفارش قابل ویرایش است.</p>
         <?php endif; ?>
-        <form method="post">
+        <form method="post" class="card wide">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="<?= $edit !== null ? 'update_expense' : 'add_expense' ?>">
             <?php if ($edit !== null): ?><input type="hidden" name="id" value="<?= (int) $edit['id'] ?>"><?php endif; ?>

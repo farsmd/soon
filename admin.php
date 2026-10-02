@@ -154,7 +154,7 @@ function api_render(): void
         <p>API: <strong><?= $enabled ? 'فعال' : 'غیرفعال' ?></strong> ·
            توکن: <strong><?= $hasToken ? 'صادر شده' . ($created !== '' ? ' (' . e($created) . ')' : '') : 'صادر نشده' ?></strong> ·
            دامنه‌ها: <strong><?= e(implode('، ', $scopes) === '' ? '—' : implode('، ', $scopes)) ?></strong></p>
-        <form method="post">
+        <form method="post" class="card">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="api_save">
             <label class="check"><input type="checkbox" name="api_enabled" value="1" <?= $enabled ? 'checked' : '' ?>> API فعال باشد</label>
@@ -264,6 +264,7 @@ if ($passwordHash === '') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>راه‌اندازی مدیریت</title>
+<link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
 <style><?= admin_css() ?></style>
 </head>
 <body>
@@ -352,6 +353,7 @@ if (!is_logged_in()) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ورود مدیریت</title>
+<link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
 <style><?= admin_css() ?></style>
 </head>
 <body>
@@ -1238,6 +1240,7 @@ if ($page === 'design') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($currentPageTitle) ?> — پنل مدیریت</title>
+<link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
 <style><?= admin_css() ?></style>
 </head>
 <body>
@@ -2064,7 +2067,7 @@ if ($page === 'design') {
             <section class="card wide">
                 <h2>آپلود فایل دیتابیس</h2>
                 <p class="muted">یک فایل <code>sqlite</code> یا <code>db</code> (حداکثر ۲۰ مگابایت) انتخاب کنید. فایل باید دیتابیس سالم همین سیستم و دارای جدول <code>settings</code> باشد. اگر اعتبارسنجی موفق نباشد، دیتابیس فعلی دست‌نخورده باقی می‌ماند.</p>
-                <form method="post" enctype="multipart/form-data" onsubmit="return confirm('این فایل به‌عنوان دیتابیس فعال جایگزین شود؟ قبل از تعویض نسخه امن ساخته می‌شود و باید دوباره وارد شوید.')">
+                <form method="post" class="card" enctype="multipart/form-data" onsubmit="return confirm('این فایل به‌عنوان دیتابیس فعال جایگزین شود؟ قبل از تعویض نسخه امن ساخته می‌شود و باید دوباره وارد شوید.')">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="upload_database_file">
                     <label>فایل دیتابیس
@@ -2148,7 +2151,7 @@ if ($page === 'design') {
             <section class="card wide">
                 <h2>تنظیمات مخزن آپدیت</h2>
                 <p class="muted">مخزن و شاخه‌ای که آپدیت‌ها از آن خوانده می‌شوند. به‌صورت پیش‌فرض مخزن رسمی همین سیستم است. «آدرس مستقیم فایل ZIP آپدیت» یک گزینه پیشرفته است و معمولاً باید خالی بماند؛ اگر پر شود، دانلود و بررسی نسخه از همان آدرس انجام می‌شود (مثلاً برای میرور یا تست).</p>
-                <form method="post">
+                <form method="post" class="card">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="save_update_settings">
                     <label>مخزن گیت‌هاب (owner/repo)
@@ -2233,6 +2236,7 @@ if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){
 (function(){document.addEventListener('click',function(ev){var btn=ev.target;while(btn&&btn!==document&&!(btn.getAttribute&&btn.getAttribute('data-toggle-panel'))){btn=btn.parentNode}if(!btn||btn===document){return}var el=document.getElementById(btn.getAttribute('data-toggle-panel'));if(!el){return}var show=el.hasAttribute('hidden');if(show){el.removeAttribute('hidden');var f=el.querySelector('input,select,textarea');if(f){try{f.focus()}catch(e){}}}else{el.setAttribute('hidden','')}btn.setAttribute('aria-expanded',show?'true':'false')});
 var op=document.querySelector('.crud-panel[data-open],.help-panel[data-open]');if(op){try{op.scrollIntoView({block:'start'})}catch(e){}}})();
 </script>
+<script src="assets/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 <?php
@@ -2271,8 +2275,15 @@ button.danger{color:#dc2626;border-color:#fecaca}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;margin:14px 0}
 th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:14px;vertical-align:top}
 th{background:#f9fafb}.actions{white-space:nowrap}.inline{display:inline}
-.card{background:#fff;padding:16px;border-radius:10px;margin:14px 0;max-width:640px}
-.card.wide{max-width:820px}
+.card{background:#fff;padding:16px;border-radius:10px;margin:14px 0;max-width:700px;display:block;border:0}
+.card.wide{max-width:100%}
+/* فرم‌های چندفیلدی کنار هم (فیلترها و فرم‌های چندستونه): ردیف فلکس با شکستن منظم */
+.inline-fields{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}
+.inline-fields label{margin:0;min-width:150px;flex:1 1 170px}
+.inline-fields .btn{align-self:flex-end}
+/* نگهبان تداخل با بوت‌استرپ: کامپوننت‌های اختصاصی پنل همیشه شکل خودشان را نگه می‌دارند */
+.alert{border:0}
+.badge{line-height:1.4}
 .badge{padding:2px 8px;border-radius:99px;font-size:12px}.badge.ok{background:#dcfce7}.badge.off{background:#e5e7eb}
 .tabs{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}.tabs .tab{padding:7px 14px;border:1px solid #d1d5db;border-radius:8px;color:#111827;background:#f9fafb}.tabs .tab.active{background:#2563eb;border-color:#2563eb;color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid #e5e7eb;border-radius:99px;background:#fff;font-size:13px;color:#374151}.chip:hover{border-color:#2563eb;color:#2563eb;text-decoration:none}.chip.active{background:#2563eb;border-color:#2563eb;color:#fff}.chip .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
@@ -2284,7 +2295,7 @@ code{background:#f3f4f6;padding:1px 5px;border-radius:5px;direction:ltr;display:
 .design-tabs a.active{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:bold}
 .tpl-preview{width:100%;height:440px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
 input[type=color]{width:72px;height:38px;padding:2px;border:1px solid #d1d5db;border-radius:8px;background:#fff;vertical-align:middle;cursor:pointer}
-@media (max-width:760px){
+@media (max-width:899px){
 .layout{flex-direction:column}
 .content{padding:14px}
 table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}

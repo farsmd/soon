@@ -1340,7 +1340,7 @@ function production_render_rules(array $d): void
     <section class="card wide">
         <h2>آیتم‌های برگه تست و کنترل کیفیت (۸٫۵٫۰)</h2>
         <p class="muted">هر خط یک آیتم تست است. برگه تست و کنترل کیفیت هر برگه تولید از همین‌جا خوانده می‌شود؛ آیتم‌ها را با نیاز کارگاه خودتان تنظیم کنید.</p>
-        <form method="post">
+        <form method="post" class="card">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="save_qc_items">
             <label style="display:block">آیتم‌های چک‌لیست (هر خط یک آیتم)
