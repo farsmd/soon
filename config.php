@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.8.1');
+define('APP_VERSION', '8.9.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -710,6 +710,9 @@ GALLERYHTML;
 
     // --- نسخه ۸٫۲٫۳: افزودن استایل تازه فرم ثبت سفارش به CSS دیتابیس (یک بار؛ نسخه قبلی آرشیو می‌شود) ---
     seed_order_form_css_v823_if_needed($pdo);
+
+    // --- نسخه ۸٫۹٫۰: تم سینمایی لاینرلایت (یک بار؛ قالب‌ها و CSS قبلی آرشیو می‌شوند) ---
+    seed_cinematic_theme_v890_if_needed($pdo);
 }
 
 /** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
@@ -3066,6 +3069,55 @@ function seed_order_form_css_v823_if_needed(PDO $pdo): void
         set_setting('css_updated_at', date('Y-m-d H:i:s'));
     }
     set_setting('css_orderform_v823', '1');
+}
+/**
+ * نسخه ۸٫۹٫۰ — تم سینمایی لاینرلایت (فقط یک بار).
+ * CSS پایه و چهار قالب هدر/اسلایدر/ویژگی‌ها/فوتر با نسخه سینمایی جایگزین می‌شوند؛
+ * نسخه‌های قبلی در «تاریخچه طراحی» آرشیو می‌گردند تا از «قالب و استایل» قابل بازگردانی باشند.
+ * تنظیمات ظاهری هماهنگ می‌شود ولی همه از پنل قابل تغییر می‌مانند.
+ */
+function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('theme_cinematic_890', '') === '1') {
+        return;
+    }
+
+    // آرشیو وضعیت فعلی برای بازگردانی
+    $curCss = get_setting('site_css', '');
+    if (trim($curCss) !== '') {
+        archive_design_revision($pdo, 'css', 'site_css', $curCss, 'css-archive: CSS قبل از تم سینمایی (نسخه ۸٫۹٫۰) — برای بازگردانی از بخش «قالب و استایل» استفاده کنید.');
+    }
+    $titles = ['header' => 'هدر سایت', 'slider' => 'اسلایدر (قهرمان صفحه)', 'features' => 'ویژگی‌ها', 'footer' => 'فوتر سایت'];
+    $oldTpl = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    foreach ($titles as $tk => $tt) {
+        $oldTpl->execute([':k' => $tk]);
+        $old = $oldTpl->fetchColumn();
+        if ($old !== false && trim((string) $old) !== '') {
+            archive_design_revision($pdo, 'template', $tk, (string) $old, 'template-archive: قالب «' . $tt . '» قبل از تم سینمایی (نسخه ۸٫۹٫۰) — برای بازگردانی از بخش «قالب و استایل» استفاده کنید.');
+        }
+    }
+
+    // جایگزینی CSS و قالب‌ها
+    set_setting('site_css', default_site_css());
+    $tpls = factory_templates();
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    foreach (array_keys($titles) as $tk) {
+        $up->execute([':c' => $tpls[$tk]['content'], ':k' => $tk]);
+    }
+
+    // تنظیمات ظاهری هماهنگ با تم (از پنل قابل تغییر می‌مانند)
+    set_setting('primary_color', '#c9a227');
+    set_setting('accent_color', '#e8c66a');
+    set_setting('default_theme', 'dark');
+    set_setting('site_font', 'vazirmatn');
+
+    set_setting('css_updated_at', date('Y-m-d H:i:s'));
+    set_setting('theme_cinematic_890', '1');
 }
 
 function seed_order_rules_if_needed(PDO $pdo): void
