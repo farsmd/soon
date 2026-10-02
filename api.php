@@ -214,7 +214,7 @@ if ($res === 'section') {
 }
 
 // ---------------- تنظیمات محتوایی ----------------
-$API_SETTINGS = ['site_title', 'site_description', 'seo_title', 'seo_description', 'catalog_title', 'payment_terms', 'warranty_text', 'qc_text', 'order_line_note', 'orders_public', 'site_css'];
+$API_SETTINGS = ['site_title', 'site_description', 'seo_title', 'seo_description', 'catalog_title', 'payment_terms', 'warranty_text', 'qc_text', 'order_line_note', 'orders_public', 'site_css', 'site_url'];
 
 if ($res === 'settings') {
     $out = [];
