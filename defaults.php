@@ -349,6 +349,24 @@ section{scroll-margin-top:84px}
 
 /* ---------- بخش‌ها ---------- */
 .features{padding:110px 0 30px}
+/* ---------- کارت‌های خلاقانه ویژگی‌ها ---------- */
+.features .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:40px}
+.features .card{position:relative;background:linear-gradient(160deg,var(--surface),rgba(201,162,39,.04));
+    border:1px solid var(--surface-border);border-radius:22px;padding:36px 28px;overflow:hidden;
+    transition:transform .45s cubic-bezier(.2,.7,.3,1.2),box-shadow .45s,border-color .45s}
+.features .card::before{content:"";position:absolute;top:0;inset-inline:0;height:3px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .4s}
+.features .card::after{content:"";position:absolute;top:-60px;inset-inline-end:-60px;width:140px;height:140px;border-radius:50%;
+    background:radial-gradient(circle,rgba(201,162,39,.18),transparent 70%);transition:transform .5s}
+.features .card:hover{transform:translateY(-8px);border-color:rgba(232,198,106,.45);
+    box-shadow:0 24px 60px rgba(0,0,0,.4),0 0 40px rgba(201,162,39,.12)}
+.features .card:hover::before{opacity:1}
+.features .card:hover::after{transform:scale(1.6)}
+.features .card h3{font-size:19px;font-weight:800;margin:0 0 12px;color:var(--text);display:flex;align-items:center;gap:12px}
+.features .card h3::before{content:"✦";color:var(--accent);font-size:20px;text-shadow:0 0 12px rgba(232,198,106,.6)}
+.features .card p{font-size:14.5px;color:var(--muted);margin:0;line-height:2}
+html[data-theme="light"] .features .card{background:linear-gradient(160deg,#ffffff,rgba(201,162,39,.06));box-shadow:0 4px 20px rgba(120,90,20,.08)}
+html[data-theme="light"] .features .card:hover{box-shadow:0 24px 60px rgba(120,90,20,.18),0 0 40px rgba(201,162,39,.15)}
 .content-section{padding:70px 0}
 .section-body{font-size:15.5px;color:var(--text)}
 .content-section h2:empty{display:none}
