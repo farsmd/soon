@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.9.1');
+define('APP_VERSION', '8.9.2');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -700,7 +700,12 @@ GALLERYHTML;
     seed_design_if_needed($pdo);
 
     // --- فاز ۲ (نسخه ۶): سید دسته‌ها و ویژگی‌های پیش‌فرض + CSS کاتالوگ (فقط وقتی خالی/غایب است) ---
-    seed_catalog_if_needed($pdo);
+    // نسخه ۸٫۹٫۲: محافظت‌شده — خطا در سید هرگز نباید سایت را از کار بیندازد
+    try {
+        seed_catalog_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('catalog seed failed: ' . $e->getMessage());
+    }
 
     // --- فاز ۲٫۵ (نسخه ۷): سید مواد اولیه نمونه (فقط یک بار و فقط وقتی جدول مواد خالی است) ---
     seed_inventory_if_needed($pdo);
@@ -2190,11 +2195,12 @@ function seed_catalog_if_needed(PDO $pdo): void
     }
 
     // CSS کاتالوگ برای سایت‌های نسخه ۵: فقط اگر نشانگرش نیست، یک بار به انتهای CSS اصلی افزوده می‌شود (CSS کاربر پاک نمی‌شود)
+    // نسخه ۸٫۹٫۲: تابع catalog_css_block() در کد نیست؛ بدون function_exists صدا زده نشود تا fatal ندهد.
     $st = $pdo->prepare('SELECT value FROM settings WHERE key = :k');
     $st->execute([':k' => 'site_css']);
     $row = $st->fetch();
     $siteCss = $row === false ? '' : (string) ($row['value'] ?? '');
-    if ($siteCss !== '' && strpos($siteCss, catalog_css_marker()) === false) {
+    if ($siteCss !== '' && strpos($siteCss, catalog_css_marker()) === false && function_exists('catalog_css_block')) {
         $upd = $pdo->prepare('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
         $upd->execute([':k' => 'site_css', ':v' => rtrim($siteCss) . "\n\n" . catalog_css_block() . "\n"]);
         $upd->execute([':k' => 'css_updated_at', ':v' => date('Y-m-d H:i:s')]);
