@@ -362,8 +362,13 @@ section{scroll-margin-top:84px}
     box-shadow:0 24px 60px rgba(0,0,0,.4),0 0 40px rgba(201,162,39,.12)}
 .features .card:hover::before{opacity:1}
 .features .card:hover::after{transform:scale(1.6)}
-.features .card h3{font-size:19px;font-weight:800;margin:0 0 12px;color:var(--text);display:flex;align-items:center;gap:12px}
-.features .card h3::before{content:"✦";color:var(--accent);font-size:20px;text-shadow:0 0 12px rgba(232,198,106,.6)}
+.features .card-icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+    background:linear-gradient(135deg,rgba(201,162,39,.18),rgba(201,162,39,.06));border:1px solid rgba(232,198,106,.3);color:var(--accent);
+    transition:transform .4s,box-shadow .4s}
+.features .card-icon svg{width:28px;height:28px}
+.features .card:hover .card-icon{transform:scale(1.1) rotate(-6deg);box-shadow:0 8px 24px rgba(201,162,39,.3)}
+.features .card h3{font-size:19px;font-weight:800;margin:0 0 12px;color:var(--text)}
+
 .features .card p{font-size:14.5px;color:var(--muted);margin:0;line-height:2}
 html[data-theme="light"] .features .card{background:linear-gradient(160deg,#ffffff,rgba(201,162,39,.06));box-shadow:0 4px 20px rgba(120,90,20,.08)}
 html[data-theme="light"] .features .card:hover{box-shadow:0 24px 60px rgba(120,90,20,.18),0 0 40px rgba(201,162,39,.15)}

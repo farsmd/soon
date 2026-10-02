@@ -214,7 +214,7 @@ if ($res === 'section') {
 }
 
 // ---------------- تنظیمات محتوایی ----------------
-$API_SETTINGS = ['site_title', 'site_description', 'seo_title', 'seo_description', 'catalog_title', 'payment_terms', 'warranty_text', 'qc_text', 'order_line_note', 'orders_public'];
+$API_SETTINGS = ['site_title', 'site_description', 'seo_title', 'seo_description', 'catalog_title', 'payment_terms', 'warranty_text', 'qc_text', 'order_line_note', 'orders_public', 'site_css'];
 
 if ($res === 'settings') {
     $out = [];
@@ -231,7 +231,8 @@ if ($res === 'settings') {
                 if (in_array($k, ['order_line_note', 'orders_public'], true)) {
                     $sv = ($sv === '1' || strtolower($sv) === 'true' || strtolower($sv) === 'on') ? '1' : '0';
                 }
-                set_setting($k, mb_substr($sv, 0, 5000));
+                $limit = ($k === 'site_css') ? 200000 : 5000;
+                set_setting($k, mb_substr($sv, 0, $limit));
                 $updated[] = $k;
             }
         }
