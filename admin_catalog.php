@@ -198,13 +198,16 @@ function catalog_handle_post(string $action): void
                     ':active'  => isset($_POST['is_active']) ? 1 : 0,
                     ':sort'    => (int) ($_POST['sort_order'] ?? 0),
                     ':prep'    => max(0, (int) ($_POST['prep_days'] ?? 0)),
+                    ':seo_t'   => trim((string) ($_POST['seo_title'] ?? '')) ?: null,
+                    ':seo_d'   => trim((string) ($_POST['seo_description'] ?? '')) ?: null,
+                    ':seo_k'   => trim((string) ($_POST['seo_keywords'] ?? '')) ?: null,
                 ];
                 if ($action === 'update_product' && $pid > 0) {
                     $data[':id'] = $pid;
-                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, seo_title = :seo_t, seo_description = :seo_d, seo_keywords = :seo_k, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                     flash('ok', 'محصول به‌روزرسانی شد.');
                 } else {
-                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :active, :sort, :prep)')->execute($data);
+                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :seo_t, :seo_d, :seo_k, :active, :sort, :prep)')->execute($data);
                     $pid = (int) $pdo->lastInsertId();
                     flash('ok', 'محصول جدید ثبت شد.');
                 }
@@ -803,6 +806,18 @@ function catalog_render_products(array $d): void
                 <label class="check">
                     <input type="checkbox" name="is_active" value="1" <?= ($editProduct['is_active'] ?? 1) ? 'checked' : '' ?>>
                     فعال (نمایش در کاتالوگ)
+                </label>
+
+                <h3>سئو (SEO)</h3>
+                <p class="muted">اگر خالی بماند، از نام و توضیح محصول استفاده می‌شود.</p>
+                <label>عنوان سئو (Title)
+                    <input type="text" name="seo_title" value="<?= e((string) ($editProduct['seo_title'] ?? '')) ?>" maxlength="70" placeholder="حداکثر ۷۰ کاراکتر">
+                </label>
+                <label>توضیح متا (Meta Description)
+                    <textarea name="seo_description" rows="2" maxlength="160" placeholder="حداکثر ۱۶۰ کاراکتر"><?= e((string) ($editProduct['seo_description'] ?? '')) ?></textarea>
+                </label>
+                <label>کلمات کلیدی (با کاما جدا کنید)
+                    <input type="text" name="seo_keywords" value="<?= e((string) ($editProduct['seo_keywords'] ?? '')) ?>" placeholder="چراغ خطی, نورپردازی کمد, ...">
                 </label>
 
                 <h3>ویژگی‌ها و آپشن‌های این محصول</h3>

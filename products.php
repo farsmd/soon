@@ -77,12 +77,49 @@ if ($productId > 0) {
         'attributes_options' => product_options_selects_html($product),
         'estimator'          => product_estimator_html($product),
     ];
-    $title = (string) $product['name'] . ' — ' . $siteTitle;
-    $desc = trim((string) ($product['description'] ?? '')) !== ''
-        ? mb_substr(trim(strip_tags((string) $product['description'])), 0, 160)
-        : (string) ($settings['site_description'] ?? '');
+    // سئوی محصول (نسخه ۸٫۱۰٫۰): از فیلدهای سئو استفاده می‌شود، در غیر این صورت از نام و توضیح
+    $seoTitle = trim((string) ($product['seo_title'] ?? ''));
+    $title = $seoTitle !== '' ? $seoTitle : (string) $product['name'] . ' — ' . $siteTitle;
+    $seoDesc = trim((string) ($product['seo_description'] ?? ''));
+    if ($seoDesc !== '') {
+        $desc = $seoDesc;
+    } elseif (trim((string) ($product['description'] ?? '')) !== '') {
+        $desc = mb_substr(trim(strip_tags((string) $product['description'])), 0, 160);
+    } else {
+        $desc = (string) ($settings['site_description'] ?? '');
+    }
+    $seoKeywords = trim((string) ($product['seo_keywords'] ?? ''));
+    // JSON-LD محصول
+    $baseUrl = rtrim((string) ($settings['site_url'] ?? ''), '/');
+    $prodImage = (string) ($product['image'] ?? '');
+    $productJsonLd = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Product',
+        'name' => (string) $product['name'],
+        'description' => $desc,
+        'sku' => (string) ($product['sku'] ?? ''),
+        'brand' => ['@type' => 'Brand', 'name' => $siteTitle],
+    ];
+    if ($prodImage !== '') {
+        $productJsonLd['image'] = $prodImage;
+    }
+    $retailPrice = product_base_price_per_meter($product, false);
+    if ($retailPrice > 0) {
+        $productJsonLd['offers'] = [
+            '@type' => 'Offer',
+            'priceCurrency' => 'IRR',
+            'price' => (string) $retailPrice,
+            'availability' => 'https://schema.org/InStock',
+        ];
+    }
+    $seoData = [
+        'type' => 'product',
+        'keywords' => $seoKeywords,
+        'image' => $prodImage,
+        'jsonld' => $productJsonLd,
+    ];
 
-    echo skeleton_head($settings, $title, $desc);
+    echo skeleton_head($settings, $title, $desc, $seoData);
     echo render_db_template('header', $settings) . "\n";
     echo '<main id="main">' . "\n";
     echo render_db_template('product', $settings, null, null, $extra) . "\n";

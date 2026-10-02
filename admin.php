@@ -964,6 +964,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('site_description', trim((string) ($_POST['site_description'] ?? '')));
                 set_setting('seo_title', trim((string) ($_POST['seo_title'] ?? '')));
                 set_setting('seo_description', trim((string) ($_POST['seo_description'] ?? '')));
+                set_setting('seo_keywords', trim((string) ($_POST['seo_keywords'] ?? '')));
+                set_setting('site_url', trim((string) ($_POST['site_url'] ?? '')));
                 // فاز ۲: تنظیمات مشتری و کاتالوگ محصول
                 $discount = (int) ($_POST['partner_discount_percent'] ?? 10);
                 if ($discount < 0) { $discount = 0; }
@@ -2183,6 +2185,12 @@ if ($page === 'design') {
                 </label>
                 <label>توضیح سئوی صفحه اصلی (meta description)
                     <textarea name="seo_description" rows="2"><?= e($settings['seo_description'] ?? '') ?></textarea>
+                </label>
+                <label>کلمات کلیدی سئو (با کاما جدا کنید)
+                    <input type="text" name="seo_keywords" value="<?= e($settings['seo_keywords'] ?? '') ?>" dir="rtl">
+                </label>
+                <label>آدرس کامل سایت (برای canonical و نقشه سایت) — مثال: https://linerlight.ir/cms
+                    <input type="text" name="site_url" value="<?= e($settings['site_url'] ?? '') ?>" dir="ltr" placeholder="https://...">
                 </label>
                 <h3>مشتری‌ها و کاتالوگ محصول (فاز ۲)</h3>
                 <label>درصد تخفیف همکار (وقتی برای محصول قیمت همکار جداگانه ثبت نشده)

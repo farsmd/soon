@@ -23,8 +23,18 @@ $sections = get_sections(true); // فقط فعال‌ها، به ترتیب
 
 $seoTitle = (string) ($settings['seo_title'] ?? '') !== '' ? (string) $settings['seo_title'] : (string) ($settings['site_title'] ?? 'وب‌سایت من');
 $seoDesc  = (string) ($settings['seo_description'] ?? '') !== '' ? (string) $settings['seo_description'] : (string) ($settings['site_description'] ?? '');
+// سئوی حرفه‌ای صفحه اصلی (نسخه ۸٫۱۰٫۰): کلمات کلیدی و تصویر OG
+$seoKeywords = (string) ($settings['seo_keywords'] ?? '');
+if ($seoKeywords === '') {
+    $seoKeywords = 'چراغ خطی, نور خطی, لاینرلایت, نورپردازی کمد, نورپردازی کابینت, چراغ خطی آلومینیومی, نور مخفی';
+}
+$seoData = [
+    'type' => 'website',
+    'keywords' => $seoKeywords,
+    'image' => 'uploads/gallery/gallery-14.jpg',
+];
 
-echo skeleton_head($settings, $seoTitle, $seoDesc);
+echo skeleton_head($settings, $seoTitle, $seoDesc, $seoData);
 
 if ($sections === []) {
     // هنوز هیچ بخشی فعال نشده است
