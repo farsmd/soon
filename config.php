@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.9.4');
+define('APP_VERSION', '8.10.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -147,6 +147,9 @@ function init_db(PDO $pdo): void
             image                   TEXT,
             price_per_meter         INTEGER NOT NULL DEFAULT 0,
             partner_price_per_meter INTEGER,
+            seo_title               TEXT,
+            seo_description         TEXT,
+            seo_keywords            TEXT,
             is_active               INTEGER NOT NULL DEFAULT 1,
             sort_order              INTEGER NOT NULL DEFAULT 0,
             created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -573,6 +576,8 @@ function init_db(PDO $pdo): void
         'admin_password_hash' => '',
         'seo_title'           => '',
         'seo_description'     => '',
+        'seo_keywords'        => 'چراغ خطی, نور خطی, لاینرلایت, نورپردازی کمد, نورپردازی کابینت',
+        'site_url'            => 'https://linerlight.ir/cms',
         // تنظیمات آپدیت یک‌کلیکی از گیت‌هاب (نسخه ۴)
         'update_repo'         => 'farsmd/soon',
         'update_branch'       => 'main',
@@ -740,6 +745,12 @@ GALLERYHTML;
         seed_marquee_v894_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('marquee migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۸٫۱۰٫۰: سئوی حرفه‌ای ---
+    try {
+        seed_product_seo_v810_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('product seo migration failed: ' . $e->getMessage());
     }
 }
 
@@ -1923,17 +1934,103 @@ function site_css_version(array $settings): string
 // ---------- اسکلت صفحه (تنها بخش فایلیِ ظاهر سایت) ----------
 
 /** سربرگ سند: doctype، head با سئو، لینک style.php و اسکریپت بدون فلشِ تم + بازشدن body و لینک پرش */
-function skeleton_head(array $settings, string $title, string $description): string
+/**
+ * سربرگ سند با سئوی حرفه‌ای (نسخه ۸٫۱۰٫۰).
+ * $seo آرایه اختیاری: url, image, type (website/article/product), keywords, jsonld (آرایه یا رشته JSON آماده)
+ */
+function skeleton_head(array $settings, string $title, string $description, array $seo = []): string
 {
     $visual = validated_visual_settings($settings);
     $themeJson = json_encode($visual['default_theme']);
+    $siteTitle = (string) ($settings['site_title'] ?? 'وب‌سایت من');
+    // آدرس پایه سایت برای canonical و OG
+    $baseUrl = rtrim((string) ($settings['site_url'] ?? ''), '/');
+    if ($baseUrl === '') {
+        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        $baseUrl = $host !== '' ? $proto . '://' . $host . rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/') : '';
+    }
+    $pageUrl = (string) ($seo['url'] ?? '');
+    if ($pageUrl === '' && $baseUrl !== '') {
+        $pageUrl = $baseUrl . '/';
+    }
+    $ogImage = (string) ($seo['image'] ?? '');
+    if ($ogImage !== '' && strpos($ogImage, 'http') !== 0 && $baseUrl !== '') {
+        $ogImage = $baseUrl . '/' . ltrim($ogImage, '/');
+    }
+    // تصویر پیش‌فرض OG: لوگو
+    if ($ogImage === '' && $baseUrl !== '') {
+        $ogImage = $baseUrl . '/uploads/gallery/logo.png';
+    }
+    $ogType = (string) ($seo['type'] ?? 'website');
+    $keywords = trim((string) ($seo['keywords'] ?? ''));
+
     $out  = "<!DOCTYPE html>\n";
     $out .= "<html lang=\"fa\" dir=\"rtl\">\n<head>\n";
     $out .= '<meta charset="UTF-8">' . "\n";
     $out .= '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     $out .= '<title>' . e($title) . '</title>' . "\n";
     $out .= '<meta name="description" content="' . e($description) . '">' . "\n";
+    if ($keywords !== '') {
+        $out .= '<meta name="keywords" content="' . e($keywords) . '">' . "\n";
+    }
+    $out .= '<meta name="robots" content="index, follow, max-image-preview:large">' . "\n";
     $out .= '<meta name="theme-color" content="' . e($visual['primary_color']) . '">' . "\n";
+    // Canonical
+    if ($pageUrl !== '') {
+        $out .= '<link rel="canonical" href="' . e($pageUrl) . '">' . "\n";
+    }
+    // Open Graph
+    $out .= '<meta property="og:locale" content="fa_IR">' . "\n";
+    $out .= '<meta property="og:site_name" content="' . e($siteTitle) . '">' . "\n";
+    $out .= '<meta property="og:type" content="' . e($ogType) . '">' . "\n";
+    $out .= '<meta property="og:title" content="' . e($title) . '">' . "\n";
+    $out .= '<meta property="og:description" content="' . e($description) . '">' . "\n";
+    if ($pageUrl !== '') {
+        $out .= '<meta property="og:url" content="' . e($pageUrl) . '">' . "\n";
+    }
+    if ($ogImage !== '') {
+        $out .= '<meta property="og:image" content="' . e($ogImage) . '">' . "\n";
+        $out .= '<meta property="og:image:alt" content="' . e($title) . '">' . "\n";
+    }
+    // Twitter Card
+    $out .= '<meta name="twitter:card" content="summary_large_image">' . "\n";
+    $out .= '<meta name="twitter:title" content="' . e($title) . '">' . "\n";
+    $out .= '<meta name="twitter:description" content="' . e($description) . '">' . "\n";
+    if ($ogImage !== '') {
+        $out .= '<meta name="twitter:image" content="' . e($ogImage) . '">' . "\n";
+    }
+    // JSON-LD پیش‌فرض: Organization + WebSite
+    $jsonLd = $seo['jsonld'] ?? null;
+    if ($jsonLd === null && $baseUrl !== '') {
+        $jsonLd = [
+            '@context' => 'https://schema.org',
+            '@graph' => [
+                [
+                    '@type' => 'Organization',
+                    '@id' => $baseUrl . '/#organization',
+                    'name' => $siteTitle,
+                    'url' => $baseUrl . '/',
+                    'logo' => $baseUrl . '/uploads/gallery/logo.png',
+                    'description' => $description,
+                ],
+                [
+                    '@type' => 'WebSite',
+                    '@id' => $baseUrl . '/#website',
+                    'url' => $baseUrl . '/',
+                    'name' => $siteTitle,
+                    'publisher' => ['@id' => $baseUrl . '/#organization'],
+                    'inLanguage' => 'fa-IR',
+                ],
+            ],
+        ];
+    }
+    if ($jsonLd !== null) {
+        $jsonStr = is_string($jsonLd) ? $jsonLd : json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($jsonStr !== false && $jsonStr !== '') {
+            $out .= '<script type="application/ld+json">' . $jsonStr . '</script>' . "\n";
+        }
+    }
     $out .= '<link rel="stylesheet" href="style.php?v=' . e(site_css_version($settings)) . '">' . "\n";
     $out .= '<link rel="icon" type="image/png" href="uploads/gallery/favicon.png">' . "\n";
     $out .= '<link rel="apple-touch-icon" href="uploads/gallery/favicon.png">' . "\n";
@@ -3151,6 +3248,26 @@ function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
     set_setting('theme_cinematic_890', '1');
 }
 
+
+
+/**
+ * نسخه ۸٫۱۰٫۰ — افزودن فیلدهای سئو به جدول محصولات (فقط یک بار).
+ */
+function seed_product_seo_v810_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('product_seo_810', '') === '1') {
+        return;
+    }
+    db_add_column_if_missing($pdo, 'products', 'seo_title', 'TEXT');
+    db_add_column_if_missing($pdo, 'products', 'seo_description', 'TEXT');
+    db_add_column_if_missing($pdo, 'products', 'seo_keywords', 'TEXT');
+    set_setting('product_seo_810', '1');
+}
 
 /**
  * نسخه ۸٫۹٫۴ — بهبود نوار متحرک (marquee) صفحه اصلی (فقط یک بار).
