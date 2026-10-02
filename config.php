@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.9.3');
+define('APP_VERSION', '8.9.4');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -734,6 +734,12 @@ GALLERYHTML;
         seed_logo_path_v893_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('logo path migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۸٫۹٫۴: بهبود نوار متحرک ---
+    try {
+        seed_marquee_v894_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('marquee migration failed: ' . $e->getMessage());
     }
 }
 
@@ -3145,6 +3151,41 @@ function seed_cinematic_theme_v890_if_needed(PDO $pdo): void
     set_setting('theme_cinematic_890', '1');
 }
 
+
+/**
+ * نسخه ۸٫۹٫۴ — بهبود نوار متحرک (marquee) صفحه اصلی (فقط یک بار).
+ * CSS و قالب اسلایدر به‌روز می‌شوند؛ نسخه‌های قبلی در «تاریخچه طراحی» آرشیو می‌شوند.
+ */
+function seed_marquee_v894_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('marquee_894', '') === '1') {
+        return;
+    }
+    // آرشیو CSS فعلی
+    $curCss = get_setting('site_css', '');
+    if (trim($curCss) !== '') {
+        archive_design_revision($pdo, 'css', 'site_css', $curCss, 'css-archive: CSS قبل از بهبود نوار متحرک (نسخه ۸٫۹٫۴).');
+    }
+    // آرشیو قالب اسلایدر فعلی
+    $st = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    $st->execute([':k' => 'slider']);
+    $oldTpl = $st->fetchColumn();
+    if ($oldTpl !== false && trim((string) $oldTpl) !== '') {
+        archive_design_revision($pdo, 'template', 'slider', (string) $oldTpl, 'template-archive: قالب «اسلایدر» قبل از بهبود نوار متحرک (نسخه ۸٫۹٫۴).');
+    }
+    // جایگزینی CSS و قالب از کارخانه
+    set_setting('site_css', default_site_css());
+    $tpls = factory_templates();
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    $up->execute([':c' => $tpls['slider']['content'], ':k' => 'slider']);
+    set_setting('css_updated_at', date('Y-m-d H:i:s'));
+    set_setting('marquee_894', '1');
+}
 
 /**
  * نسخه ۸٫۹٫۳ — اصلاح مسیر لوگو و فاوآیکون به uploads/gallery/ (فقط یک بار).
