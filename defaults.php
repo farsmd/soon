@@ -14,7 +14,7 @@ function factory_templates(): array
             'content' => <<<'HTML'
 <header class="site-header">
     <div class="container header-inner">
-        <a class="logo" href="index.php"><img class="logo-img" src="uploads/logo.png" alt="{{site_title}}" onerror="this.remove()"><span>{{site_title}}</span></a>
+        <a class="logo" href="index.php"><img class="logo-img" src="uploads/gallery/logo.png" alt="{{site_title}}" onerror="this.remove()"><span>{{site_title}}</span></a>
         {{menu}}
         <a class="btn btn-gold btn-sm header-cta" href="products.php">ثبت سفارش</a>
     </div>
