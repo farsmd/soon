@@ -264,7 +264,11 @@ p{margin:0 0 1em}
 .skip-link{position:absolute;top:-60px;right:16px;z-index:200;background:var(--primary);color:#111;padding:8px 16px;border-radius:8px;transition:top .2s}
 .skip-link:focus{top:12px;color:#111}
 .muted{color:var(--muted)}
-.theme-toggle{display:none!important}
+/* دکمه تغییر تم روشن/تیره */
+.theme-toggle{background:var(--gold-soft);border:1px solid var(--surface-border);border-radius:99px;
+    width:44px;height:44px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:transform .2s,background .2s}
+.theme-toggle:hover{transform:scale(1.08);background:rgba(201,162,39,.25)}
 main{display:block}
 section{scroll-margin-top:84px}
 
@@ -550,6 +554,70 @@ textarea{min-height:120px;resize:vertical}
     .cinematic-hero{min-height:auto}
     .cinematic-hero h1{color:#000;-webkit-text-fill-color:#000;background:none}
 }
+
+/* ============================================================
+   تم روشن (نسخه ۹٫۰٫۴) — با دکمه 🌓 در هدر بین تیره و روشن جابه‌جا می‌شود
+   ============================================================ */
+html[data-theme="light"]{
+    --bg:#faf8f2;
+    --bg-soft:#f4efe3;
+    --surface:#ffffff;
+    --surface-border:#e6dcc4;
+    --text:#221d12;
+    --muted:#7a7260;
+    --gold-soft:rgba(201,162,39,.13);
+    --header-bg:rgba(250,248,242,.88);
+    --header-text:#221d12;
+    --header-link:#5a5344;
+    --footer-bg:#efe9d9;
+    --footer-text:#7a7260;
+    --input-bg:#ffffff;
+    --input-border:#d9cfb4;
+    --alert-ok-bg:#e2f3e7;
+    --alert-ok-text:#1c5c2e;
+    --alert-error-bg:#fbe3e3;
+    --alert-error-text:#8f1f1f;
+    --shadow:0 24px 60px rgba(120,90,20,.14);
+    --line-glow:0 0 24px rgba(201,162,39,.4),0 0 80px rgba(201,162,39,.18);
+}
+html[data-theme="light"] body::before{
+    background:radial-gradient(1100px 520px at 85% -8%,rgba(201,162,39,.14),transparent 60%),
+               radial-gradient(900px 500px at 8% 22%,rgba(201,162,39,.08),transparent 60%),
+               radial-gradient(700px 700px at 50% 110%,rgba(201,162,39,.07),transparent 60%)}
+html[data-theme="light"] .cinematic-hero .hero-shade{
+    background:linear-gradient(180deg,rgba(250,248,242,.55) 0%,rgba(250,248,242,.25) 45%,var(--bg) 100%)}
+html[data-theme="light"] .cinematic-hero h1{color:#2a2417}
+html[data-theme="light"] .hero-kicker{color:#8a6d1f;background:rgba(201,162,39,.16);border-color:rgba(201,162,39,.35)}
+html[data-theme="light"] .hero-lead{color:#5a5344}
+html[data-theme="light"] .btn-ghost{border-color:#c9a227;color:#7a5f14}
+html[data-theme="light"] .btn-ghost:hover{background:rgba(201,162,39,.14)}
+html[data-theme="light"] .marquee{background:linear-gradient(180deg,rgba(201,162,39,.1),rgba(201,162,39,.05))}
+html[data-theme="light"] .mq-item{color:#5a4d2e}
+html[data-theme="light"] .section-head h2{color:#2a2417}
+html[data-theme="light"] .section-head p{color:#7a7260}
+html[data-theme="light"] .ps-card{background:#fff;box-shadow:0 8px 28px rgba(120,90,20,.1)}
+html[data-theme="light"] .ps-card:hover{box-shadow:0 18px 40px rgba(120,90,20,.18)}
+html[data-theme="light"] .ps-body h3{color:#221d12}
+html[data-theme="light"] .ps-price{color:#8a6d1f}
+html[data-theme="light"] .ps-cat{background:rgba(201,162,39,.16);color:#7a5f14}
+html[data-theme="light"] .manifesto{background:linear-gradient(135deg,#f4efe3,#faf8f2)}
+html[data-theme="light"] .manifesto p{color:#3a3423}
+html[data-theme="light"] .g-card{background:#fff}
+html[data-theme="light"] .g-card figcaption{background:#fff;color:#3a3423}
+html[data-theme="light"] .step{background:#fff;border-color:var(--surface-border)}
+html[data-theme="light"] .step h3{color:#2a2417}
+html[data-theme="light"] .step p{color:#7a7260}
+html[data-theme="light"] .stat-num{color:#8a6d1f}
+html[data-theme="light"] .stat-label{color:#7a7260}
+html[data-theme="light"] .final-cta{background:linear-gradient(135deg,#2a2417,#4a3d1c)}
+html[data-theme="light"] .pb-fcard{background:#fff;box-shadow:0 8px 24px rgba(120,90,20,.08)}
+html[data-theme="light"] .pb-fcard h3{color:#8a6d1f}
+html[data-theme="light"] .gallery-card{background:#fff}
+html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{color:#221d12}
+html[data-theme="light"] .product-card{background:#fff}
+html[data-theme="light"] .product-card h3 a{color:#221d12}
+html[data-theme="light"] .catalog-nav a{background:#fff;border-color:var(--surface-border);color:#5a5344}
+html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 CSS;
 }
 
