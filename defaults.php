@@ -55,6 +55,7 @@ HTML,
         <span class="mq-item">گارانتی و کنترل کیفیت</span><span class="mq-dot">✦</span>
     </div>
 </div>
+{{products_showcase}}
 <script>
 (function(){
     /* ذرات نورانی هیرو */
@@ -367,6 +368,46 @@ section{scroll-margin-top:84px}
 .mani-kicker{color:var(--accent);font-size:14px;font-weight:700;margin-bottom:18px}
 .mani-text{font-size:clamp(20px,3.6vw,30px);font-weight:700;line-height:2.2;max-width:860px;margin:0 auto}
 .mani-text em{font-style:normal;color:var(--accent);text-shadow:0 0 30px rgba(232,198,106,.4)}
+
+/* ---------- بلوک‌های صفحه‌ساز ویژوال (نسخه ۹) ---------- */
+.pb-text,.pb-image,.pb-gallery,.pb-cta,.pb-features,.pb-video{padding:50px 0}
+.pb-text h2,.pb-image h2,.pb-gallery h2,.pb-cta h2,.pb-features h2,.pb-video h2{text-align:center;color:#f0d488;margin:0 0 24px;font-size:clamp(22px,3.5vw,30px)}
+.pb-body{max-width:800px;margin:0 auto;line-height:2;color:#c8cdd6}
+.pb-image img{max-width:100%;height:auto;border-radius:16px;display:block;margin:0 auto;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.pb-caption{text-align:center;color:#9aa3b2;font-size:14px;margin-top:12px}
+.pb-ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.pb-ggrid img{width:100%;height:160px;object-fit:cover;border-radius:12px;display:block;transition:transform .3s}
+.pb-ggrid a:hover img{transform:scale(1.04)}
+.pb-cta{text-align:center;background:linear-gradient(135deg,rgba(201,162,39,.12),rgba(201,162,39,.04));border-top:1px solid rgba(201,162,39,.2);border-bottom:1px solid rgba(201,162,39,.2)}
+.pb-cta p{color:#9aa3b2;max-width:600px;margin:0 auto 24px;line-height:2}
+.pb-fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.pb-fcard{background:rgba(255,255,255,.03);border:1px solid rgba(201,162,39,.18);border-radius:14px;padding:22px}
+.pb-fcard h3{color:#f0d488;margin:0 0 8px;font-size:17px}
+.pb-fcard p{color:#9aa3b2;margin:0;font-size:14px;line-height:1.9}
+.pb-divider hr{border:none;border-top:1px solid rgba(201,162,39,.25);margin:0}
+.pb-video video{max-width:800px;width:100%;border-radius:16px;display:block;margin:0 auto}
+.pb-vwrap{position:relative;max-width:800px;margin:0 auto;aspect-ratio:16/9}
+.pb-vwrap iframe{position:absolute;inset:0;width:100%;height:100%;border-radius:16px}
+
+/* ---------- ویترین محصولات صفحه اصلی (نسخه ۹) ---------- */
+.products-showcase{padding:70px 0;background:linear-gradient(180deg,rgba(201,162,39,.04),transparent 60%)}
+.ps-head{text-align:center;margin-bottom:36px}
+.ps-head h2{font-size:clamp(24px,4vw,36px);color:#f0d488;margin:0 0 8px}
+.ps-head p{color:#9aa3b2;margin:0}
+.ps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.ps-card{display:block;background:rgba(255,255,255,.03);border:1px solid rgba(201,162,39,.18);border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .25s,box-shadow .25s,border-color .25s}
+.ps-card:hover{transform:translateY(-6px);border-color:rgba(201,162,39,.5);box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.ps-img{aspect-ratio:16/10;overflow:hidden;background:#111}
+.ps-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
+.ps-card:hover .ps-img img{transform:scale(1.06)}
+.ps-body{padding:16px}
+.ps-body h3{margin:0 0 6px;font-size:17px;color:#fff}
+.ps-cat{font-size:12px;color:#c9a227;background:rgba(201,162,39,.12);padding:2px 10px;border-radius:99px}
+.ps-price{margin-top:10px;font-size:18px;font-weight:700;color:#f0d488}
+.ps-price small{font-size:12px;font-weight:400;color:#9aa3b2}
+.ps-partner{font-size:13px;color:#9aa3b2;margin-top:2px}
+.ps-link{display:inline-block;margin-top:12px;font-size:14px;color:#c9a227}
+.ps-more{text-align:center;margin-top:32px}
 
 /* ---------- نوار گالری ---------- */
 .g-wrap{padding:20px 0 90px}

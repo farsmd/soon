@@ -34,6 +34,10 @@ echo skeleton_head($settings, $title, $desc);
 echo render_db_template('header', $settings) . "\n";
 echo '<main id="main">' . "\n";
 echo render_db_template('single', $settings, null, $viewPage) . "\n";
+// نسخه ۹: بلوک‌های صفحه‌ساز ویژوال
+if ($page !== null) {
+    echo render_page_blocks((int) $page['id']) . "\n";
+}
 echo '</main>' . "\n";
 echo render_db_template('footer', $settings) . "\n";
 echo skeleton_foot();

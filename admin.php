@@ -119,6 +119,7 @@ function nav_icon(string $name): string
         'plus'      => '<path d="M12 5v14M5 12h14"/>',
         'cut'       => '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.7 8.7 20 20M8.7 15.3 20 4"/>',
         'key'       => '<circle cx="8" cy="15" r="4"/><path d="M11 12 21 2M16 7l3 3M13 10l2 2"/>',
+        'image'     => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -412,6 +413,7 @@ $pageTitles = [
     'dashboard'  => 'داشبورد',
     'sections'   => 'بخش‌های صفحه اصلی',
     'pages'      => 'صفحه‌ها',
+    'gallery'    => 'مدیریت گالری',
     'design'     => 'قالب و استایل',
     'messages'   => 'پیام‌های تماس',
     'customers'  => 'مشتری‌ها',
@@ -454,6 +456,7 @@ $navGroups = [
     ]],
     'content' => ['محتوا', [
         ['admin.php?page=pages', 'file', 'صفحه‌ها', 'pages'],
+        ['admin.php?page=gallery', 'image', 'مدیریت گالری', 'gallery'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=messages', 'mail', 'پیام‌های تماس', 'messages'],
         ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
@@ -740,6 +743,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $dir = (string) ($_POST['direction'] ?? '');
                 move_row($pdo, 'pages', $id, $dir);
                 redirect_admin('admin.php?page=pages');
+                // no break
+
+            // --- نسخه ۹: مدیریت گالری ---
+            case 'gallery_upload':
+                $f = $_FILES['gallery_image'] ?? null;
+                if ($f === null || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException('فایل عکس را انتخاب کنید.');
+                }
+                $ext = strtolower(pathinfo((string) ($f['name'] ?? ''), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                    throw new RuntimeException('فقط فایل JPG، PNG یا WebP مجاز است.');
+                }
+                if (($f['size'] ?? 0) > 8 * 1024 * 1024) {
+                    throw new RuntimeException('حجم فایل نباید بیشتر از ۸ مگابایت باشد.');
+                }
+                $imgInfo = @getimagesize((string) $f['tmp_name']);
+                if ($imgInfo === false) {
+                    throw new RuntimeException('فایل انتخاب‌شده عکس معتبر نیست.');
+                }
+                $dir = __DIR__ . '/uploads/gallery';
+                if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+                    throw new RuntimeException('پوشه آپلود ساخته نشد.');
+                }
+                $num = gallery_next_number($pdo);
+                $filename = 'gallery-' . str_pad((string) $num, 2, '0', STR_PAD_LEFT) . '.jpg';
+                $dest = $dir . '/' . $filename;
+                // تبدیل به JPG برای یکدستی
+                $saved = false;
+                if ($ext === 'jpg' || $ext === 'jpeg') {
+                    $saved = @move_uploaded_file((string) $f['tmp_name'], $dest);
+                } else {
+                    // تبدیل PNG/WebP به JPG با GD
+                    $srcImg = $ext === 'png' ? @imagecreatefrompng((string) $f['tmp_name']) : @imagecreatefromwebp((string) $f['tmp_name']);
+                    if ($srcImg !== false) {
+                        $w = imagesx($srcImg); $h = imagesy($srcImg);
+                        $dstImg = imagecreatetruecolor($w, $h);
+                        $white = imagecolorallocate($dstImg, 255, 255, 255);
+                        imagefilledrectangle($dstImg, 0, 0, $w, $h, $white);
+                        imagecopy($dstImg, $srcImg, 0, 0, 0, 0, $w, $h);
+                        $saved = @imagejpeg($dstImg, $dest, 85);
+                        imagedestroy($srcImg); imagedestroy($dstImg);
+                    }
+                }
+                if (!$saved) {
+                    throw new RuntimeException('ذخیره فایل ناموفق بود.');
+                }
+                $caption = trim((string) ($_POST['caption'] ?? ''));
+                $desc = trim((string) ($_POST['description'] ?? ''));
+                $figs = gallery_get_figures($pdo);
+                $figs[] = ['src' => 'uploads/gallery/' . $filename, 'alt' => $caption, 'caption' => $caption, 'desc' => $desc];
+                gallery_save_figures($pdo, $figs);
+                flash('ok', 'عکس به گالری اضافه شد.');
+                redirect_admin('admin.php?page=gallery');
+                // no break
+
+            case 'gallery_update':
+                $idx = (int) ($_POST['index'] ?? -1);
+                $figs = gallery_get_figures($pdo);
+                if (!isset($figs[$idx])) {
+                    throw new RuntimeException('عکس پیدا نشد.');
+                }
+                $figs[$idx]['caption'] = trim((string) ($_POST['caption'] ?? ''));
+                $figs[$idx]['alt'] = trim((string) ($_POST['caption'] ?? ''));
+                $figs[$idx]['desc'] = trim((string) ($_POST['description'] ?? ''));
+                gallery_save_figures($pdo, $figs);
+                flash('ok', 'توضیحات عکس به‌روزرسانی شد.');
+                redirect_admin('admin.php?page=gallery');
+                // no break
+
+            case 'gallery_delete':
+                $idx = (int) ($_POST['index'] ?? -1);
+                $deleteFile = !empty($_POST['delete_file']);
+                $figs = gallery_get_figures($pdo);
+                if (!isset($figs[$idx])) {
+                    throw new RuntimeException('عکس پیدا نشد.');
+                }
+                $src = (string) ($figs[$idx]['src'] ?? '');
+                array_splice($figs, $idx, 1);
+                gallery_save_figures($pdo, $figs);
+                if ($deleteFile && $src !== '' && strpos($src, 'uploads/gallery/') === 0) {
+                    $path = __DIR__ . '/' . $src;
+                    if (is_file($path)) { @unlink($path); }
+                }
+                flash('ok', 'عکس از گالری حذف شد.');
+                redirect_admin('admin.php?page=gallery');
+                // no break
+
+            case 'gallery_move':
+                $idx = (int) ($_POST['index'] ?? -1);
+                $dir = (string) ($_POST['direction'] ?? '');
+                $figs = gallery_get_figures($pdo);
+                if (!isset($figs[$idx])) {
+                    throw new RuntimeException('عکس پیدا نشد.');
+                }
+                $swap = $dir === 'up' ? $idx - 1 : $idx + 1;
+                if (isset($figs[$swap])) {
+                    $tmp = $figs[$idx]; $figs[$idx] = $figs[$swap]; $figs[$swap] = $tmp;
+                    gallery_save_figures($pdo, $figs);
+                }
+                redirect_admin('admin.php?page=gallery');
+                // no break
+
+            // --- نسخه ۹: بلوک‌های صفحه‌ساز ---
+            case 'add_block':
+            case 'update_block':
+                $blockId = (int) ($_POST['block_id'] ?? 0);
+                $pageId = (int) ($_POST['page_id'] ?? 0);
+                $btype = (string) ($_POST['block_type'] ?? 'text');
+                $btitle = trim((string) ($_POST['block_title'] ?? ''));
+                $bcontent = (string) ($_POST['block_content'] ?? '');
+                $bsettings = [];
+                foreach (['alt', 'caption', 'btn_text', 'btn_url'] as $sk) {
+                    $v = trim((string) ($_POST['setting_' . $sk] ?? ''));
+                    if ($v !== '') { $bsettings[$sk] = $v; }
+                }
+                $bactive = !empty($_POST['is_active']) ? 1 : 0;
+                if (!array_key_exists($btype, page_block_types())) {
+                    throw new RuntimeException('نوع بلوک نامعتبر است.');
+                }
+                if ($action === 'add_block') {
+                    $maxOrder = (int) $pdo->query('SELECT COALESCE(MAX(sort_order), 0) FROM page_blocks WHERE page_id = ' . $pageId)->fetchColumn();
+                    $pdo->prepare('INSERT INTO page_blocks (page_id, block_type, title, content, settings, sort_order, is_active) VALUES (:p, :t, :ti, :c, :s, :o, :a)')->execute([
+                        ':p' => $pageId, ':t' => $btype, ':ti' => $btitle, ':c' => $bcontent,
+                        ':s' => json_encode($bsettings, JSON_UNESCAPED_UNICODE), ':o' => $maxOrder + 10, ':a' => $bactive,
+                    ]);
+                    flash('ok', 'بلوک جدید اضافه شد.');
+                } else {
+                    $pdo->prepare('UPDATE page_blocks SET block_type = :t, title = :ti, content = :c, settings = :s, is_active = :a WHERE id = :id')->execute([
+                        ':t' => $btype, ':ti' => $btitle, ':c' => $bcontent,
+                        ':s' => json_encode($bsettings, JSON_UNESCAPED_UNICODE), ':a' => $bactive, ':id' => $blockId,
+                    ]);
+                    flash('ok', 'بلوک به‌روزرسانی شد.');
+                }
+                redirect_admin('admin.php?page=pages&edit_id=' . $pageId . '#blocks');
+                // no break
+
+            case 'delete_block':
+                $blockId = (int) ($_POST['block_id'] ?? 0);
+                $pageId = (int) ($_POST['page_id'] ?? 0);
+                $pdo->prepare('DELETE FROM page_blocks WHERE id = :id')->execute([':id' => $blockId]);
+                flash('ok', 'بلوک حذف شد.');
+                redirect_admin('admin.php?page=pages&edit_id=' . $pageId . '#blocks');
+                // no break
+
+            case 'move_block':
+                $blockId = (int) ($_POST['block_id'] ?? 0);
+                $pageId = (int) ($_POST['page_id'] ?? 0);
+                $dir = (string) ($_POST['direction'] ?? '');
+                move_row($pdo, 'page_blocks', $blockId, $dir);
+                redirect_admin('admin.php?page=pages&edit_id=' . $pageId . '#blocks');
+                // no break
+
+            case 'toggle_block':
+                $blockId = (int) ($_POST['block_id'] ?? 0);
+                $pageId = (int) ($_POST['page_id'] ?? 0);
+                $pdo->prepare('UPDATE page_blocks SET is_active = 1 - is_active WHERE id = :id')->execute([':id' => $blockId]);
+                redirect_admin('admin.php?page=pages&edit_id=' . $pageId . '#blocks');
                 // no break
 
             case 'delete_message':
@@ -1101,9 +1261,19 @@ if ($page === 'sections' && isset($_GET['edit_id'])) {
     }
 }
 $editPage = null;
+$pageBlocks = [];
+$editBlock = null;
 if ($page === 'pages' && isset($_GET['edit_id'])) {
     foreach ($pages as $p) {
         if ((int) $p['id'] === (int) $_GET['edit_id']) { $editPage = $p; break; }
+    }
+    if ($editPage !== null) {
+        $pageBlocks = get_page_blocks((int) $editPage['id'], false);
+        if (isset($_GET['edit_block'])) {
+            foreach ($pageBlocks as $b) {
+                if ((int) $b['id'] === (int) $_GET['edit_block']) { $editBlock = $b; break; }
+            }
+        }
     }
 }
 
@@ -1243,6 +1413,18 @@ if ($page === 'design') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($currentPageTitle) ?> — پنل مدیریت</title>
 <link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
+<?php if (($page ?? '') === 'design'): ?>
+<link rel="stylesheet" href="assets/codemirror/lib/codemirror.min.css">
+<link rel="stylesheet" href="assets/codemirror/theme/dracula.min.css">
+<style>
+.CodeMirror{height:420px;direction:ltr;text-align:left;font-size:14px;border-radius:10px;border:1px solid #334155}
+.cm-toolbar{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.cm-toolbar .btn.small{font-size:12px;padding:6px 12px}
+.cm-fullscreen{position:fixed!important;inset:0!important;height:100vh!important;z-index:9999;border-radius:0!important}
+.cm-fullscreen-wrap{position:fixed;inset:0;z-index:9998;background:#0b0f14;padding:12px}
+@media(max-width:640px){.CodeMirror{height:320px;font-size:13px}}
+</style>
+<?php endif; ?>
 <style><?= admin_css() ?></style>
 </head>
 <body>
@@ -1608,6 +1790,10 @@ if ($page === 'design') {
             </form>
             </div>
 
+            <?php if ($editPage !== null): ?>
+                <?php include __DIR__ . '/admin_blocks_ui.php'; ?>
+            <?php endif; ?>
+
             <table>
                 <thead><tr><th>ترتیب</th><th>عنوان</th><th>نامک (slug)</th><th>در منو</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                 <tbody>
@@ -1630,6 +1816,9 @@ if ($page === 'design') {
                 <?php if ($pages === []): ?><tr><td colspan="6" class="muted">هنوز صفحه‌ای ساخته نشده است.</td></tr><?php endif; ?>
                 </tbody>
             </table>
+
+        <?php elseif ($page === 'gallery'): ?>
+            <?php include __DIR__ . '/admin_gallery_ui.php'; ?>
 
         <?php elseif ($page === 'design'): ?>
             <h1>قالب و استایل</h1>
@@ -1735,7 +1924,7 @@ if ($page === 'design') {
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="save_db_template">
                         <input type="hidden" name="template_key" value="<?= e($editTplRow['template_key']) ?>">
-                        <textarea name="content" rows="20" dir="ltr" spellcheck="false"><?= e($editTplRow['content']) ?></textarea>
+                        <textarea name="content" rows="20" dir="ltr" spellcheck="false" class="code-editor" data-mode="htmlmixed"><?= e($editTplRow['content']) ?></textarea>
                         <button type="submit" class="btn primary">ذخیره قالب</button>
                         <a class="btn" href="index.php" target="_blank">مشاهده سایت</a>
                     </form>
@@ -1830,7 +2019,7 @@ if ($page === 'design') {
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="save_css">
                     <input type="hidden" name="which" value="site_css">
-                    <textarea name="content" rows="24" dir="ltr" spellcheck="false"><?= e($settings['site_css'] ?? '') ?></textarea>
+                    <textarea name="content" rows="24" dir="ltr" spellcheck="false" class="code-editor" data-mode="css"><?= e($settings['site_css'] ?? '') ?></textarea>
                     <button type="submit" class="btn primary">ذخیره CSS اصلی</button>
                 </form>
                 <form method="post" class="card" onsubmit="return confirm('CSS اصلی به نسخه کارخانه‌ای برگردد؟ نسخه فعلی در تاریخچه می‌ماند.')">
@@ -1861,7 +2050,7 @@ if ($page === 'design') {
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="save_css">
                     <input type="hidden" name="which" value="custom_css">
-                    <textarea name="content" rows="12" dir="ltr" spellcheck="false"><?= e($settings['custom_css'] ?? '') ?></textarea>
+                    <textarea name="content" rows="12" dir="ltr" spellcheck="false" class="code-editor" data-mode="css"><?= e($settings['custom_css'] ?? '') ?></textarea>
                     <button type="submit" class="btn primary">ذخیره CSS سفارشی</button>
                 </form>
                 <form method="post" class="card" onsubmit="return confirm('CSS سفارشی کاملاً خالی شود؟ نسخه فعلی در تاریخچه می‌ماند.')">
@@ -2244,6 +2433,58 @@ if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){
 (function(){document.addEventListener('click',function(ev){var btn=ev.target;while(btn&&btn!==document&&!(btn.getAttribute&&btn.getAttribute('data-toggle-panel'))){btn=btn.parentNode}if(!btn||btn===document){return}var el=document.getElementById(btn.getAttribute('data-toggle-panel'));if(!el){return}var show=el.hasAttribute('hidden');if(show){el.removeAttribute('hidden');var f=el.querySelector('input,select,textarea');if(f){try{f.focus()}catch(e){}}}else{el.setAttribute('hidden','')}btn.setAttribute('aria-expanded',show?'true':'false')});
 var op=document.querySelector('.crud-panel[data-open],.help-panel[data-open]');if(op){try{op.scrollIntoView({block:'start'})}catch(e){}}})();
 </script>
+<?php if (($page ?? '') === 'design'): ?>
+<script src="assets/codemirror/lib/codemirror.min.js"></script>
+<script src="assets/codemirror/mode/xml.min.js"></script>
+<script src="assets/codemirror/mode/css.min.js"></script>
+<script src="assets/codemirror/mode/javascript.min.js"></script>
+<script src="assets/codemirror/mode/htmlmixed.min.js"></script>
+<script src="assets/codemirror/mode/clike.min.js"></script>
+<script src="assets/codemirror/mode/php.min.js"></script>
+<script src="assets/codemirror/addon/matchbrackets.min.js"></script>
+<script>
+(function(){
+if(typeof CodeMirror==='undefined'){return;}
+document.querySelectorAll('textarea.code-editor').forEach(function(ta){
+    var mode=ta.getAttribute('data-mode')||'htmlmixed';
+    // Add toolbar
+    var toolbar=document.createElement('div');
+    toolbar.className='cm-toolbar';
+    toolbar.innerHTML='<button type="button" class="btn small" data-cm="fs">⛶ تمام‌صفحه</button>'+
+        '<button type="button" class="btn small" data-cm="font+">A+ بزرگ‌تر</button>'+
+        '<button type="button" class="btn small" data-cm="font-">A- کوچک‌تر</button>'+
+        '<span class="muted" style="font-size:12px">ویرایشگر حرفه‌ای کد — برای ذخیره، فرم را ثبت کنید</span>';
+    ta.parentNode.insertBefore(toolbar,ta);
+    var cm=CodeMirror.fromTextArea(ta,{
+        mode:mode,theme:'dracula',lineNumbers:true,matchBrackets:true,
+        lineWrapping:true,indentUnit:4,tabSize:4,indentWithTabs:false,
+        viewportMargin:Infinity,extraKeys:{'Tab':function(c){c.replaceSelection('    ','end');}}
+    });
+    var fs=false;
+    toolbar.addEventListener('click',function(e){
+        var b=e.target.closest('[data-cm]');if(!b){return;}
+        var act=b.getAttribute('data-cm');
+        if(act==='fs'){
+            fs=!fs;
+            var wrap=cm.getWrapperElement();
+            if(fs){wrap.classList.add('cm-fullscreen');document.body.style.overflow='hidden';b.textContent='✕ خروج از تمام‌صفحه';}
+            else{wrap.classList.remove('cm-fullscreen');document.body.style.overflow='';b.textContent='⛶ تمام‌صفحه';}
+            cm.refresh();
+        }else if(act==='font+'){
+            var el=cm.getWrapperElement();var s=parseInt(getComputedStyle(el).fontSize)||14;
+            el.style.fontSize=Math.min(22,s+1)+'px';cm.refresh();
+        }else if(act==='font-'){
+            var el2=cm.getWrapperElement();var s2=parseInt(getComputedStyle(el2).fontSize)||14;
+            el2.style.fontSize=Math.max(10,s2-1)+'px';cm.refresh();
+        }
+    });
+    // Save back to textarea on form submit
+    var form=ta.closest('form');
+    if(form){form.addEventListener('submit',function(){cm.save();});}
+});
+})();
+</script>
+<?php endif; ?>
 <script src="assets/bootstrap.bundle.min.js"></script>
 </body>
 </html>
