@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.8.0');
+define('APP_VERSION', '8.8.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -629,6 +629,71 @@ function init_db(PDO $pdo): void
             ':st' => 'درباره ما',
             ':sd' => 'صفحه درباره ما',
         ]);
+    }
+
+    // --- نسخه ۸٫۸٫۱: صفحه «گالری پروژه‌ها» (فقط اگر با همین اسلاگ وجود نداشته باشد) ---
+    $galleryExists = (int) $pdo->query("SELECT COUNT(*) FROM pages WHERE slug = 'gallery'")->fetchColumn();
+    if ($galleryExists === 0) {
+        $galleryHtml = <<<'GALLERYHTML'
+<p>نمونه‌ای از پروژه‌های اجراشده با چراغ‌های خطی لاینرلایت؛ از نورپردازی راه‌پله و فضای اداری تا ویترین فروشگاه و سالن‌های مسکونی.</p>
+<style>
+.ll-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:18px 0}
+.ll-gallery figure{margin:0;border-radius:12px;overflow:hidden;background:#f3f4f6;cursor:zoom-in;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ll-gallery img{width:100%;height:230px;object-fit:cover;display:block;transition:transform .35s ease}
+.ll-gallery figure:hover img{transform:scale(1.05)}
+.ll-gallery figcaption{padding:10px 12px;font-size:13px;color:#374151;background:#fff}
+.ll-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9999;flex-direction:column}
+.ll-lightbox.open{display:flex}
+.ll-lightbox img{max-width:92vw;max-height:82vh;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.ll-lightbox .ll-cap{color:#e5e7eb;margin-top:12px;font-size:14px}
+.ll-lightbox .ll-close{position:absolute;top:18px;left:22px;color:#fff;font-size:34px;cursor:pointer;background:none;border:0;line-height:1}
+.ll-lightbox .ll-nav{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:40px;cursor:pointer;background:rgba(255,255,255,.12);border:0;border-radius:50%;width:52px;height:52px;line-height:1}
+.ll-lightbox .ll-prev{right:16px}
+.ll-lightbox .ll-next{left:16px}
+</style>
+<div class="ll-gallery" id="llGallery">
+<figure><img loading="lazy" src="uploads/gallery/gallery-01.jpg" alt="نور خطی راه‌پله"><figcaption>نور خطی راه‌پله</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-02.jpg" alt="چراغ خطی آویز فروشگاهی"><figcaption>چراغ خطی آویز فروشگاهی</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-03.jpg" alt="نور خطی سقفی فضای اداری"><figcaption>نور خطی سقفی فضای اداری</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-04.jpg" alt="نور مخفی ویترین فروشگاه"><figcaption>نور مخفی ویترین فروشگاه</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-05.jpg" alt="چراغ خطی سقفی سالن"><figcaption>چراغ خطی سقفی سالن</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-06.jpg" alt="ترکیب چراغ خطی و ریلی"><figcaption>ترکیب چراغ خطی و ریلی</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-07.jpg" alt="نور مخفی سقفی"><figcaption>نور مخفی سقفی</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-08.jpg" alt="چراغ ریلی و خطی راهرو"><figcaption>چراغ ریلی و خطی راهرو</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-09.jpg" alt="نور خطی فضای کار"><figcaption>نور خطی فضای کار</figcaption></figure>
+<figure><img loading="lazy" src="uploads/gallery/gallery-10.jpg" alt="چراغ خطی آویز سالن جلسات"><figcaption>چراغ خطی آویز سالن جلسات</figcaption></figure>
+</div>
+<div class="ll-lightbox" id="llLightbox" role="dialog" aria-label="نمایش بزرگ عکس">
+<button class="ll-close" id="llClose" aria-label="بستن">×</button>
+<button class="ll-nav ll-prev" id="llPrev" aria-label="قبلی">‹</button>
+<img id="llImg" src="" alt="">
+<button class="ll-nav ll-next" id="llNext" aria-label="بعدی">›</button>
+<div class="ll-cap" id="llCap"></div>
+</div>
+<script>
+(function(){
+var g=document.getElementById('llGallery');if(!g)return;
+var figs=Array.prototype.slice.call(g.querySelectorAll('figure'));
+var lb=document.getElementById('llLightbox'),im=document.getElementById('llImg'),cap=document.getElementById('llCap'),idx=0;
+function show(i){idx=(i+figs.length)%figs.length;var f=figs[idx],p=f.querySelector('img');im.src=p.src;im.alt=p.alt;cap.textContent=f.querySelector('figcaption').textContent;lb.classList.add('open');document.body.style.overflow='hidden';}
+function hide(){lb.classList.remove('open');document.body.style.overflow='';}
+figs.forEach(function(f,i){f.addEventListener('click',function(){show(i);});});
+document.getElementById('llClose').addEventListener('click',hide);
+document.getElementById('llPrev').addEventListener('click',function(e){e.stopPropagation();show(idx-1);});
+document.getElementById('llNext').addEventListener('click',function(e){e.stopPropagation();show(idx+1);});
+lb.addEventListener('click',function(e){if(e.target===lb)hide();});
+document.addEventListener('keydown',function(e){if(!lb.classList.contains('open'))return;if(e.key==='Escape')hide();if(e.key==='ArrowLeft')show(idx+1);if(e.key==='ArrowRight')show(idx-1);});
+})();
+</script>
+GALLERYHTML;
+        $pdo->prepare('INSERT INTO pages (title, slug, content, seo_title, seo_description, is_active, sort_order, show_in_menu) VALUES (:t,:s,:c,:st,:sd,1,20,1)')
+            ->execute([
+                ':t'  => 'گالری پروژه‌ها',
+                ':s'  => 'gallery',
+                ':c'  => $galleryHtml,
+                ':st' => 'گالری پروژه‌ها | لاینرلایت',
+                ':sd' => 'نمونه پروژه‌های اجراشده با چراغ‌های خطی لاینرلایت؛ نورپردازی راه‌پله، فضای اداری، فروشگاه و مسکونی.',
+            ]);
     }
 
     // --- نسخه ۵: سید قالب‌ها و CSS داخل دیتابیس (فقط آیتم‌های غایب؛ داده کاربر دست نمی‌خورد) ---
