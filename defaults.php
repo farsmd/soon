@@ -237,7 +237,7 @@ function cinematic_base_css(): string
     --header-text:#f2ede1;
     --header-link:#cfc7b2;
     --footer-bg:#04060a;
-    --footer-text:#8f8775;
+    --footer-text:#b8ae97;
     --input-bg:#0e131b;
     --card:#0e131b;
     --border:#1f2836;
@@ -375,12 +375,13 @@ section{scroll-margin-top:84px}
 /* ---------- مانیفست ---------- */
 .manifesto{padding:90px 0;text-align:center;position:relative}
 .mani-kicker{color:var(--accent);font-size:14px;font-weight:700;margin-bottom:18px}
+html[data-theme="light"] .mani-kicker{color:#8a6d1f}
 .mani-text{font-size:clamp(20px,3.6vw,30px);font-weight:700;line-height:2.2;max-width:860px;margin:0 auto}
 .mani-text em{font-style:normal;color:var(--accent);text-shadow:0 0 30px rgba(232,198,106,.4)}
 
 /* ---------- بلوک‌های صفحه‌ساز ویژوال (نسخه ۹) ---------- */
 .pb-text,.pb-image,.pb-gallery,.pb-cta,.pb-features,.pb-video{padding:50px 0}
-.pb-text h2,.pb-image h2,.pb-gallery h2,.pb-cta h2,.pb-features h2,.pb-video h2{text-align:center;color:#f0d488;margin:0 0 24px;font-size:clamp(22px,3.5vw,30px)}
+.pb-text h2,.pb-image h2,.pb-gallery h2,.pb-cta h2,.pb-features h2,.pb-video h2{text-align:center;color:var(--text);margin:0 0 24px;font-size:clamp(22px,3.5vw,30px)}
 .pb-body{max-width:800px;margin:0 auto;line-height:2;color:#c8cdd6}
 .pb-image img{max-width:100%;height:auto;border-radius:16px;display:block;margin:0 auto;box-shadow:0 12px 40px rgba(0,0,0,.4)}
 .pb-caption{text-align:center;color:#9aa3b2;font-size:14px;margin-top:12px}
@@ -597,6 +598,7 @@ html[data-theme="light"] .cinematic-hero .hero-shade{
 html[data-theme="light"] .cinematic-hero h1{color:#2a2417}
 html[data-theme="light"] .hero-kicker{color:#8a6d1f;background:rgba(201,162,39,.16);border-color:rgba(201,162,39,.35)}
 html[data-theme="light"] .hero-lead{color:#3a3428}
+html[data-theme="light"] .cinematic-hero .lead{color:#2a2417}
 html[data-theme="light"] .btn-ghost{border-color:#c9a227;color:#7a5f14}
 html[data-theme="light"] .btn-ghost:hover{background:rgba(201,162,39,.14)}
 html[data-theme="light"] .marquee{background:linear-gradient(180deg,rgba(201,162,39,.1),rgba(201,162,39,.05))}
@@ -651,6 +653,7 @@ html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 .pf-field label{font-size:13px;font-weight:600;color:var(--text)}
 .pf-field input,.pf-field textarea{border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);width:100%;box-sizing:border-box}
 .pf-field input:focus,.pf-field textarea:focus{outline:2px solid #c9a227;outline-offset:1px;border-color:#c9a227}
+.pf-field input::placeholder,.pf-field textarea::placeholder{color:var(--muted);opacity:.75}
 .pf-field .muted{font-weight:400;font-size:12px}
 @media(max-width:560px){.pf-grid{grid-template-columns:1fr}.partner-form{padding:18px}}
 
