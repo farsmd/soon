@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '8.6.0');
+define('APP_VERSION', '8.7.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -500,6 +500,32 @@ function init_db(PDO $pdo): void
         )
     ");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_admin_logs_id ON admin_logs (id DESC)");
+    // --- کاربران و نقش‌های پنل (نسخه ۸٫۷٫۰): ورود چندکاربره به‌جای تک‌پسورد ---
+    // جدول همیشه ساخته می‌شود؛ اگر خالی باشد و هش پسورد قدیمی مدیریت موجود باشد،
+    // کاربر مالک «admin» با همان هش ساخته می‌شود تا بعد از ارتقا هیچ‌کس بیرون نماند.
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            username      TEXT NOT NULL UNIQUE,
+            pass_hash     TEXT NOT NULL DEFAULT '',
+            display_name  TEXT NOT NULL DEFAULT '',
+            role_key      TEXT NOT NULL DEFAULT 'owner',
+            is_active     INTEGER NOT NULL DEFAULT 1,
+            created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_login_at TEXT NOT NULL DEFAULT ''
+        )
+    ");
+    try {
+        $adminUserCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
+        if ($adminUserCount === 0) {
+            $legacyAdminHash = trim((string) get_setting('admin_password_hash', ''));
+            if ($legacyAdminHash !== '') {
+                $pdo->prepare("INSERT INTO admin_users (username, pass_hash, display_name, role_key, is_active) VALUES ('admin', ?, 'مدیر', 'owner', 1)")
+                    ->execute([$legacyAdminHash]);
+            }
+        }
+    } catch (Throwable $ignored) {
+    }
     foreach ([
         'session_lifetime_hours' => '168',
         'visit_log_enabled'      => '1',
