@@ -1636,7 +1636,9 @@ function update_zip_download_url(array $cfg): string
     if (($cfg['zip_url'] ?? '') !== '') {
         return (string) $cfg['zip_url'];
     }
-    return 'https://codeload.github.com/' . $cfg['repo'] . '/zip/refs/heads/' . $cfg['branch'];
+    // کش‌بان: codeload گیت‌هاب فایل ZIP را چند دقیقه کش می‌کند؛ پارامتر زمانی آن را دور می‌زند
+    // (بدون این، ممکن است ZIP نسخه قبلی دانلود شود و آپدیتر بگوید «تازه‌تر نیست»)
+    return 'https://codeload.github.com/' . $cfg['repo'] . '/zip/refs/heads/' . $cfg['branch'] . '?t=' . time();
 }
 
 /**
