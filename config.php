@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.12.2');
+define('APP_VERSION', '9.12.3');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1086,6 +1086,35 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('contact qr migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۲٫۳: حذف ایمپورت CDN فونت از CSS دیتابیس (فونت محلی شد؛ یک بار) ---
+    try {
+        seed_local_font_v9123_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('local font migration failed: ' . $e->getMessage());
+    }
+}
+
+/**
+ * نسخه ۹٫۱۲٫۳ — حذف ایمپورت CDN خارجی فونت وزیرمتن از CSS دیتابیس (فقط یک بار).
+ * فونت از این پس به‌صورت محلی از assets/fonts سرو می‌شود.
+ */
+function seed_local_font_v9123_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('local_font_9123', '') === '1') {
+        return;
+    }
+    $liveCss = (string) get_setting('site_css', '');
+    if ($liveCss !== '' && strpos($liveCss, 'cdn.jsdelivr.net') !== false) {
+        $cdnImport = "@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');";
+        $liveCss = str_replace($cdnImport, '', $liveCss);
+        set_setting('site_css', $liveCss);
+    }
+    set_setting('local_font_9123', '1');
 }
 
 /**
@@ -2322,7 +2351,11 @@ function build_site_css(array $settings): string
     $v = validated_visual_settings($settings);
     $parts = [];
     if ($v['site_font'] === 'vazirmatn') {
-        $parts[] = "@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');";
+        // فونت وزیرمتن به‌صورت محلی از هاست سرو می‌شود (بدون CDN خارجی)
+        $parts[] = "@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:400;font-display:swap;src:url('assets/fonts/Vazirmatn-Regular.woff2') format('woff2');}"
+            . "@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:500;font-display:swap;src:url('assets/fonts/Vazirmatn-Medium.woff2') format('woff2');}"
+            . "@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:700;font-display:swap;src:url('assets/fonts/Vazirmatn-Bold.woff2') format('woff2');}"
+            . "@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:800;font-display:swap;src:url('assets/fonts/Vazirmatn-ExtraBold.woff2') format('woff2');}";
     }
     $siteCss = (string) ($settings['site_css'] ?? '');
     if (trim($siteCss) === '') {
