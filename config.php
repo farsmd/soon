@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.6.0');
+define('APP_VERSION', '9.7.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -952,6 +952,59 @@ PARTNERHTML;
         }
     } catch (Throwable $e) {
         error_log('visit_logs bot/admin columns failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۷: جدول‌های منابع انسانی و تجهیزات ---
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name TEXT NOT NULL,
+            position TEXT NOT NULL DEFAULT '',
+            mobile TEXT NOT NULL DEFAULT '',
+            national_id TEXT NOT NULL DEFAULT '',
+            hire_date TEXT NOT NULL DEFAULT '',
+            base_salary INTEGER NOT NULL DEFAULT 0,
+            employment_type TEXT NOT NULL DEFAULT 'full_time',
+            status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS salary_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER NOT NULL REFERENCES employees(id),
+            pay_month TEXT NOT NULL,
+            base_amount INTEGER NOT NULL DEFAULT 0,
+            bonus INTEGER NOT NULL DEFAULT 0,
+            deduction INTEGER NOT NULL DEFAULT 0,
+            net_amount INTEGER NOT NULL DEFAULT 0,
+            paid_date TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS equipment (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
+            purchase_date TEXT NOT NULL DEFAULT '',
+            purchase_price INTEGER NOT NULL DEFAULT 0,
+            useful_life_years REAL NOT NULL DEFAULT 5,
+            status TEXT NOT NULL DEFAULT 'active',
+            location TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS equipment_maintenance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipment_id INTEGER NOT NULL REFERENCES equipment(id),
+            maint_date TEXT NOT NULL,
+            maint_type TEXT NOT NULL DEFAULT 'repair',
+            cost INTEGER NOT NULL DEFAULT 0,
+            description TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+    } catch (Throwable $e) {
+        error_log('hr/assets tables migration failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
