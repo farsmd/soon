@@ -11,6 +11,39 @@
     Deny from all
 </Files>
 
+
+# --- آدرس‌های تمیز سئودوست (نسخه ۹٫۱۳) ---
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ۳۰۱ از آدرس‌های قدیمی به تمیز (فقط GET/HEAD تا POST فرم‌ها داده از دست ندهد؛ THE_REQUEST تا لوپ نشود)
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
+    RewriteCond %{THE_REQUEST} \s/products\.php[\s?] [NC]
+    RewriteRule ^products\.php$ /products [R=301,L,QSA]
+
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
+    RewriteCond %{THE_REQUEST} \s/page\.php\?slug=([A-Za-z0-9_-]+) [NC]
+    RewriteRule ^page\.php$ /%1 [R=301,L,QSA]
+
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
+    RewriteCond %{THE_REQUEST} \s/order\.php[\s?] [NC]
+    RewriteRule ^order\.php$ /order [R=301,L,QSA]
+
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
+    RewriteCond %{THE_REQUEST} \s/card\.php[\s?] [NC]
+    RewriteRule ^card\.php$ /card [R=301,L,QSA]
+
+    # بازنویسی داخلی آدرس تمیز به فایل واقعی (POST حفظ می‌شود؛ فایل‌ها و پوشه‌های واقعی دست‌نخورده)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^products/?$ products.php [L,QSA]
+    RewriteRule ^order/?$ order.php [L,QSA]
+    RewriteRule ^card/?$ card.php [L,QSA]
+    RewriteRule ^([A-Za-z0-9_-]+)/?$ page.php?slug=$1 [L,QSA]
+</IfModule>
+
 # --- بهینه‌سازی سرعت (نسخه ۹٫۱۲٫۴) ---
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml

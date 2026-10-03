@@ -14,9 +14,9 @@ function factory_templates(): array
             'content' => <<<'HTML'
 <header class="site-header">
     <div class="container header-inner">
-        <a class="logo" href="index.php"><img class="logo-img" src="uploads/gallery/logo.png" alt="{{site_title}}" onerror="this.remove()"><span>{{site_title}}</span></a>
+        <a class="logo" href="/"><img class="logo-img" src="uploads/gallery/logo.png" alt="{{site_title}}" onerror="this.remove()"><span>{{site_title}}</span></a>
         {{menu}}
-        <a class="btn btn-gold btn-sm header-cta" href="products.php">ثبت سفارش</a>
+        <a class="btn btn-gold btn-sm header-cta" href="/products">ثبت سفارش</a>
     </div>
 </header>
 HTML,
@@ -34,7 +34,7 @@ HTML,
         <div class="lead">{{section_body}}</div>
         <div class="hero-ctas">
             {{#if section_link_url}}<a class="btn btn-gold" href="{{section_link_url}}">{{section_link_text}}</a>{{/if}}
-            <a class="btn btn-ghost" href="page.php?slug=gallery">مشاهده پروژه‌ها</a>
+            <a class="btn btn-ghost" href="/gallery">مشاهده پروژه‌ها</a>
         </div>
     </div>
     <a class="hero-scroll" href="#features" aria-label="رفتن به بخش بعد"><span></span></a>
@@ -123,16 +123,16 @@ HTML,
         <div>
             <p class="f-title">دسترسی سریع</p>
             <nav class="f-links" aria-label="دسترسی سریع">
-                <a href="index.php">خانه</a>
-                <a href="products.php">محصولات</a>
-                <a href="page.php?slug=gallery">گالری پروژه‌ها</a>
-                <a href="page.php?slug=about">درباره ما</a>
+                <a href="/">خانه</a>
+                <a href="/products">محصولات</a>
+                <a href="/gallery">گالری پروژه‌ها</a>
+                <a href="/about">درباره ما</a>
             </nav>
         </div>
         <div>
             <p class="f-title">سفارش و کاتالوگ</p>
             <nav class="f-links" aria-label="سفارش و کاتالوگ">
-                <a href="products.php">ثبت سفارش</a>
+                <a href="/products">ثبت سفارش</a>
                 <a href="/catalog/linerlight-catalog.pdf">دانلود کاتالوگ (PDF)</a>
             </nav>
         </div>
@@ -188,7 +188,7 @@ HTML,
                     <span class="contact-value" dir="ltr">{{contact_email}}</span>
                 </a>
                 {{/if}}
-                <a href="card.php" class="contact-card contact-qr-card">
+                <a href="/card" class="contact-card contact-qr-card">
                     <span class="contact-icon">📱</span>
                     <span class="contact-label">کارت ویزیت دیجیتال (QR)</span>
                     <img src="qr-card.png" alt="QR کارت ویزیت لاینرلایت" class="contact-qr-img" loading="lazy">
@@ -233,7 +233,7 @@ HTML,
             'content' => <<<'HTML'
 <section class="content-section product-section">
     <div class="container">
-        <p class="product-breadcrumb"><a href="products.php">← بازگشت به کاتالوگ</a>{{#if category_title}} <span class="muted">/ {{category_title}}</span>{{/if}}</p>
+        <p class="product-breadcrumb"><a href="/products">← بازگشت به کاتالوگ</a>{{#if category_title}} <span class="muted">/ {{category_title}}</span>{{/if}}</p>
         <div class="product-layout">
             {{#if product_image}}<div class="product-media"><img src="{{product_image}}" alt="{{product_name}}"></div>{{/if}}
             <div class="product-info">
@@ -1709,7 +1709,7 @@ function catalog_categories_nav_html(?int $activeCategoryId): string
 {
     $cats = get_categories(true);
     $html = '<nav class="catalog-nav" aria-label="دسته‌بندی محصولات">';
-    $html .= '<a href="products.php"' . ($activeCategoryId === null ? ' class="active"' : '') . '>همه محصولات</a>';
+    $html .= '<a href="/products"' . ($activeCategoryId === null ? ' class="active"' : '') . '>همه محصولات</a>';
     $idsWithProducts = [];
     foreach (get_products(true) as $p) {
         if (!empty($p['category_id'])) {
@@ -1731,7 +1731,7 @@ function catalog_categories_nav_html(?int $activeCategoryId): string
             }
         }
         $indent = !empty($c['parent_id']) ? ' style="margin-inline-start:10px"' : '';
-        $html .= '<a href="products.php?cat=' . $cid . '"' . ($activeCategoryId === $cid ? ' class="active"' : '') . $indent . '>' . e($c['title']) . '</a>';
+        $html .= '<a href="/products?cat=' . $cid . '"' . ($activeCategoryId === $cid ? ' class="active"' : '') . $indent . '>' . e($c['title']) . '</a>';
     }
     $html .= '</nav>';
     return $html;
@@ -1749,15 +1749,15 @@ function catalog_products_grid_html(array $products): string
         $img = uploaded_image_url($p['image'] ?? '');
         $html .= '<article class="product-card">';
         if ($img !== '') {
-            $html .= '<a href="products.php?id=' . $pid . '"><img src="' . e($img) . '" alt="' . e($p['name']) . '" loading="lazy" decoding="async"></a>';
+            $html .= '<a href="/products?id=' . $pid . '"><img src="' . e($img) . '" alt="' . e($p['name']) . '" loading="lazy" decoding="async"></a>';
         }
         $html .= '<div class="product-card-body">';
         if (!empty($p['category_title'])) {
             $html .= '<span class="cat">' . e($p['category_title']) . '</span>';
         }
-        $html .= '<h3><a href="products.php?id=' . $pid . '">' . e($p['name']) . '</a></h3>';
+        $html .= '<h3><a href="/products?id=' . $pid . '">' . e($p['name']) . '</a></h3>';
         $html .= '<p class="price">قیمت متری: <strong>' . e(format_price($p['price_per_meter'] ?? 0)) . '</strong> تومان</p>';
-        $html .= '<a class="btn small" href="products.php?id=' . $pid . '">مشاهده و برآورد قیمت</a>';
+        $html .= '<a class="btn small" href="/products?id=' . $pid . '">مشاهده و برآورد قیمت</a>';
         $html .= '</div></article>';
     }
     $html .= '</div>';
@@ -2328,7 +2328,7 @@ function site_order_form_html(array $product): string
     if ((string) ($state['err'] ?? '') !== '') {
         $html .= '<div class="alert error" role="alert">' . e((string) $state['err']) . '</div>';
     }
-    $html .= '<form method="post" action="products.php?id=' . $pid . '#site-order" id="so-form">';
+    $html .= '<form method="post" action="/products?id=' . $pid . '#site-order" id="so-form">';
     $html .= '<input type="hidden" name="site_order" value="1"><input type="hidden" name="product_id" value="' . $pid . '"><input type="hidden" name="csrf" value="' . e((string) ($_SESSION['csrf'] ?? '')) . '">';
     $html .= '<div class="hp-field" aria-hidden="true"><label>این فیلد را خالی بگذارید<input type="text" name="website2" tabindex="-1" autocomplete="off"></label></div>';
 

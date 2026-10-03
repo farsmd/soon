@@ -106,5 +106,5 @@ if ($editBlock !== null) {
         </tbody>
     </table>
     <?php endif; ?>
-    <p><a class="btn" href="page.php?slug=<?= urlencode((string) $editPage['slug']) ?>" target="_blank" rel="noopener">👁 پیش‌نمایش صفحه</a></p>
+    <p><a class="btn" href="/<?= urlencode((string) $editPage['slug']) ?>" target="_blank" rel="noopener">👁 پیش‌نمایش صفحه</a></p>
 </div>

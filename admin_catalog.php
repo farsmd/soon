@@ -768,7 +768,7 @@ function catalog_render_categories(array $d): void
 {
     extract($d);
     ?>            <h1>دسته‌بندی‌های محصولات</h1>
-            <p class="muted">دسته‌ها می‌توانند زیردسته داشته باشند. دسته‌ای که محصول یا زیردسته دارد حذف نمی‌شود. پیش‌نمایش زنده کاتالوگ: <a href="products.php" target="_blank">products.php</a></p>
+            <p class="muted">دسته‌ها می‌توانند زیردسته داشته باشند. دسته‌ای که محصول یا زیردسته دارد حذف نمی‌شود. پیش‌نمایش زنده کاتالوگ: <a href="/products" target="_blank">/products</a></p>
 
             <?php if ($editCategory === null): ?>
             <div class="crud-toolbar">
@@ -875,7 +875,7 @@ function catalog_render_products(array $d): void
 {
     extract($d);
     ?>            <h1>محصولات</h1>
-            <p class="muted">قیمت‌ها «متری» و به تومان هستند. آپشن‌ها (مثل سنسور) از بخش «ویژگی‌های محصول» تعریف می‌شوند و به قیمت متری اضافه می‌شوند. پیش‌نمایش زنده: <a href="products.php" target="_blank">کاتالوگ عمومی</a></p>
+            <p class="muted">قیمت‌ها «متری» و به تومان هستند. آپشن‌ها (مثل سنسور) از بخش «ویژگی‌های محصول» تعریف می‌شوند و به قیمت متری اضافه می‌شوند. پیش‌نمایش زنده: <a href="/products" target="_blank">کاتالوگ عمومی</a></p>
 
             <?php if ($editProduct === null): ?>
             <div class="crud-toolbar">
@@ -1350,7 +1350,7 @@ function catalog_render_products(array $d): void
                         </td>
                         <td><?= $p['is_active'] ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
-                            <a class="btn small" href="products.php?id=<?= (int) $p['id'] ?>" target="_blank">مشاهده</a>
+                            <a class="btn small" href="/products?id=<?= (int) $p['id'] ?>" target="_blank">مشاهده</a>
                             <a class="btn small edit" href="admin.php?page=products&edit_id=<?= (int) $p['id'] ?>">ویرایش</a>
                             <form method="post" class="inline" onsubmit="return confirm('این محصول حذف شود؟')">
                                 <?= csrf_field() ?>

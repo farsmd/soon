@@ -42,7 +42,7 @@ try {
         $slug = (string) ($p['slug'] ?? '');
         if ($slug !== '' && $baseUrl !== '') {
             $urls[] = [
-                'loc' => $baseUrl . '/page.php?slug=' . urlencode($slug),
+                'loc' => $baseUrl . '/' . urlencode($slug),
                 'changefreq' => $settings['sitemap_pages_freq'] ?? 'weekly',
                 'priority' => $settings['sitemap_pages_priority'] ?? '0.8',
             ];
@@ -58,7 +58,7 @@ try {
     foreach ($products as $pr) {
         if ($baseUrl !== '') {
             $urls[] = [
-                'loc' => $baseUrl . '/products.php#' . (int) $pr['id'],
+                'loc' => $baseUrl . '/products?id=' . (int) $pr['id'],
                 'changefreq' => $settings['sitemap_products_freq'] ?? 'weekly',
                 'priority' => $settings['sitemap_products_priority'] ?? '0.7',
             ];
@@ -70,7 +70,7 @@ try {
 
 // صفحه محصولات
 if ($baseUrl !== '') {
-    $urls[] = ['loc' => $baseUrl . '/products.php', 'changefreq' => 'weekly', 'priority' => '0.9'];
+    $urls[] = ['loc' => $baseUrl . '/products', 'changefreq' => 'weekly', 'priority' => '0.9'];
 }
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";

@@ -10,7 +10,7 @@ $galleryFigs = gallery_get_figures($pdo);
 $editIdx = isset($_GET['edit_idx']) ? (int) $_GET['edit_idx'] : -1;
 ?>
 <h1>مدیریت گالری</h1>
-<p class="muted">عکس‌های صفحه <a href="page.php?slug=gallery" target="_blank" rel="noopener">گالری پروژه‌ها</a> را از اینجا مدیریت کنید. عکس‌ها در پوشه <code>uploads/gallery/</code> ذخیره می‌شوند و با آپدیت سیستم پاک نمی‌شوند.</p>
+<p class="muted">عکس‌های صفحه <a href="/gallery" target="_blank" rel="noopener">گالری پروژه‌ها</a> را از اینجا مدیریت کنید. عکس‌ها در پوشه <code>uploads/gallery/</code> ذخیره می‌شوند و با آپدیت سیستم پاک نمی‌شوند.</p>
 
 <div class="crud-toolbar">
     <button type="button" class="btn add" data-toggle-panel="gallery-upload-panel" aria-expanded="false">+ افزودن عکس جدید</button>

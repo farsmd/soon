@@ -2231,7 +2231,7 @@ if ($page === 'design') {
                     <tr>
                         <td><?= (int) $p['sort_order'] ?></td>
                         <td><?= e($p['title']) ?></td>
-                        <td><code><?= e($p['slug']) ?></code><br><a href="page.php?slug=<?= urlencode((string) $p['slug']) ?>" target="_blank">مشاهده</a></td>
+                        <td><code><?= e($p['slug']) ?></code><br><a href="/<?= urlencode((string) $p['slug']) ?>" target="_blank">مشاهده</a></td>
                         <td><?= (int) $p['show_in_menu'] === 1 ? 'بله' : '<span class="muted">خیر</span>' ?></td>
                         <td><?= (int) $p['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>' ?></td>
                         <td class="actions">
@@ -2561,7 +2561,7 @@ if ($page === 'design') {
 
         <?php elseif ($page === 'partners'): ?>
             <h1>درخواست‌های همکاری</h1>
-            <p class="muted">درخواست‌هایی که از فرم «همکاری با ما» در سایت ثبت شده‌اند. صفحه عمومی: <a href="page.php?slug=partner" target="_blank" rel="noopener">page.php?slug=partner</a></p>
+            <p class="muted">درخواست‌هایی که از فرم «همکاری با ما» در سایت ثبت شده‌اند. صفحه عمومی: <a href="/partner" target="_blank" rel="noopener">/partner</a></p>
             <?php
             $partnerRequests = $pdo->query('SELECT * FROM partner_requests ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
             $partnerStatusLabels = ['new' => 'جدید', 'contacted' => 'تماس گرفته شد', 'approved' => 'تأیید شد', 'rejected' => 'رد شد'];
@@ -3042,12 +3042,12 @@ if ($page === 'design') {
                 $smUrls = [$smBase . '/'];
                 try {
                     foreach (db()->query("SELECT slug FROM pages WHERE is_active=1 ORDER BY sort_order")->fetchAll() as $pr) {
-                        $smUrls[] = $smBase . '/page.php?slug=' . urlencode($pr['slug']);
+                        $smUrls[] = $smBase . '/' . urlencode($pr['slug']);
                     }
                     foreach (db()->query("SELECT id FROM products WHERE is_active=1 ORDER BY sort_order")->fetchAll() as $pr) {
-                        $smUrls[] = $smBase . '/products.php#' . (int)$pr['id'];
+                        $smUrls[] = $smBase . '/products?id=' . (int)$pr['id'];
                     }
-                    $smUrls[] = $smBase . '/products.php';
+                    $smUrls[] = $smBase . '/products';
                 } catch (Throwable $e) {}
                 ?>
                 <p class="muted"><?= count($smUrls) ?> آدرس در نقشه سایت:</p>
