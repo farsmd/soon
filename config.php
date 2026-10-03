@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.7.0');
+define('APP_VERSION', '9.8.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -952,6 +952,19 @@ PARTNERHTML;
         }
     } catch (Throwable $e) {
         error_log('visit_logs bot/admin columns failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۸: پرچم راه‌اندازی برای نصب‌های موجود ---
+    try {
+        $setupDone = $pdo->query("SELECT value FROM settings WHERE key = 'setup_completed'")->fetchColumn();
+        if ($setupDone === false) {
+            $userCount = 0;
+            try { $userCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn(); } catch (Throwable $ignored) {}
+            if ($userCount > 0) {
+                $pdo->prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('setup_completed', '1')")->execute();
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('setup_completed migration failed: ' . $e->getMessage());
     }
     // --- نسخه ۹٫۷: جدول‌های منابع انسانی و تجهیزات ---
     try {
