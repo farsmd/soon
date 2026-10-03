@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.3.0');
+define('APP_VERSION', '9.4.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -903,6 +903,9 @@ PARTNERHTML;
         }
         if (!in_array('frame_options_json', $cols, true)) {
             $pdo->exec("ALTER TABLE products ADD COLUMN frame_options_json TEXT");
+        }
+        if (!in_array('base_price', $cols, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN base_price INTEGER NOT NULL DEFAULT 0");
         }
     } catch (Throwable $e) {
         error_log('custom pricing columns failed: ' . $e->getMessage());
@@ -3326,8 +3329,36 @@ function compute_order_totals(array $lines, bool $isPartner): array
         if ($product === null) {
             continue;
         }
-        $lengthCm = round((float) ($ln['length_cm'] ?? 0), 1);
         $qty = max(1, (int) ($ln['qty'] ?? 1));
+        $isPerWatt = (string) ($product['pricing_model'] ?? 'per_meter') === 'per_watt';
+        if ($isPerWatt) {
+            // قیمت‌گذاری سفارشی بر اساس وات (چراغ رشد گیاه): هر وات × قیمت هر وات × تعداد
+            $watt = max(0, (int) ($ln['watt'] ?? 0));
+            $pricePerWatt = (int) ($product['price_per_watt'] ?? 0);
+            $lineSubtotal = $watt * $pricePerWatt * $qty;
+            $lineTotal = $lineSubtotal;
+            $out[] = [
+                'product_id' => (int) $product['id'],
+                'length_cm' => 0.0,
+                'watt' => $watt,
+                'qty' => $qty,
+                'billable_m' => 0.0,
+                'unit_price_per_m' => 0,
+                'unit_price_per_watt' => $pricePerWatt,
+                'options_extra_per_m' => 0,
+                'wire_length_cm' => 0.0,
+                'wire_steps' => 0,
+                'wire_extra_total' => 0,
+                'has_endcap' => false,
+                'note' => trim((string) ($ln['note'] ?? '')),
+                'line_subtotal' => $lineSubtotal,
+                'line_total' => $lineTotal,
+            ];
+            $subtotal += $lineSubtotal;
+            $fixtures += $qty;
+            continue;
+        }
+        $lengthCm = round((float) ($ln['length_cm'] ?? 0), 1);
         $billableM = billable_length_m($lengthCm);
         $optIds = [];
         foreach ((array) ($ln['options'] ?? []) as $oid) {
@@ -4007,11 +4038,23 @@ function products_showcase_html(): string
         if (!empty($p['category_title'])) {
             $out .= '<span class="ps-cat">' . e((string) $p['category_title']) . '</span>';
         }
-        if ($price > 0) {
-            $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
-        }
-        if ($partnerPrice > 0 && $partnerPrice != $price) {
-            $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
+        $pricingModel = (string) ($p['pricing_model'] ?? 'per_meter');
+        if ($pricingModel === 'per_watt') {
+            $basePrice = (int) ($p['base_price'] ?? 0);
+            $ppw = (int) ($p['price_per_watt'] ?? 0);
+            if ($basePrice > 0) {
+                $out .= '<div class="ps-price">از ' . e(format_price($basePrice)) . ' <small>تومان</small></div>';
+            }
+            if ($ppw > 0) {
+                $out .= '<div class="ps-partner">هر وات ' . e(format_price($ppw)) . ' تومان + قیمت قاب</div>';
+            }
+        } else {
+            if ($price > 0) {
+                $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
+            }
+            if ($partnerPrice > 0 && $partnerPrice != $price) {
+                $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
+            }
         }
         $out .= '<span class="btn btn-gold ps-cta">مشاهده و ثبت سفارش ←</span>';
         $out .= '</div></a>';
