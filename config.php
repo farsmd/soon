@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.12.4');
+define('APP_VERSION', '9.13.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1092,6 +1092,52 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('local font migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۳: آدرس‌های تمیز سئودوست در قالب‌های دیتابیس (یک بار) ---
+    try {
+        seed_pretty_urls_v9130_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('pretty urls migration failed: ' . $e->getMessage());
+    }
+}
+
+/**
+ * نسخه ۹٫۱۳ — تبدیل لینک‌های قدیمی (products.php و page.php?slug=) به آدرس تمیز در قالب‌ها (فقط یک بار).
+ * جایگزینی جراحی انجام می‌شود تا شخصی‌سازی‌های کاربر حفظ شود.
+ */
+function seed_pretty_urls_v9130_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('pretty_urls_9130', '') === '1') {
+        return;
+    }
+    $rows = $pdo->query("SELECT template_key, content FROM site_templates")->fetchAll(PDO::FETCH_ASSOC);
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    foreach ($rows as $r) {
+        $tk = (string) ($r['template_key'] ?? '');
+        $content = (string) ($r['content'] ?? '');
+        if ($content === '') {
+            continue;
+        }
+        $new = $content;
+        // page.php?slug=X → /X (اول، چون خاص‌تر است)
+        $new = preg_replace('/href="page\.php\?slug=([A-Za-z0-9_-]+)"/', 'href="/$1"', $new);
+        $new = str_replace('href="products.php?', 'href="/products?', $new);
+        $new = str_replace('href="products.php"', 'href="/products"', $new);
+        $new = str_replace('href="order.php"', 'href="/order"', $new);
+        $new = str_replace('href="card.php"', 'href="/card"', $new);
+        $new = str_replace('href="index.php"', 'href="/"', $new);
+        // action فرم‌ها هم
+        $new = str_replace('action="products.php?', 'action="/products?', $new);
+        if ($new !== $content) {
+            archive_design_revision($pdo, 'template', $tk, $content, 'template-archive: قالب «' . $tk . '» قبل از تمیزسازی آدرس‌ها (نسخه ۹٫۱۳).');
+            $up->execute([':c' => $new, ':k' => $tk]);
+        }
+    }
+    set_setting('pretty_urls_9130', '1');
 }
 
 /**
@@ -1423,6 +1469,93 @@ function get_page_by_slug(string $slug, bool $onlyActive = false): ?array
     return $row === false ? null : $row;
 }
 
+/**
+ * آدرس پایه سایت (برای canonical و JSON-LD) — نسخه ۹٫۱۳
+ */
+function site_base_url(?array $settings = null): string
+{
+    static $base = null;
+    $useCache = $settings === null;
+    if ($useCache && $base !== null) {
+        return $base;
+    }
+    if ($settings === null) {
+        try {
+            $settings = all_settings();
+        } catch (Throwable $ignored) {
+            $settings = [];
+        }
+    }
+    $out = rtrim((string) ($settings['site_url'] ?? ''), '/');
+    if ($out === '') {
+        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        $out = $host !== '' ? $proto . '://' . $host : '';
+    }
+    if ($useCache) {
+        $base = $out;
+    }
+    return $out;
+}
+
+/**
+ * تبدیل آدرس‌های داخلی قدیمی به نسخه تمیز و سئودوست (نسخه ۹٫۱۳):
+ * products.php → /products ، page.php?slug=X → /X ، order.php → /order ، card.php → /card ، index.php → /
+ * کوئری‌استرینگ و فرگمنت حفظ می‌شوند؛ آدرس‌های خارجی و نامرتبط دست‌نخورده برمی‌گردند.
+ */
+function pretty_url(string $url): string
+{
+    $url = trim($url);
+    if ($url === '' || $url[0] === '#') {
+        return $url;
+    }
+    if (preg_match('#^(https?://|mailto:|tel:|ftp:|//)#i', $url)) {
+        return $url;
+    }
+    $frag = '';
+    if (($p = strpos($url, '#')) !== false) {
+        $frag = substr($url, $p);
+        $url = substr($url, 0, $p);
+    }
+    $query = '';
+    if (($p = strpos($url, '?')) !== false) {
+        $query = substr($url, $p + 1);
+        $url = substr($url, 0, $p);
+    }
+    $map = [
+        'products.php' => '/products',
+        'order.php'    => '/order',
+        'card.php'     => '/card',
+        'index.php'    => '/',
+    ];
+    if (isset($map[$url])) {
+        $out = $map[$url];
+        if ($query !== '') {
+            $out .= '?' . $query;
+        }
+        return $out . $frag;
+    }
+    if ($url === 'page.php') {
+        parse_str($query, $qs);
+        $slug = (string) ($qs['slug'] ?? '');
+        if ($slug !== '' && preg_match('/^[A-Za-z0-9_-]+$/', $slug)) {
+            unset($qs['slug']);
+            $rest = http_build_query($qs);
+            $out = '/' . $slug;
+            if ($rest !== '') {
+                $out .= '?' . $rest;
+            }
+            return $out . $frag;
+        }
+    }
+    // نامرتبط: بازسازی عینی آدرس ورودی
+    $out = $url;
+    if ($query !== '') {
+        $out .= '?' . $query;
+    }
+    return $out . $frag;
+}
+
 function is_valid_slug(string $slug): bool
 {
     return (bool) preg_match('/^[A-Za-z0-9\-_]+$/', $slug);
@@ -1433,16 +1566,16 @@ function is_valid_slug(string $slug): bool
  */
 function menu_items(): array
 {
-    $items = [['title' => 'خانه', 'url' => 'index.php']];
+    $items = [['title' => 'خانه', 'url' => pretty_url('index.php')]];
     // فاز ۲: لینک کاتالوگ محصولات وقتی نمایش عمومی کاتالوگ فعال است
     if (get_setting('catalog_public', '1') === '1') {
-        $items[] = ['title' => get_setting('catalog_title', 'کاتالوگ محصولات'), 'url' => 'products.php'];
+        $items[] = ['title' => get_setting('catalog_title', 'کاتالوگ محصولات'), 'url' => pretty_url('products.php')];
     }
     foreach (get_pages(true) as $p) {
         if ((int) ($p['show_in_menu'] ?? 0) === 1) {
             $items[] = [
                 'title' => (string) $p['title'],
-                'url'   => 'page.php?slug=' . urlencode((string) $p['slug']),
+                'url'   => pretty_url('page.php?slug=' . urlencode((string) $p['slug'])),
             ];
         }
     }
@@ -2090,7 +2223,7 @@ function template_context(string $key, array $settings, ?array $section = null, 
         'section_body'      => $body,
         'section_image'     => $section !== null ? basename((string) ($section['image'] ?? '')) : '',
         'section_image_url' => $section !== null ? section_image_url($section) : '',
-        'section_link_url'  => $linkUrl,
+        'section_link_url'  => pretty_url((string) $linkUrl),
         'section_link_text' => $linkText,
         'page_title'        => $pageTitle,
         'page_content'      => $pageContent,
@@ -2469,6 +2602,35 @@ function skeleton_head(array $settings, string $title, string $description, arra
                 ],
             ],
         ];
+    }
+    // BreadcrumbList برای sitelinks (نسخه ۹٫۱۳): از seo['breadcrumbs'] به شکل [['name'=>..,'url'=>..],...]
+    $crumbs = $seo['breadcrumbs'] ?? null;
+    if (is_array($crumbs) && $crumbs !== [] && $baseUrl !== '') {
+        $items = [];
+        $pos = 1;
+        foreach ($crumbs as $c) {
+            $cname = trim((string) ($c['name'] ?? ''));
+            $curl = trim((string) ($c['url'] ?? ''));
+            if ($cname === '') {
+                continue;
+            }
+            if ($curl !== '' && strpos($curl, 'http') !== 0) {
+                $curl = $baseUrl . '/' . ltrim($curl, '/');
+            }
+            $item = ['@type' => 'ListItem', 'position' => $pos, 'name' => $cname];
+            if ($curl !== '') {
+                $item['item'] = $curl;
+            }
+            $items[] = $item;
+            $pos++;
+        }
+        if ($items !== []) {
+            $crumbLd = ['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => $items];
+            $crumbStr = json_encode($crumbLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($crumbStr !== false && $crumbStr !== '') {
+                $out .= '<script type="application/ld+json">' . $crumbStr . '</script>' . "\n";
+            }
+        }
     }
     if ($jsonLd !== null) {
         $jsonStr = is_string($jsonLd) ? $jsonLd : json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -4462,7 +4624,7 @@ function products_showcase_html(): string
         $img = uploaded_image_url($p['image'] ?? '');
         $price = product_base_price_per_meter($p, false);
         $partnerPrice = product_base_price_per_meter($p, true);
-        $out .= '<a class="ps-card rv" href="products.php#' . (int) $p['id'] . '">';
+        $out .= '<a class="ps-card rv" href="' . e(pretty_url('products.php#' . (int) $p['id'])) . '">';
         if ($img !== '') {
             $out .= '<div class="ps-img"><img loading="lazy" src="' . e($img) . '" alt="' . e($name) . '"></div>';
         }
@@ -4492,7 +4654,7 @@ function products_showcase_html(): string
         $out .= '</div></a>';
     }
     $out .= '</div>';
-    $out .= '<div class="ps-more"><a class="btn btn-gold" href="products.php">مشاهده همه محصولات</a></div>';
+    $out .= '<div class="ps-more"><a class="btn btn-gold" href="' . e(pretty_url('products.php')) . '">مشاهده همه محصولات</a></div>';
     $out .= '</div></section>';
     return $out;
 }
@@ -4577,7 +4739,7 @@ function render_page_block(array $block): string
             $out = '<div class="pb-cta"><div class="container">';
             if ($title !== '') { $out .= '<h2>' . e($title) . '</h2>'; }
             if ($content !== '') { $out .= '<p>' . nl2br(e($content)) . '</p>'; }
-            $out .= '<a class="btn btn-gold" href="' . e($btnUrl) . '">' . e($btnText) . '</a>';
+            $out .= '<a class="btn btn-gold" href="' . e(pretty_url($btnUrl)) . '">' . e($btnText) . '</a>';
             $out .= '</div></div>';
             return $out;
 
