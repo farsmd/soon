@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.9.1');
+define('APP_VERSION', '9.10.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -975,6 +975,20 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('visit_logs geo columns failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۰: جدول اعلان‌های مدیریتی ---
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL DEFAULT '',
+            title TEXT NOT NULL DEFAULT '',
+            message TEXT NOT NULL DEFAULT '',
+            link TEXT NOT NULL DEFAULT '',
+            is_read INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+    } catch (Throwable $e) {
+        error_log('notifications table failed: ' . $e->getMessage());
+    }
     // --- نسخه ۹٫۸: پرچم راه‌اندازی برای نصب‌های موجود ---
     try {
         $setupDone = $pdo->query("SELECT value FROM settings WHERE key = 'setup_completed'")->fetchColumn();
@@ -1460,11 +1474,38 @@ function save_contact_message(string $name, string $contact, string $message): v
 {
     $stmt = db()->prepare('INSERT INTO contact_messages (name, contact, message) VALUES (:n, :c, :m)');
     $stmt->execute([':n' => $name, ':c' => $contact, ':m' => $message]);
+    notify_admins('new_message', 'پیام تماس جدید', 'از: ' . $name . ' — ' . mb_substr($message, 0, 120), 'admin.php?page=messages');
 }
 
 function get_contact_messages(): array
 {
     return db()->query('SELECT * FROM contact_messages ORDER BY id DESC')->fetchAll();
+}
+
+/** ثبت اعلان برای صندوق مشترک مدیران */
+function notify_admins(string $type, string $title, string $message, string $link = ''): void
+{
+    try {
+        db()->prepare('INSERT INTO notifications (type, title, message, link) VALUES (:t, :ti, :m, :l)')
+            ->execute([
+                ':t'  => mb_substr($type, 0, 32),
+                ':ti' => mb_substr($title, 0, 200),
+                ':m'  => mb_substr($message, 0, 500),
+                ':l'  => mb_substr($link, 0, 300),
+            ]);
+    } catch (Throwable $e) {
+        error_log('notify_admins failed: ' . $e->getMessage());
+    }
+}
+
+/** تعداد اعلان‌های خوانده‌نشده */
+function unread_notification_count(): int
+{
+    try {
+        return (int) db()->query('SELECT COUNT(*) FROM notifications WHERE is_read = 0')->fetchColumn();
+    } catch (Throwable $e) {
+        return 0;
+    }
 }
 
 /** نام فایل قالب معتبر است؟ فقط template_*.php با حروف/عدد/آندرلاین (برای فایل‌های قدیمی و لیست سفید پاک‌سازی) */
@@ -2369,6 +2410,12 @@ function skeleton_head(array $settings, string $title, string $description, arra
     if ($favIcon === '') { $favIcon = 'uploads/gallery/favicon.png'; }
     $out .= '<link rel="icon" href="' . e($favIcon) . '">' . "\n";
     $out .= '<link rel="apple-touch-icon" href="' . e($favIcon) . '">' . "\n";
+$out .= '<link rel="manifest" href="manifest.webmanifest">' . "\n";
+$out .= '<meta name="theme-color" content="#0f172a">' . "\n";
+$out .= '<meta name="mobile-web-app-capable" content="yes">' . "\n";
+$out .= '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
+$out .= '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' . "\n";
+$out .= '<meta name="apple-mobile-web-app-title" content="لاینرلایت">' . "\n";
     $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t===\'light\'){document.documentElement.setAttribute(\'data-theme\',\'light\');}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
@@ -2442,7 +2489,14 @@ HTML;
     // اسکریپت ردیابی کلیک بازدیدکننده (فقط وقتی لاگ بازدید فعال است)
     $track = tracking_script_html();
     if ($track !== '') {
-        $html = str_replace('</body>', $track . "\n</body>", $html);
+        $html = str_replace('</body>', $track . "\n<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+  });
+}
+</script>
+</body>", $html);
     }
     return $html;
 }
