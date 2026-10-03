@@ -451,6 +451,8 @@ $pageTitles = [
     'sysinfo'    => 'مشخصات نرم‌افزار',
     'employees'  => 'پرسنل',
     'payroll'    => 'حقوق و دستمزد',
+    'employee_profile' => 'پروفایل پرسنل',
+    'payslip'    => 'فیش حقوقی',
     'assets'     => 'تجهیزات و دارایی‌ها',
     'assets_maintenance' => 'سوابق تعمیرات',
     'logs'       => 'لاگ‌ها',
@@ -1254,6 +1256,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('partner_discount_percent', (string) $discount);
                 set_setting('catalog_public', isset($_POST['catalog_public']) ? '1' : '0');
                 set_setting('catalog_title', trim((string) ($_POST['catalog_title'] ?? '')) ?: 'کاتالوگ محصولات');
+                // حقوق و دستمزد وزارت‌کاری (نسخه ۹٫۹)
+                set_setting('wage_bon_kargari', (string) max(0, (int) ($_POST['wage_bon_kargari'] ?? 2200000)));
+                set_setting('wage_housing', (string) max(0, (int) ($_POST['wage_housing'] ?? 900000)));
+                set_setting('wage_child_allowance', (string) max(0, (int) ($_POST['wage_child_allowance'] ?? 1250000)));
+                set_setting('wage_tax_threshold', (string) max(0, (int) ($_POST['wage_tax_threshold'] ?? 24000000)));
                 // مدت نشست مدیریت (ساعت) — نسخه ۸٫۲؛ بین ۱ ساعت تا ۳۰ روز
                 $sessHours = (int) ($_POST['session_lifetime_hours'] ?? 168);
                 if ($sessHours < 1) { $sessHours = 1; }
@@ -1737,35 +1744,35 @@ if ($page === 'design') {
                 }
                 switch ($key) {
                     case 'stat_customers':
-                        return '<a class="stat-card" href="admin.php?page=customers"><span>مشتری‌ها</span><strong>' . (int) $dashCounts['customers'] . '</strong></a>';
+                        return '<a class="stat-card sc-blue" href="admin.php?page=customers"><span><i class="sc-ico">👥</i>مشتری‌ها</span><strong>' . (int) $dashCounts['customers'] . '</strong></a>';
                     case 'stat_products':
-                        return '<a class="stat-card" href="admin.php?page=products"><span>محصولات</span><strong>' . (int) $dashCounts['products'] . '</strong></a>';
+                        return '<a class="stat-card sc-indigo" href="admin.php?page=products"><span><i class="sc-ico">📦</i>محصولات</span><strong>' . (int) $dashCounts['products'] . '</strong></a>';
                     case 'stat_orders':
-                        return '<a class="stat-card" href="admin.php?page=orders"><span>سفارش‌ها</span><strong>' . (int) $dashCounts['orders'] . '</strong></a>';
+                        return '<a class="stat-card sc-teal" href="admin.php?page=orders"><span><i class="sc-ico">🧾</i>سفارش‌ها</span><strong>' . (int) $dashCounts['orders'] . '</strong></a>';
                     case 'stat_new_orders':
-                        return (int) $dashCounts['new_orders'] > 0 ? '<a class="stat-card" href="admin.php?page=orders&status=new" style="border-color:#93c5fd;background:#eff6ff"><span style="color:#1d4ed8">سفارش‌های جدید</span><strong style="color:#1d4ed8">' . (int) $dashCounts['new_orders'] . '</strong></a>' : '';
+                        return (int) $dashCounts['new_orders'] > 0 ? '<a class="stat-card sc-blue sc-alert-blue" href="admin.php?page=orders&status=new"><span><i class="sc-ico">🔔</i>سفارش‌های جدید</span><strong>' . (int) $dashCounts['new_orders'] . '</strong></a>' : '';
                     case 'stat_production':
-                        return (int) ($productionActiveCount ?? 0) > 0 ? '<a class="stat-card" href="admin.php?page=production" style="border-color:#fcd34d;background:#fffbeb"><span style="color:#92400e">برگه‌های تولید در جریان</span><strong style="color:#92400e">' . (int) $productionActiveCount . '</strong></a>' : '';
+                        return (int) ($productionActiveCount ?? 0) > 0 ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=production"><span><i class="sc-ico">🏭</i>تولید در جریان</span><strong>' . (int) $productionActiveCount . '</strong></a>' : '';
                     case 'stat_finance_month':
-                        return (isset($finPending) && is_array($finPending)) ? '<a class="stat-card" href="admin.php?page=finance"><span>تراز مالی این ماه</span><strong>' . e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) . ' تومان</strong></a>' : '';
+                        return (isset($finPending) && is_array($finPending)) ? '<a class="stat-card sc-green" href="admin.php?page=finance"><span><i class="sc-ico">⚖️</i>تراز مالی این ماه</span><strong>' . e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) . ' تومان</strong></a>' : '';
                     case 'stat_pending':
-                        return (isset($finPending) && is_array($finPending) && (int) ($finPending['count'] ?? 0) > 0) ? '<a class="stat-card" href="admin.php?page=expenses&status=pending" style="border-color:#fcd34d;background:#fffbeb"><span style="color:#92400e">⏳ هزینه‌های در انتظار تأیید</span><strong style="color:#92400e">' . (int) $finPending['count'] . ' مورد</strong></a>' : '';
+                        return (isset($finPending) && is_array($finPending) && (int) ($finPending['count'] ?? 0) > 0) ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=expenses&status=pending"><span><i class="sc-ico">⏳</i>در انتظار تأیید</span><strong>' . (int) $finPending['count'] . ' مورد</strong></a>' : '';
                     case 'stat_debt':
-                        return ((int) ($finDebtTotal ?? 0) > 0) ? '<a class="stat-card" href="admin.php?page=statements" style="border-color:#fda4af;background:#fef2f2"><span style="color:#b91c1c">بدهی مشتریان</span><strong style="color:#b91c1c">' . e(format_price((int) $finDebtTotal)) . ' تومان</strong></a>' : '';
+                        return ((int) ($finDebtTotal ?? 0) > 0) ? '<a class="stat-card sc-red sc-alert-red" href="admin.php?page=statements"><span><i class="sc-ico">💳</i>بدهی مشتریان</span><strong>' . e(format_price((int) $finDebtTotal)) . ' تومان</strong></a>' : '';
                     case 'stat_messages':
-                        return '<a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
+                        return '<a class="stat-card sc-purple" href="admin.php?page=messages"><span><i class="sc-ico">✉️</i>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
                     case 'stat_version':
-                        return '<a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
+                        return '<a class="stat-card" href="admin.php?page=update"><span><i class="sc-ico">⚙️</i>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
                     case 'kpi_revenue':
-                        return '<a class="stat-card" href="admin.php?page=orders" style="border-color:#6ee7b7;background:#ecfdf5"><span style="color:#065f46">💰 درآمد این ماه</span><strong style="color:#065f46">' . e(format_price((int) ($GLOBALS['kpi']['month_revenue'] ?? 0))) . ' تومان</strong></a>';
+                        return '<a class="stat-card kpi kpi-revenue" href="admin.php?page=orders"><span><i class="sc-ico">💰</i>درآمد این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_revenue'] ?? 0))) . ' تومان</strong></a>';
                     case 'kpi_orders':
-                        return '<a class="stat-card" href="admin.php?page=orders"><span>📦 سفارش‌های این ماه</span><strong>' . (int) ($GLOBALS['kpi']['month_orders'] ?? 0) . '</strong></a>';
+                        return '<a class="stat-card kpi kpi-orders" href="admin.php?page=orders"><span><i class="sc-ico">📦</i>سفارش‌های این ماه</span><strong>' . (int) ($GLOBALS['kpi']['month_orders'] ?? 0) . '</strong></a>';
                     case 'kpi_employees':
-                        return '<a class="stat-card" href="admin.php?page=employees"><span>👥 پرسنل فعال</span><strong>' . (int) ($GLOBALS['kpi']['active_employees'] ?? 0) . ' نفر</strong></a>';
+                        return '<a class="stat-card kpi kpi-employees" href="admin.php?page=employees"><span><i class="sc-ico">👥</i>پرسنل فعال</span><strong>' . (int) ($GLOBALS['kpi']['active_employees'] ?? 0) . ' نفر</strong></a>';
                     case 'kpi_payroll':
-                        return '<a class="stat-card" href="admin.php?page=payroll"><span>💵 حقوق این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_payroll'] ?? 0))) . ' تومان</strong></a>';
+                        return '<a class="stat-card kpi kpi-payroll" href="admin.php?page=payroll"><span><i class="sc-ico">💵</i>حقوق این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_payroll'] ?? 0))) . ' تومان</strong></a>';
                     case 'kpi_assets':
-                        return '<a class="stat-card" href="admin.php?page=assets"><span>🏭 ارزش دفتری تجهیزات</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['asset_book_value'] ?? 0))) . ' تومان</strong></a>';
+                        return '<a class="stat-card kpi kpi-assets" href="admin.php?page=assets"><span><i class="sc-ico">🏭</i>ارزش دفتری تجهیزات</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['asset_book_value'] ?? 0))) . ' تومان</strong></a>';
                 }
                 return '';
             };
@@ -1779,18 +1786,21 @@ if ($page === 'design') {
                         foreach ($chartIncome as $r) {
                             $bars[] = ['label' => $r['month'], 'value' => (int) $r['value']];
                         }
-                        return $bars === [] ? '' : '<section class="card"><h3 style="margin-top:0">📈 دریافتی ۶ ماه اخیر (تومان)</h3>' . $renderBarChart($bars) . '</section>';
+                        return $bars === [] ? '' : '<section class="card"><h3>📈 دریافتی ۶ ماه اخیر (تومان)</h3>' . $renderBarChart($bars) . '</section>';
                     case 'chart_orders':
-                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3 style="margin-top:0">🧾 سفارش‌ها برحسب وضعیت</h3>' . $renderBarChart($chartOrderStatus) . '</section>';
+                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>🧾 سفارش‌ها برحسب وضعیت</h3>' . $renderBarChart($chartOrderStatus) . '</section>';
                     case 'chart_expenses':
-                        return $chartExpenseCat === [] ? '' : '<section class="card"><h3 style="margin-top:0">💸 هزینه‌های تأییدشده برحسب دسته (تومان)</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
+                        return $chartExpenseCat === [] ? '' : '<section class="card"><h3>💸 هزینه‌ها برحسب دسته</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
                     case 'chart_production':
-                        return $chartProdStages === [] ? '' : '<section class="card"><h3 style="margin-top:0">🏭 برگه‌های تولید باز برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
+                        return $chartProdStages === [] ? '' : '<section class="card"><h3>🏭 تولید برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
                 }
                 return '';
             };
             ?>
-            <h1>داشبورد</h1>
+            <div class="dash-head">
+                <h1>داشبورد</h1>
+                <span class="dash-date">📅 <?= e(date('Y/m/d')) ?></span>
+            </div>
             <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد. هر کاربر فقط کارت‌ها و نمودارهای مربوط به بخش‌های مجاز خودش را می‌بیند.</p>
 
             <?php if (admin_can_page('settings')): ?>
@@ -1842,14 +1852,14 @@ if ($page === 'design') {
             <div class="stat-grid dash-cards">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat') { continue; } echo $renderStat($wk); ?>
                 <?php if ($wk === 'stat_orders' && $lowStockCount > 0 && admin_can_page('materials')): ?>
-                <a class="stat-card" href="admin.php?page=materials" style="border-color:#fda4af;background:#fef2f2"><span style="color:#b91c1c">⚠ مواد رو به اتمام</span><strong style="color:#b91c1c"><?= (int) $lowStockCount ?> ماده</strong></a>
+                <a class="stat-card sc-red sc-alert-red" href="admin.php?page=materials"><span><i class="sc-ico">⚠️</i>مواد رو به اتمام</span><strong><?= (int) $lowStockCount ?> ماده</strong></a>
                 <?php endif; ?>
                 <?php endforeach; ?>
             </div>
 
             <?php $hasChart = false; foreach ($dashEnabled as $wk) { if (($dashWidgetDefs[$wk][1] ?? '') === 'chart' && (!isset($dashWidgetPages[$wk]) || admin_can_page($dashWidgetPages[$wk]))) { $hasChart = true; break; } } ?>
             <?php if ($hasChart): ?>
-            <div class="stat-grid" style="margin-top:18px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">
+            <div class="stat-grid dash-charts">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'chart') { continue; } echo $renderChart($wk); endforeach; ?>
             </div>
             <?php endif; ?>
@@ -2488,6 +2498,10 @@ if ($page === 'design') {
             <?php hr_render_employees($hrData); ?>
         <?php elseif ($page === 'payroll'): ?>
             <?php hr_render_payroll($hrData); ?>
+        <?php elseif ($page === 'employee_profile'): ?>
+            <?php hr_render_employee_profile($hrData); ?>
+        <?php elseif ($page === 'payslip'): ?>
+            <?php hr_render_payslip($hrData); ?>
         <?php elseif ($page === 'assets'): ?>
             <?php assets_render_list($assetsData); ?>
         <?php elseif ($page === 'assets_maintenance'): ?>
@@ -2846,6 +2860,24 @@ if ($page === 'design') {
                     <input type="checkbox" name="catalog_public" value="1" <?= ($settings['catalog_public'] ?? '1') === '1' ? 'checked' : '' ?>>
                     نمایش عمومی کاتالوگ محصولات در سایت (و لینک «محصولات» در منو)
                 </label>
+                <h3>حقوق و دستمزد (مبنای فیش حقوقی وزارت‌کاری)</h3>
+                <p class="muted">این مبالغ در محاسبه خودکار فیش حقوقی استفاده می‌شوند: بن کارگری و حق مسکن برای همه، حق اولاد به‌ازای هر فرزند، و مالیات ۱۰٪ فقط روی مازاد سقف معافیت.</p>
+                <div class="inline-fields">
+                    <label>بن کارگری ماهانه (تومان)
+                        <input type="number" name="wage_bon_kargari" min="0" step="1" dir="ltr" value="<?= e($settings['wage_bon_kargari'] ?? '2200000') ?>">
+                    </label>
+                    <label>حق مسکن ماهانه (تومان)
+                        <input type="number" name="wage_housing" min="0" step="1" dir="ltr" value="<?= e($settings['wage_housing'] ?? '900000') ?>">
+                    </label>
+                </div>
+                <div class="inline-fields">
+                    <label>حق اولاد هر فرزند در ماه (تومان)
+                        <input type="number" name="wage_child_allowance" min="0" step="1" dir="ltr" value="<?= e($settings['wage_child_allowance'] ?? '1250000') ?>">
+                    </label>
+                    <label>سقف معافیت مالیاتی حقوق ماهانه (تومان)
+                        <input type="number" name="wage_tax_threshold" min="0" step="1" dir="ltr" value="<?= e($settings['wage_tax_threshold'] ?? '24000000') ?>">
+                    </label>
+                </div>
                 <h3>نشست مدیریت</h3>
                 <label>مدت اعتبار نشست مدیریت (ساعت) — بعد از این مدت باید دوباره وارد شوید
                     <input type="number" name="session_lifetime_hours" min="1" max="720" step="1" value="<?= e($settings['session_lifetime_hours'] ?? '168') ?>">
@@ -3049,7 +3081,68 @@ body.nav-open .topbar{z-index:85}
 .version-badge{background:#eef2ff;color:#2563eb;border:1px solid #dbeafe;padding:2px 8px;border-radius:99px;font-weight:bold;font-size:12px}
 .sidebar a:focus-visible,.icon-btn:focus-visible,.nav-group summary:focus-visible,.topbar-actions a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 .dash-cards a.stat-card{display:block;color:inherit}
-.dash-cards a.stat-card:hover{box-shadow:0 4px 16px rgba(17,24,39,.10)}
+/* ===== داشبورد مدرن — کارت‌های آماری ===== */
+.dash-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+.dash-cards .stat-card{position:relative;background:#fff;border:1px solid #e8ecf1;border-radius:16px;padding:20px 18px;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.dash-cards .stat-card::before{content:"";position:absolute;top:0;inset-inline-start:0;inset-inline-end:0;height:4px;background:linear-gradient(90deg,#e2e8f0,#cbd5e1);border-radius:16px 16px 0 0}
+.dash-cards a.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(17,24,39,.12);border-color:#cbd5e1;text-decoration:none}
+.dash-cards .stat-card span{display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px;font-weight:600;margin-bottom:10px}
+.dash-cards .stat-card strong{display:block;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.5px}
+.dash-cards .stat-card .sc-sub{display:block;font-size:12px;color:#94a3b8;font-weight:400;margin-top:4px}
+/* آیکون دایره‌ای */
+.dash-cards .stat-card .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;font-size:19px;background:#f1f5f9;flex-shrink:0}
+/* رنگ‌بندی نوار بالای کارت */
+.dash-cards .stat-card.sc-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
+.dash-cards .stat-card.sc-blue .sc-ico{background:#dbeafe}
+.dash-cards .stat-card.sc-green::before{background:linear-gradient(90deg,#10b981,#059669)}
+.dash-cards .stat-card.sc-green .sc-ico{background:#d1fae5}
+.dash-cards .stat-card.sc-amber::before{background:linear-gradient(90deg,#f59e0b,#d97706)}
+.dash-cards .stat-card.sc-amber .sc-ico{background:#fef3c7}
+.dash-cards .stat-card.sc-red::before{background:linear-gradient(90deg,#ef4444,#dc2626)}
+.dash-cards .stat-card.sc-red .sc-ico{background:#fee2e2}
+.dash-cards .stat-card.sc-purple::before{background:linear-gradient(90deg,#8b5cf6,#7c3aed)}
+.dash-cards .stat-card.sc-purple .sc-ico{background:#ede9fe}
+.dash-cards .stat-card.sc-teal::before{background:linear-gradient(90deg,#14b8a6,#0d9488)}
+.dash-cards .stat-card.sc-teal .sc-ico{background:#ccfbf1}
+.dash-cards .stat-card.sc-indigo::before{background:linear-gradient(90deg,#6366f1,#4f46e5)}
+.dash-cards .stat-card.sc-indigo .sc-ico{background:#e0e7ff}
+.dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
+.dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
+/* کارت‌های KPI — گرادیان پررنگ با متن سفید */
+.dash-cards .stat-card.kpi{color:#fff;border:none;padding:22px 18px}
+.dash-cards .stat-card.kpi::before{display:none}
+.dash-cards .stat-card.kpi span{color:rgba(255,255,255,.85)}
+.dash-cards .stat-card.kpi strong{color:#fff;font-size:24px}
+.dash-cards .stat-card.kpi .sc-ico{background:rgba(255,255,255,.22);backdrop-filter:blur(4px)}
+.dash-cards .stat-card.kpi .sc-sub{color:rgba(255,255,255,.7)}
+.dash-cards .stat-card.kpi-revenue{background:linear-gradient(135deg,#10b981 0%,#059669 60%,#047857 100%)}
+.dash-cards .stat-card.kpi-orders{background:linear-gradient(135deg,#3b82f6 0%,#2563eb 60%,#1d4ed8 100%)}
+.dash-cards .stat-card.kpi-employees{background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 60%,#6d28d9 100%)}
+.dash-cards .stat-card.kpi-payroll{background:linear-gradient(135deg,#f59e0b 0%,#d97706 60%,#b45309 100%)}
+.dash-cards .stat-card.kpi-assets{background:linear-gradient(135deg,#14b8a6 0%,#0d9488 60%,#0f766e 100%)}
+.dash-cards a.stat-card.kpi:hover{box-shadow:0 14px 34px rgba(17,24,39,.22)}
+/* کارت‌های هشدار */
+.dash-cards .stat-card.sc-alert-amber{background:#fffbeb;border-color:#fde68a}
+.dash-cards .stat-card.sc-alert-red{background:#fef2f2;border-color:#fecaca}
+.dash-cards .stat-card.sc-alert-blue{background:#eff6ff;border-color:#bfdbfe}
+/* سربرگ داشبورد */
+.dash-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.dash-head h1{margin:0;font-size:26px;font-weight:800;color:#0f172a}
+.dash-date{color:#64748b;font-size:13px;background:#f1f5f9;padding:8px 14px;border-radius:99px}
+/* کارت‌های نمودار */
+.dash-charts{margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.dash-charts .card{border:1px solid #e8ecf1;border-radius:16px;box-shadow:0 2px 12px rgba(17,24,39,.05);margin:0;max-width:none}
+.dash-charts .card h3{font-size:15px;font-weight:700;color:#0f172a;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+/* ریسپانسیو */
+@media (max-width:640px){
+.dash-cards{grid-template-columns:repeat(2,1fr);gap:10px}
+.dash-cards .stat-card{padding:14px 12px;border-radius:12px}
+.dash-cards .stat-card strong{font-size:19px}
+.dash-cards .stat-card .sc-ico{width:30px;height:30px;font-size:15px;border-radius:9px}
+.dash-cards .stat-card span{font-size:11px}
+.dash-charts{grid-template-columns:1fr}
+.dash-head h1{font-size:21px}
+}
 .nav-overlay{display:none}
 @media (min-width:900px){
 .sidebar{position:sticky;top:54px;height:calc(100vh - 54px)}

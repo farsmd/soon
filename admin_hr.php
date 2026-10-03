@@ -36,6 +36,98 @@ function hr_status_label(string $status): string
 }
 
 /**
+ * مدت همکاری به فارسی: «X سال و Y ماه» از تاریخ استخدام تا امروز.
+ * ورودی تاریخ با قالب YYYY-MM-DD (میلادی یا شمسیِ ذخیره‌شده)؛ خروجی رشته فارسی.
+ */
+function hr_tenure(string $hireDate): string
+{
+    $hireDate = trim($hireDate);
+    if ($hireDate === '') {
+        return '—';
+    }
+    try {
+        $start = new DateTime($hireDate);
+    } catch (Throwable $e) {
+        return '—';
+    }
+    $now = new DateTime();
+    if ($start > $now) {
+        return '—';
+    }
+    $diff = $start->diff($now);
+    $parts = [];
+    if ($diff->y > 0) {
+        $parts[] = $diff->y . ' سال';
+    }
+    if ($diff->m > 0) {
+        $parts[] = $diff->m . ' ماه';
+    }
+    if ($parts === []) {
+        return 'کمتر از یک ماه';
+    }
+    return implode(' و ', $parts);
+}
+
+/**
+ * محاسبه فیش حقوقی مطابق منطق وزارت کار.
+ * ورودی: رکورد پرسنل + رکورد فیش (salary_payments).
+ * خروجی: آرایه کامل شامل مزایا، کسورات و خالص پرداختی.
+ */
+function hr_calculate_payslip(array $employee, array $payment): array
+{
+    $base      = max(0, (int) ($payment['base_amount'] ?? 0));
+    $bonus     = max(0, (int) ($payment['bonus'] ?? 0));       // اضافه‌کاری / پاداش
+    $otherDed  = max(0, (int) ($payment['deduction'] ?? 0));   // سایر کسورات
+    $children  = max(0, (int) ($employee['children_count'] ?? 0));
+
+    $bonKargari    = max(0, (int) get_setting('wage_bon_kargari', '2200000'));
+    $housing       = max(0, (int) get_setting('wage_housing', '900000'));
+    $childAllow    = max(0, (int) get_setting('wage_child_allowance', '1250000'));
+    $taxThreshold  = max(0, (int) get_setting('wage_tax_threshold', '24000000'));
+
+    $childTotal = $children * $childAllow;
+
+    $earnings = [
+        ['label' => 'حقوق پایه', 'amount' => $base],
+        ['label' => 'بن کارگری (کمک‌هزینه اقلام مصرفی)', 'amount' => $bonKargari],
+        ['label' => 'حق مسکن', 'amount' => $housing],
+        ['label' => 'حق اولاد (' . $children . ' فرزند)', 'amount' => $childTotal],
+        ['label' => 'اضافه‌کاری / پاداش', 'amount' => $bonus],
+    ];
+    $totalEarnings = $base + $bonKargari + $housing + $childTotal + $bonus;
+
+    // بیمه سهم کارگر: ۷٪ جمع مزایا
+    $insurance = (int) round($totalEarnings * 0.07);
+    // مالیات حقوق: ۱۰٪ مازاد بر سقف معافیت
+    $taxable = max(0, $totalEarnings - $taxThreshold);
+    $tax = (int) round($taxable * 0.10);
+
+    $deductions = [
+        ['label' => 'بیمه سهم کارگر (۷٪)', 'amount' => $insurance],
+        ['label' => 'مالیات حقوق', 'amount' => $tax],
+        ['label' => 'سایر کسورات', 'amount' => $otherDed],
+    ];
+    $totalDeductions = $insurance + $tax + $otherDed;
+
+    $net = $totalEarnings - $totalDeductions;
+
+    return [
+        'earnings'         => $earnings,
+        'total_earnings'   => $totalEarnings,
+        'deductions'       => $deductions,
+        'total_deductions' => $totalDeductions,
+        'net'              => $net,
+        'children'         => $children,
+        'params'           => [
+            'bon_kargari'    => $bonKargari,
+            'housing'        => $housing,
+            'child_allowance'=> $childAllow,
+            'tax_threshold'  => $taxThreshold,
+        ],
+    ];
+}
+
+/**
  * پردازش اکشن‌های POST منابع انسانی — موفق‌ها با redirect_admin تمام می‌شوند
  * و خطاها با استثنا به catch اصلی admin.php برمی‌گردند.
  */
@@ -55,8 +147,10 @@ function hr_handle_post(string $action): void
                 $employmentType = 'full_time';
             }
             $baseSalary = max(0, (int) ($_POST['base_salary'] ?? 0));
+            $childrenCount = max(0, (int) ($_POST['children_count'] ?? 0));
             $data = [
                 ':name'  => mb_substr($fullName, 0, 120),
+                ':child' => $childrenCount,
                 ':pos'   => mb_substr(trim((string) ($_POST['position'] ?? '')), 0, 120),
                 ':mob'   => mb_substr(trim((string) ($_POST['mobile'] ?? '')), 0, 20),
                 ':nid'   => mb_substr(trim((string) ($_POST['national_id'] ?? '')), 0, 20),
@@ -67,11 +161,11 @@ function hr_handle_post(string $action): void
             ];
             if ($action === 'update_employee' && $eid > 0) {
                 $data[':id'] = $eid;
-                $pdo->prepare('UPDATE employees SET full_name = :name, position = :pos, mobile = :mob, national_id = :nid, hire_date = :hire, base_salary = :sal, employment_type = :etype, notes = :notes, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                $pdo->prepare('UPDATE employees SET full_name = :name, position = :pos, mobile = :mob, national_id = :nid, hire_date = :hire, base_salary = :sal, employment_type = :etype, children_count = :child, notes = :notes, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                 flash('ok', 'مشخصات پرسنل به‌روزرسانی شد.');
                 redirect_admin('admin.php?page=employees&edit_id=' . $eid);
             }
-            $pdo->prepare("INSERT INTO employees (full_name, position, mobile, national_id, hire_date, base_salary, employment_type, status, notes) VALUES (:name, :pos, :mob, :nid, :hire, :sal, :etype, 'active', :notes)")->execute($data);
+            $pdo->prepare("INSERT INTO employees (full_name, position, mobile, national_id, hire_date, base_salary, employment_type, children_count, status, notes) VALUES (:name, :pos, :mob, :nid, :hire, :sal, :etype, :child, 'active', :notes)")->execute($data);
             flash('ok', 'پرسنل تازه ثبت شد.');
             redirect_admin('admin.php?page=employees');
             // no break
@@ -176,6 +270,48 @@ function hr_load_data(): array
         $data['totalNetAll'] += (int) $p['net_amount'];
     }
     $data['monthlyTotals'] = $pdo->query('SELECT pay_month, COUNT(*) AS cnt, SUM(net_amount) AS total_net, SUM(base_amount) AS total_base, SUM(bonus) AS total_bonus, SUM(deduction) AS total_deduction FROM salary_payments GROUP BY pay_month ORDER BY pay_month DESC')->fetchAll();
+    // پروفایل پرسنل
+    $data['profileEmployee'] = null;
+    $data['profilePayments'] = [];
+    $data['profileTotals'] = ['count' => 0, 'net' => 0, 'base' => 0];
+    if (isset($_GET['id']) && (int) $_GET['id'] > 0) {
+        $pst = $pdo->prepare('SELECT * FROM employees WHERE id = :id LIMIT 1');
+        $pst->execute([':id' => (int) $_GET['id']]);
+        $prow = $pst->fetch();
+        if ($prow !== false) {
+            $data['profileEmployee'] = $prow;
+            $ppst = $pdo->prepare('SELECT * FROM salary_payments WHERE employee_id = :eid ORDER BY pay_month DESC, id DESC');
+            $ppst->execute([':eid' => (int) $prow['id']]);
+            $data['profilePayments'] = $ppst->fetchAll();
+            foreach ($data['profilePayments'] as $pp) {
+                $data['profileTotals']['count']++;
+                $data['profileTotals']['net'] += (int) $pp['net_amount'];
+                $data['profileTotals']['base'] += (int) $pp['base_amount'];
+            }
+        }
+    }
+    // فیش حقوقی تکی برای چاپ
+    $data['payslipPayment'] = null;
+    $data['payslipEmployee'] = null;
+    if (isset($_GET['slip_id']) && (int) $_GET['slip_id'] > 0) {
+        // ستون‌های هم‌نام sp و e را جدا می‌گیریم تا قاطی نشوند
+        $sst = $pdo->prepare('SELECT sp.id AS slip_id, sp.pay_month, sp.base_amount, sp.bonus, sp.deduction, sp.net_amount, sp.paid_date, sp.notes AS slip_notes, e.* FROM salary_payments sp JOIN employees e ON e.id = sp.employee_id WHERE sp.id = :id LIMIT 1');
+        $sst->execute([':id' => (int) $_GET['slip_id']]);
+        $srow = $sst->fetch();
+        if ($srow !== false) {
+            $data['payslipEmployee'] = $srow;
+            $data['payslipPayment'] = [
+                'id' => (int) $srow['slip_id'],
+                'pay_month' => $srow['pay_month'],
+                'base_amount' => $srow['base_amount'],
+                'bonus' => $srow['bonus'],
+                'deduction' => $srow['deduction'],
+                'net_amount' => $srow['net_amount'],
+                'paid_date' => $srow['paid_date'],
+                'notes' => $srow['slip_notes'],
+            ];
+        }
+    }
     return $data;
 }
 
@@ -235,6 +371,9 @@ function hr_render_employees(array $d): void
                             <?php endforeach; ?>
                         </select>
                     </label>
+                    <label>تعداد فرزند (برای حق اولاد)
+                        <input type="number" name="children_count" min="0" max="20" step="1" inputmode="numeric" dir="ltr" value="<?= (int) ($editEmployee['children_count'] ?? 0) ?>">
+                    </label>
                 </div>
                 <label>یادداشت
                     <textarea name="notes" rows="2" maxlength="1000"><?= e($editEmployee['notes'] ?? '') ?></textarea>
@@ -263,6 +402,7 @@ function hr_render_employees(array $d): void
                         <td><?= e(format_price($emp['base_salary'])) ?> تومان</td>
                         <td><?php if ($isActive): ?><span class="badge ok">فعال</span><?php else: ?><span class="badge off">غیرفعال</span><?php endif; ?></td>
                         <td class="actions">
+                            <a class="btn small" href="admin.php?page=employee_profile&id=<?= $eid ?>">👤 پروفایل</a>
                             <a class="btn small edit" href="admin.php?page=employees&edit_id=<?= $eid ?>">ویرایش</a>
                             <form method="post" class="inline" onsubmit="return confirm('<?= $isActive ? 'این پرسنل غیرفعال شود؟ سوابق حقوقی او حفظ می‌شود.' : 'این پرسنل دوباره فعال شود؟' ?>')">
                                 <?= csrf_field() ?>
@@ -403,6 +543,7 @@ function hr_render_payroll(array $d): void
                         <td><?= e($p['paid_date'] ?? '') !== '' ? e($p['paid_date']) : '<span class="muted">—</span>' ?></td>
                         <td><?= e($p['notes'] ?? '') !== '' ? e($p['notes']) : '<span class="muted">—</span>' ?></td>
                         <td class="actions">
+                            <a class="btn small" href="admin.php?page=payslip&slip_id=<?= (int) $p['id'] ?>" target="_blank">🖨 چاپ فیش</a>
                             <form method="post" class="inline" onsubmit="return confirm('این فیش حقوقی حذف شود؟')">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete_salary_payment">
@@ -415,5 +556,179 @@ function hr_render_payroll(array $d): void
                 </tbody>
             </table>
             <?php endif; ?>
+    <?php
+}
+
+/** رندر صفحه «پروفایل پرسنل» */
+function hr_render_employee_profile(array $d): void
+{
+    extract($d);
+    $emp = $profileEmployee;
+    if ($emp === null) {
+        echo '<h1>پرسنل پیدا نشد</h1><p><a class="btn" href="admin.php?page=employees">بازگشت به فهرست پرسنل</a></p>';
+        return;
+    }
+    $eid = (int) $emp['id'];
+    $isActive = ($emp['status'] ?? 'active') === 'active';
+    // حروف اول نام برای آواتار
+    $nameParts = preg_split('/\s+/u', trim((string) $emp['full_name']));
+    $initials = '';
+    foreach (array_slice($nameParts, 0, 2) as $np) {
+        $initials .= mb_substr($np, 0, 1);
+    }
+    ?>
+            <p><a href="admin.php?page=employees">← بازگشت به فهرست پرسنل</a></p>
+            <h1>پروفایل پرسنل</h1>
+
+            <section class="card wide">
+                <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+                    <div style="width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,#c9a227,#e8c66a);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:#07090d;flex-shrink:0"><?= e($initials) ?></div>
+                    <div style="flex:1;min-width:220px">
+                        <h2 style="margin:0 0 6px"><?= e($emp['full_name']) ?></h2>
+                        <p class="muted" style="margin:0 0 8px"><?= e($emp['position'] ?? '') !== '' ? e($emp['position']) : '—' ?> · <?= e(hr_employment_type_label((string) ($emp['employment_type'] ?? 'full_time'))) ?></p>
+                        <?php if ($isActive): ?><span class="badge ok">فعال</span><?php else: ?><span class="badge off">غیرفعال</span><?php endif; ?>
+                        <span class="muted">کد پرسنلی: <strong dir="ltr"><?= $eid ?></strong></span>
+                    </div>
+                    <div>
+                        <a class="btn small edit" href="admin.php?page=employees&edit_id=<?= $eid ?>">ویرایش مشخصات</a>
+                    </div>
+                </div>
+            </section>
+
+            <div class="stat-grid dash-cards">
+                <div class="stat-card"><span>حقوق پایه ماهانه</span><strong><?= e(format_price($emp['base_salary'])) ?> تومان</strong></div>
+                <div class="stat-card"><span>مدت همکاری</span><strong><?= e(hr_tenure((string) ($emp['hire_date'] ?? ''))) ?></strong></div>
+                <div class="stat-card"><span>تعداد فیش‌های حقوقی</span><strong><?= (int) $profileTotals['count'] ?></strong></div>
+                <div class="stat-card"><span>جمع خالص دریافتی</span><strong><?= e(format_price($profileTotals['net'])) ?> تومان</strong></div>
+            </div>
+
+            <section class="card wide">
+                <h2 style="margin-top:0">مشخصات</h2>
+                <table>
+                    <tbody>
+                        <tr><th style="width:180px">شماره موبایل</th><td dir="ltr" style="text-align:end"><?= e($emp['mobile'] ?? '') !== '' ? e($emp['mobile']) : '<span class="muted">—</span>' ?></td></tr>
+                        <tr><th>کد ملی</th><td dir="ltr" style="text-align:end"><?= e($emp['national_id'] ?? '') !== '' ? e($emp['national_id']) : '<span class="muted">—</span>' ?></td></tr>
+                        <tr><th>تاریخ استخدام</th><td><?= e($emp['hire_date'] ?? '') !== '' ? e($emp['hire_date']) : '<span class="muted">—</span>' ?></td></tr>
+                        <tr><th>تعداد فرزند</th><td><?= (int) ($emp['children_count'] ?? 0) ?> نفر</td></tr>
+                        <tr><th>نوع همکاری</th><td><?= e(hr_employment_type_label((string) ($emp['employment_type'] ?? 'full_time'))) ?></td></tr>
+                        <?php if (!empty($emp['notes'])): ?><tr><th>یادداشت</th><td><?= e($emp['notes']) ?></td></tr><?php endif; ?>
+                    </tbody>
+                </table>
+            </section>
+
+            <h2>سوابق حقوقی (<?= (int) $profileTotals['count'] ?>)</h2>
+            <?php if ($profilePayments === []): ?>
+                <div class="card wide"><p class="muted">هنوز فیش حقوقی برای این پرسنل ثبت نشده است.</p></div>
+            <?php else: ?>
+            <table>
+                <thead><tr><th>ماه</th><th>پایه</th><th>پاداش</th><th>کسورات</th><th>خالص پرداختی</th><th>تاریخ پرداخت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                <?php foreach ($profilePayments as $p): ?>
+                    <tr>
+                        <td dir="ltr"><strong><?= e($p['pay_month']) ?></strong></td>
+                        <td><?= e(format_price($p['base_amount'])) ?></td>
+                        <td><?= e(format_price($p['bonus'])) ?></td>
+                        <td><?= e(format_price($p['deduction'])) ?></td>
+                        <td><strong><?= e(format_price($p['net_amount'])) ?> تومان</strong></td>
+                        <td><?= e($p['paid_date'] ?? '') !== '' ? e($p['paid_date']) : '<span class="muted">—</span>' ?></td>
+                        <td class="actions"><a class="btn small" href="admin.php?page=payslip&slip_id=<?= (int) $p['id'] ?>" target="_blank">🖨 چاپ فیش</a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php endif; ?>
+    <?php
+}
+
+/** رندر فیش حقوقی رسمی (قابل چاپ) */
+function hr_render_payslip(array $d): void
+{
+    extract($d);
+    $emp = $payslipEmployee;
+    $pay = $payslipPayment;
+    if ($emp === null || $pay === null) {
+        echo '<h1>فیش حقوقی پیدا نشد</h1><p><a class="btn" href="admin.php?page=payroll">بازگشت به حقوق و دستمزد</a></p>';
+        return;
+    }
+    $calc = hr_calculate_payslip($emp, $pay);
+    $settings = all_settings();
+    $company = (string) ($settings['site_title'] ?? 'شرکت');
+    $print = isset($_GET['print']);
+    ?>
+    <style>
+    @media print {
+        header, aside.sidebar, .nav-overlay, .screen-area { display: none !important; }
+        .layout { display: block !important; }
+        main.content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+        .payslip-sheet { display: block !important; border: none !important; box-shadow: none !important; }
+        @page { size: A5 landscape; margin: 10mm; }
+    }
+    .payslip-sheet { background: #fff; color: #111; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px; max-width: 900px; margin: 0 auto; }
+    .payslip-sheet h2 { margin: 0; font-size: 20px; }
+    .payslip-head { text-align: center; border-bottom: 3px double #111; padding-bottom: 14px; margin-bottom: 18px; }
+    .payslip-head .co { font-size: 22px; font-weight: 800; }
+    .payslip-head .doc { font-size: 16px; margin-top: 6px; }
+    .payslip-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 24px; margin-bottom: 18px; font-size: 14px; }
+    .payslip-info div span { color: #555; }
+    .payslip-sheet table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 14px; }
+    .payslip-sheet th, .payslip-sheet td { border: 1px solid #9ca3af; padding: 8px 10px; }
+    .payslip-sheet thead th { background: #f3f4f6; }
+    .payslip-sheet td.num, .payslip-sheet th.num { text-align: left; }
+    .payslip-total td { font-weight: 800; background: #f9fafb; }
+    .payslip-net td { font-weight: 800; font-size: 16px; background: #ecfdf5; }
+    .sig-row { display: flex; gap: 40px; margin-top: 44px; }
+    .sig-row div { flex: 1; border-top: 1px dashed #6b7280; padding-top: 8px; text-align: center; font-size: 14px; }
+    </style>
+    <div class="screen-area">
+        <p><a href="admin.php?page=payroll">← بازگشت به حقوق و دستمزد</a><?php if ($emp): ?> | <a href="admin.php?page=employee_profile&id=<?= (int) $emp['id'] ?>">پروفایل <?= e($emp['full_name']) ?></a><?php endif; ?></p>
+        <h1>فیش حقوقی</h1>
+        <p><a class="btn primary small" href="admin.php?page=payslip&slip_id=<?= (int) $pay['id'] ?>&print=1" target="_blank">🖨 چاپ فیش</a></p>
+    </div>
+    <div class="payslip-sheet" id="payslip-sheet">
+        <div class="payslip-head">
+            <div class="co"><?= e($company) ?></div>
+            <div class="doc">فیش حقوقی پرسنل — دوره: <strong dir="ltr"><?= e($pay['pay_month']) ?></strong></div>
+        </div>
+        <div class="payslip-info">
+            <div><span>نام و نام خانوادگی: </span><strong><?= e($emp['full_name']) ?></strong></div>
+            <div><span>کد پرسنلی: </span><strong dir="ltr"><?= (int) $emp['id'] ?></strong></div>
+            <div><span>سمت: </span><strong><?= e($emp['position'] ?? '—') ?></strong></div>
+            <div><span>کد ملی: </span><strong dir="ltr"><?= e($emp['national_id'] ?? '—') ?></strong></div>
+            <div><span>تعداد فرزند: </span><strong><?= (int) ($emp['children_count'] ?? 0) ?> نفر</strong></div>
+            <div><span>تاریخ پرداخت: </span><strong><?= e($pay['paid_date'] ?? '—') ?></strong></div>
+        </div>
+
+        <table>
+            <thead><tr><th>شرح مزایا</th><th class="num">مبلغ (تومان)</th></tr></thead>
+            <tbody>
+                <?php foreach ($calc['earnings'] as $er): ?>
+                <tr><td><?= e($er['label']) ?></td><td class="num"><?= e(format_price($er['amount'])) ?></td></tr>
+                <?php endforeach; ?>
+                <tr class="payslip-total"><td>جمع مزایا</td><td class="num"><?= e(format_price($calc['total_earnings'])) ?></td></tr>
+            </tbody>
+        </table>
+
+        <table>
+            <thead><tr><th>شرح کسورات</th><th class="num">مبلغ (تومان)</th></tr></thead>
+            <tbody>
+                <?php foreach ($calc['deductions'] as $dd): ?>
+                <tr><td><?= e($dd['label']) ?></td><td class="num"><?= e(format_price($dd['amount'])) ?></td></tr>
+                <?php endforeach; ?>
+                <tr class="payslip-total"><td>جمع کسورات</td><td class="num"><?= e(format_price($calc['total_deductions'])) ?></td></tr>
+                <tr class="payslip-net"><td>خالص پرداختی</td><td class="num"><?= e(format_price($calc['net'])) ?></td></tr>
+            </tbody>
+        </table>
+
+        <?php if (!empty($pay['notes'])): ?><p style="font-size:13px;color:#555">یادداشت: <?= e($pay['notes']) ?></p><?php endif; ?>
+
+        <div class="sig-row">
+            <div>امضای کارفرما</div>
+            <div>امضای پرسنل</div>
+            <div>تاریخ: ....................</div>
+        </div>
+    </div>
+    <?php if ($print): ?>
+    <script>window.addEventListener('load', function(){ window.print(); });</script>
+    <?php endif; ?>
     <?php
 }

@@ -15,7 +15,7 @@ if (!defined('CMS_ADMIN_PANEL')) {
 /** فهرست اکشن‌های POST مربوط به لاگ‌ها */
 function logs_post_actions(): array
 {
-    return ['save_log_settings', 'clear_visit_logs', 'clear_admin_logs'];
+    return ['save_log_settings', 'clear_visit_logs', 'clear_admin_logs', 'backfill_visit_geo'];
 }
 
 /** قالب‌بندی عدد با جداکننده هزارگان (هم‌سبک بقیه پنل) */
@@ -58,6 +58,21 @@ function logs_handle_post(string $action): void
             db()->exec('DELETE FROM admin_logs');
             flash('ok', 'لاگ مدیریت پاک شد.');
             redirect_admin('admin.php?page=logs&tab=admin');
+        }
+        case 'backfill_visit_geo': {
+            // تکمیل اطلاعات کشور/دستگاه/مرورگر برای ردیف‌های قدیمی — هر بار ۱۰۰ ردیف
+            $rows = db()->query("SELECT id, ip, user_agent FROM visit_logs WHERE (country_code = '' AND country_name = '' AND ip NOT LIKE '127.%' AND ip != '::1') OR device_type = '' ORDER BY id DESC LIMIT 100")->fetchAll();
+            $n = 0;
+            foreach ($rows as $r) {
+                $geo = detect_country_from_ip((string) $r['ip']);
+                $dbb = detect_device_browser((string) $r['user_agent']);
+                db()->prepare('UPDATE visit_logs SET country_code = ?, country_name = ?, device_type = ?, browser_name = ? WHERE id = ?')
+                    ->execute([(string) ($geo['code'] ?? ''), (string) ($geo['name'] ?? ''), (string) ($dbb['device'] ?? ''), (string) ($dbb['browser'] ?? ''), (int) $r['id']]);
+                $n++;
+            }
+            $left = (int) db()->query("SELECT COUNT(*) FROM visit_logs WHERE device_type = ''")->fetchColumn();
+            flash('ok', $n > 0 ? "اطلاعات $n ردیف تکمیل شد." . ($left > 0 ? " ($left ردیف باقی مانده — دوباره بزنید.)" : '') : 'همه ردیف‌ها کامل‌اند.');
+            redirect_admin('admin.php?page=logs&tab=visits');
         }
     }
 }
@@ -238,6 +253,9 @@ function logs_prepare(array $get): array
     if (!in_array($adminf, ['hide', 'show', 'only'], true)) { $adminf = 'hide'; }
     $dr = (string) ($get['dr'] ?? 'all');
     if (!in_array($dr, ['all', 'today', 'yesterday', '7d', '30d'], true)) { $dr = 'all'; }
+    $fcountry = trim((string) ($get['country'] ?? 'all'));
+    $fdevice = (string) ($get['device'] ?? 'all');
+    if (!in_array($fdevice, ['all', 'موبایل', 'تبلت', 'دسکتاپ'], true)) { $fdevice = 'all'; }
     $pageNum = max(1, (int) ($get['p'] ?? 1));
     $perPage = 30;
     $tzName = logs_tz()->getName();
@@ -287,6 +305,14 @@ function logs_prepare(array $get): array
             $params[':ds'] = $ds;
             $params[':de'] = $de;
         }
+        if ($fcountry !== '' && $fcountry !== 'all') {
+            $where[] = 'v.country_code = :fcc';
+            $params[':fcc'] = $fcountry;
+        }
+        if ($fdevice !== 'all') {
+            $where[] = 'v.device_type = :fdev';
+            $params[':fdev'] = $fdevice;
+        }
         $whereSql = $where !== [] ? ' WHERE ' . implode(' AND ', $where) : '';
         $st = $pdo->prepare('SELECT COUNT(*) FROM visit_logs v' . $whereSql);
         $st->execute($params);
@@ -309,6 +335,10 @@ function logs_prepare(array $get): array
         $rows = $st->fetchAll();
     }
 
+    $countryList = [];
+    try {
+        $countryList = $pdo->query("SELECT country_code, country_name, COUNT(*) AS c FROM visit_logs WHERE country_code != '' GROUP BY country_code ORDER BY c DESC LIMIT 30")->fetchAll();
+    } catch (Throwable $ignored) {}
     return [
         'tab' => $tab,
         'q' => $q,
@@ -316,6 +346,9 @@ function logs_prepare(array $get): array
         'bot' => $bot,
         'adminf' => $adminf,
         'dr' => $dr,
+        'country' => $fcountry,
+        'device' => $fdevice,
+        'country_list' => $countryList,
         'page' => $pageNum,
         'per_page' => $perPage,
         'total' => $total,
@@ -347,6 +380,7 @@ function logs_render(?array $d): void
     $tabUrl = static function (string $t, int $p = 1) use ($d): string {
         $u = 'admin.php?page=logs&tab=' . $t
             . '&kind=' . $d['kind'] . '&bot=' . $d['bot'] . '&adminf=' . $d['adminf'] . '&dr=' . $d['dr']
+            . '&country=' . urlencode((string) ($d['country'] ?? 'all')) . '&device=' . urlencode((string) ($d['device'] ?? 'all'))
             . ($d['q'] !== '' ? '&q=' . urlencode($d['q']) : '')
             . ($p > 1 ? '&p=' . $p : '');
         return $u;
@@ -443,6 +477,22 @@ function logs_render(?array $d): void
                         <option value="30d" <?= $d['dr'] === '30d' ? 'selected' : '' ?>>۳۰ روز اخیر</option>
                     </select>
                 </label>
+                <label>کشور
+                    <select name="country">
+                        <option value="all" <?= ($d['country'] ?? 'all') === 'all' ? 'selected' : '' ?>>همه کشورها</option>
+                        <?php foreach (($d['country_list'] ?? []) as $cc): ?>
+                            <option value="<?= e((string) $cc['country_code']) ?>" <?= ($d['country'] ?? '') === (string) $cc['country_code'] ? 'selected' : '' ?>><?= country_flag_emoji((string) $cc['country_code']) ?> <?= e((string) $cc['country_name']) ?> (<?= logs_num($cc['c']) ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label>دستگاه
+                    <select name="device">
+                        <option value="all" <?= ($d['device'] ?? 'all') === 'all' ? 'selected' : '' ?>>همه</option>
+                        <option value="موبایل" <?= ($d['device'] ?? '') === 'موبایل' ? 'selected' : '' ?>>📱 موبایل</option>
+                        <option value="تبلت" <?= ($d['device'] ?? '') === 'تبلت' ? 'selected' : '' ?>>📲 تبلت</option>
+                        <option value="دسکتاپ" <?= ($d['device'] ?? '') === 'دسکتاپ' ? 'selected' : '' ?>>🖥️ دسکتاپ</option>
+                    </select>
+                </label>
             </div>
             <div style="margin-top:12px">
                 <button type="submit" class="btn primary">اعمال فیلتر</button>
@@ -462,6 +512,10 @@ function logs_render(?array $d): void
         <?php endif; ?>
 
         <?php if ($d['tab'] === 'visits'): ?>
+        <form method="post" class="inline" style="float:left;margin-left:8px" title="تکمیل کشور/دستگاه/مرورگر برای ردیف‌های قدیمی (هر بار ۱۰۰ ردیف)">
+            <?= csrf_field() ?><input type="hidden" name="action" value="backfill_visit_geo">
+            <button type="submit" class="btn">🌍 تکمیل اطلاعات</button>
+        </form>
         <form method="post" class="inline" onsubmit="return confirm('همه لاگ بازدید پاک شود؟')" style="float:left">
             <?= csrf_field() ?><input type="hidden" name="action" value="clear_visit_logs">
             <button type="submit" class="btn danger-btn">پاک‌کردن لاگ بازدید</button>
@@ -478,7 +532,7 @@ function logs_render(?array $d): void
             <p class="muted">هنوز چیزی ثبت نشده است (برای این فیلتر).</p>
         <?php elseif ($d['tab'] === 'visits'): ?>
         <table>
-            <thead><tr><th>زمان (<?= e($d['tz']) ?>)</th><th>نوع</th><th>بازدیدکننده</th><th>آی‌پی</th><th>از کجا آمده</th><th>صفحه / کلیک‌شده</th></tr></thead>
+            <thead><tr><th>زمان (<?= e($d['tz']) ?>)</th><th>نوع</th><th>بازدیدکننده</th><th>کشور</th><th>دستگاه / مرورگر</th><th>آی‌پی</th><th>از کجا آمده</th><th>صفحه / کلیک‌شده</th></tr></thead>
             <tbody>
             <?php foreach ($d['rows'] as $r): ?>
                 <?php
@@ -503,6 +557,24 @@ function logs_render(?array $d): void
                         <?php else: ?>
                             <span class="muted">انسان</span>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php
+                        $cc = trim((string) ($r['country_code'] ?? ''));
+                        $cn = trim((string) ($r['country_name'] ?? ''));
+                        if ($cc !== '' || $cn !== ''): ?>
+                            <span title="<?= e($cc) ?>"><?= country_flag_emoji($cc) ?> <?= e($cn !== '' ? $cn : $cc) ?></span>
+                        <?php else: ?><span class="muted">—</span><?php endif; ?>
+                    </td>
+                    <td>
+                        <?php
+                        $dv = trim((string) ($r['device_type'] ?? ''));
+                        $br = trim((string) ($r['browser_name'] ?? ''));
+                        $dvIcon = $dv === 'موبایل' ? '📱' : ($dv === 'تبلت' ? '📲' : ($dv === 'دسکتاپ' ? '🖥️' : ''));
+                        ?>
+                        <?php if ($dv !== '' || $br !== ''): ?>
+                            <span title="دستگاه"><?= e($dvIcon . ' ' . $dv) ?></span><?php if ($br !== ''): ?><br><span class="muted" style="font-size:11px"><?= e($br) ?></span><?php endif; ?>
+                        <?php else: ?><span class="muted">—</span><?php endif; ?>
                     </td>
                     <td dir="ltr"><?= e((string) $r['ip']) ?></td>
                     <td><?php $rh = log_referer_host((string) ($r['referer'] ?? '')); ?>

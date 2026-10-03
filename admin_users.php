@@ -59,7 +59,9 @@ function admin_page_catalog(): array
         ],
         'منابع' => [
             'employees'          => 'پرسنل',
+            'employee_profile'   => 'پروفایل پرسنل',
             'payroll'            => 'حقوق و دستمزد',
+            'payslip'            => 'فیش حقوقی',
             'assets'             => 'تجهیزات و دارایی‌ها',
             'assets_maintenance' => 'سوابق تعمیرات',
         ],
