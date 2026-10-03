@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.8.1');
+define('APP_VERSION', '9.9.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -953,6 +953,28 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('visit_logs bot/admin columns failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۸٫۲: ستون‌های کشور/دستگاه/مرورگر در لاگ بازدید ---
+    try {
+        $cols = $pdo->query("PRAGMA table_info(visit_logs)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        foreach ([
+            'country_code' => "ALTER TABLE visit_logs ADD COLUMN country_code TEXT NOT NULL DEFAULT ''",
+            'country_name' => "ALTER TABLE visit_logs ADD COLUMN country_name TEXT NOT NULL DEFAULT ''",
+            'device_type'  => "ALTER TABLE visit_logs ADD COLUMN device_type TEXT NOT NULL DEFAULT ''",
+            'browser_name' => "ALTER TABLE visit_logs ADD COLUMN browser_name TEXT NOT NULL DEFAULT ''",
+        ] as $col => $sql) {
+            if (!in_array($col, $cols, true)) {
+                $pdo->exec($sql);
+            }
+        }
+        $pdo->exec("CREATE TABLE IF NOT EXISTS ip_country_cache (
+            ip TEXT PRIMARY KEY,
+            country_code TEXT NOT NULL DEFAULT '',
+            country_name TEXT NOT NULL DEFAULT '',
+            cached_at INTEGER NOT NULL DEFAULT 0
+        )");
+    } catch (Throwable $e) {
+        error_log('visit_logs geo columns failed: ' . $e->getMessage());
+    }
     // --- نسخه ۹٫۸: پرچم راه‌اندازی برای نصب‌های موجود ---
     try {
         $setupDone = $pdo->query("SELECT value FROM settings WHERE key = 'setup_completed'")->fetchColumn();
@@ -1018,6 +1040,25 @@ PARTNERHTML;
         )");
     } catch (Throwable $e) {
         error_log('hr/assets tables migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۹: تعداد فرزندان پرسنل + پارامترهای حقوق وزارت‌کاری ---
+    try {
+        $ecols = $pdo->query("PRAGMA table_info(employees)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('children_count', $ecols, true)) {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN children_count INTEGER NOT NULL DEFAULT 0");
+        }
+        $wageDefaults = [
+            'wage_bon_kargari'     => '2200000',   // بن کارگری (کمک‌هزینه اقلام مصرفی)
+            'wage_housing'         => '900000',    // حق مسکن
+            'wage_child_allowance' => '1250000',   // حق اولاد برای هر فرزند
+            'wage_tax_threshold'   => '24000000',  // سقف معافیت مالیاتی حقوق ماهانه
+        ];
+        $wstmt = $pdo->prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (:k, :v)');
+        foreach ($wageDefaults as $k => $v) {
+            $wstmt->execute([':k' => $k, ':v' => $v]);
+        }
+    } catch (Throwable $e) {
+        error_log('wage params migration failed: ' . $e->getMessage());
     }
     // --- نسخه ۸٫۱۰٫۱: رفع اسکریپت reveal ---
     try {
@@ -2444,6 +2485,115 @@ function ua_is_bot(string $ua): bool
     return (bool) preg_match('/bot|crawler|spider|crawl|slurp|headless|curl|wget|python-requests|scrapy|semrush|ahrefs/i', $ua);
 }
 
+/** تبدیل کد ۲ حرفی کشور به ایموجی پرچم (Regional Indicator Symbols) — بدون نیاز به mbstring. */
+function country_flag_emoji(string $code): string
+{
+    $code = strtoupper(trim($code));
+    if (!preg_match('/^[A-Z]{2}$/', $code)) { return ''; }
+    $flag = '';
+    for ($i = 0; $i < 2; $i++) {
+        $cp = 0x1F1E6 + ord($code[$i]) - 65; // Regional Indicator A = U+1F1E6
+        // تبدیل codepoint به UTF-8 دستی
+        $flag .= chr(0xF0 | ($cp >> 18)) . chr(0x80 | (($cp >> 12) & 0x3F)) . chr(0x80 | (($cp >> 6) & 0x3F)) . chr(0x80 | ($cp & 0x3F));
+    }
+    return $flag;
+}
+
+/** تشخیص نوع دستگاه و نام مرورگر از User-Agent — برچسب‌های فارسی. */
+function detect_device_browser(string $ua): array
+{
+    $l = strtolower($ua);
+    // دستگاه
+    $device = 'دسکتاپ';
+    $deviceKey = 'desktop';
+    if (strpos($l, 'ipad') !== false || (strpos($l, 'tablet') !== false && strpos($l, 'mobile') === false)) {
+        $device = 'تبلت'; $deviceKey = 'tablet';
+    } elseif (preg_match('/mobile|iphone|ipod|android.*mobile|blackberry|iemobile|opera mini|windows phone/i', $ua)) {
+        $device = 'موبایل'; $deviceKey = 'mobile';
+    } elseif (strpos($l, 'android') !== false) {
+        $device = 'تبلت'; $deviceKey = 'tablet';
+    }
+    // مرورگر (ترتیب مهم است: اج و اپرا و سامسونگ قبل از کروم چک شوند)
+    $browser = 'سایر';
+    $browserKey = 'other';
+    if (preg_match('/edg\/|edge\//i', $ua)) { $browser = 'اج'; $browserKey = 'edge'; }
+    elseif (preg_match('/opr\/|opera/i', $ua)) { $browser = 'اپرا'; $browserKey = 'opera'; }
+    elseif (strpos($l, 'samsungbrowser') !== false) { $browser = 'سامسونگ'; $browserKey = 'samsung'; }
+    elseif (strpos($l, 'firefox') !== false || strpos($l, 'fxios') !== false) { $browser = 'فایرفاکس'; $browserKey = 'firefox'; }
+    elseif (strpos($l, 'crios') !== false || strpos($l, 'chrome') !== false) { $browser = 'کروم'; $browserKey = 'chrome'; }
+    elseif (strpos($l, 'safari') !== false) { $browser = 'سافاری'; $browserKey = 'safari'; }
+    elseif (strpos($l, 'msie') !== false || strpos($l, 'trident') !== false) { $browser = 'اینترنت اکسپلورر'; $browserKey = 'ie'; }
+    return ['device' => $device, 'device_key' => $deviceKey, 'browser' => $browser, 'browser_key' => $browserKey];
+}
+
+/** آیا آی‌پی خصوصی/محلی است؟ */
+function ip_is_private(string $ip): bool
+{
+    if ($ip === '' || $ip === '127.0.0.1' || $ip === '::1') { return true; }
+    return (bool) filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+}
+
+/**
+ * تشخیص کشور از روی آی‌پی با کش دیتابیسی.
+ * برمی‌گرداند: ['code' => 'IR', 'name' => 'ایران'] — در خطا کد خالی.
+ */
+function detect_country_from_ip(string $ip): array
+{
+    $ip = trim($ip);
+    if ($ip === '' || ip_is_private($ip)) {
+        return ['code' => '', 'name' => 'داخلی'];
+    }
+    try {
+        $pdo = db();
+        $st = $pdo->prepare('SELECT country_code, country_name, cached_at FROM ip_country_cache WHERE ip = ? LIMIT 1');
+        $st->execute([$ip]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        // کش ۳۰ روزه
+        if ($row !== false && (int) $row['cached_at'] > time() - 30 * 86400) {
+            return ['code' => (string) $row['country_code'], 'name' => (string) $row['country_name']];
+        }
+        // پرس‌وجو از ip-api.com با تایم‌اوت کوتاه
+        $code = ''; $name = '';
+        $ctx = stream_context_create(['http' => ['timeout' => 3, 'ignore_errors' => true]]);
+        $json = @file_get_contents('http://ip-api.com/json/' . urlencode($ip) . '?fields=status,country,countryCode', false, $ctx);
+        if ($json !== false) {
+            $data = json_decode($json, true);
+            if (is_array($data) && ($data['status'] ?? '') === 'success') {
+                $code = strtoupper(trim((string) ($data['countryCode'] ?? '')));
+                $nameEn = trim((string) ($data['country'] ?? ''));
+                if (preg_match('/^[A-Z]{2}$/', $code)) {
+                    $name = country_name_fa($code, $nameEn);
+                } else {
+                    $code = '';
+                }
+            }
+        }
+        $pdo->prepare('INSERT OR REPLACE INTO ip_country_cache (ip, country_code, country_name, cached_at) VALUES (?,?,?,?)')
+            ->execute([$ip, $code, $name, time()]);
+        return ['code' => $code, 'name' => $name];
+    } catch (Throwable $ignored) {
+        return ['code' => '', 'name' => ''];
+    }
+}
+
+/** نام فارسی کشور از روی کد — برای کدهای پرتکرار؛ بقیه همان نام انگلیسی. */
+function country_name_fa(string $code, string $fallback = ''): string
+{
+    static $map = [
+        'IR' => 'ایران', 'US' => 'آمریکا', 'DE' => 'آلمان', 'GB' => 'بریتانیا',
+        'FR' => 'فرانسه', 'NL' => 'هلند', 'CA' => 'کانادا', 'AU' => 'استرالیا',
+        'TR' => 'ترکیه', 'AE' => 'امارات', 'SA' => 'عربستان', 'IQ' => 'عراق',
+        'AF' => 'افغانستان', 'PK' => 'پاکستان', 'IN' => 'هند', 'CN' => 'چین',
+        'RU' => 'روسیه', 'UA' => 'اوکراین', 'SE' => 'سوئد', 'CH' => 'سوئیس',
+        'IT' => 'ایتالیا', 'ES' => 'اسپانیا', 'JP' => 'ژاپن', 'KR' => 'کره جنوبی',
+        'BR' => 'برزیل', 'EG' => 'مصر', 'QA' => 'قطر', 'KW' => 'کویت',
+        'OM' => 'عمان', 'BH' => 'بحرین', 'JO' => 'اردن', 'LB' => 'لبنان',
+        'SY' => 'سوریه', 'YE' => 'یمن', 'AZ' => 'آذربایجان', 'AM' => 'ارمنستان',
+        'GE' => 'گرجستان', 'KZ' => 'قزاقستان', 'UZ' => 'ازبکستان', 'TM' => 'ترکمنستان',
+    ];
+    return $map[$code] ?? ($fallback !== '' ? $fallback : $code);
+}
+
 /** پاک‌سازی دوره‌ای لاگ‌های قدیمی‌تر از مهلت نگهداری تنظیم‌شده (گاهی، نه هر درخواست). */
 function prune_logs_maybe(): void
 {
@@ -2481,6 +2631,13 @@ function track_public_request(): void
         if (defined('CMS_SESSION_STARTED') && ($GLOBALS['CMS_SID'] ?? '') !== '') {
             $sessionKey = substr(md5((string) $GLOBALS['CMS_SID']), 0, 10);
         }
+        // تشخیص کشور/دستگاه/مرورگر (کش‌دار؛ فقط آی‌پی‌های تازه به API می‌زنند)
+        $dbInfo = detect_device_browser($ua);
+        $geo = detect_country_from_ip(client_ip());
+        $countryCode = (string) ($geo['code'] ?? '');
+        $countryName = (string) ($geo['name'] ?? '');
+        $deviceType = (string) ($dbInfo['device'] ?? '');
+        $browserName = (string) ($dbInfo['browser'] ?? '');
         if ($method === 'POST' && isset($_POST['track_click'])) {
             // بیکن کلیک: فقط از خود سایت قبول می‌شود
             $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
@@ -2490,15 +2647,15 @@ function track_public_request(): void
             }
             $path = substr((string) ($_POST['p'] ?? ($_SERVER['REQUEST_URI'] ?? '')), 0, 300);
             $target = substr(trim((string) ($_POST['t'] ?? '')), 0, 200);
-            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user) VALUES ('click', ?, ?, ?, ?, ?, ?, ?, ?)")
-                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey, $isBot, $adminUser]);
+            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user, country_code, country_name, device_type, browser_name) VALUES ('click', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey, $isBot, $adminUser, $countryCode, $countryName, $deviceType, $browserName]);
             prune_logs_maybe();
             http_response_code(204);
             exit;
         }
         if ($method === 'GET') {
-            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user) VALUES ('visit', ?, ?, ?, ?, '', ?, ?, ?)")
-                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey, $isBot, $adminUser]);
+            db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user, country_code, country_name, device_type, browser_name) VALUES ('visit', ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?)")
+                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey, $isBot, $adminUser, $countryCode, $countryName, $deviceType, $browserName]);
             prune_logs_maybe();
         }
     } catch (Throwable $ignored) {
