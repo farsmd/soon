@@ -1129,6 +1129,7 @@ function catalog_render_products(array $d): void
                     <div class="alert error" style="margin-top:8px">هشدار: قیمت فروش این محصول از بهای مواد هر متر کمتر است.</div>
                     <?php endif; ?>
                 </div>
+                <p style="margin:10px 0"><button type="submit" class="btn <?= $editProduct !== null ? 'edit' : 'add' ?>" style="width:100%;padding:12px;font-size:16px"><?= $editProduct !== null ? '💾 ذخیره تغییرات' : 'ثبت محصول' ?></button></p>
 
                 <div class="card" style="background:#f9fafb;margin:10px 0">
                     <strong>برآورد نیاز مواد برای یک سفارش</strong>
