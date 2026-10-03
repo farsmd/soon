@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.13.2');
+define('APP_VERSION', '9.13.3');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1103,6 +1103,12 @@ PARTNERHTML;
         seed_gallery_tiles_v9131_if_needed();
     } catch (Throwable $e) {
         error_log('gallery tiles migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱۳٫۳: استایل لایت‌باکس گالری (یک بار) ---
+    try {
+        seed_gallery_lightbox_css_v9133_if_needed();
+    } catch (Throwable $e) {
+        error_log('gallery lightbox css migration failed: ' . $e->getMessage());
     }
 }
 
@@ -4571,14 +4577,94 @@ function gallery_build_html(array $figs): string
         $out .= "</figure>\n";
     }
     $out .= "</div>\n";
+    $out .= <<<'GLB'
+<div class="glb" id="glb" hidden>
+  <div class="glb-backdrop" data-glb-close></div>
+  <figure class="glb-stage">
+    <img class="glb-img" alt="">
+    <figcaption class="glb-meta"><span class="glb-cap"></span><span class="glb-count"></span></figcaption>
+  </figure>
+  <button type="button" class="glb-close" data-glb-close aria-label="بستن">✕</button>
+  <button type="button" class="glb-prev" aria-label="تصویر قبلی">›</button>
+  <button type="button" class="glb-next" aria-label="تصویر بعدی">‹</button>
+</div>
+<script>
+(function(){
+  var grid=document.querySelector('.gallery-tiles');
+  var lb=document.getElementById('glb');
+  if(!grid||!lb)return;
+  var figs=Array.prototype.slice.call(grid.querySelectorAll('figure'));
+  if(!figs.length)return;
+  var img=lb.querySelector('.glb-img'),cap=lb.querySelector('.glb-cap'),cnt=lb.querySelector('.glb-count'),idx=0;
+  function fa(n){return Number(n).toLocaleString('fa-IR');}
+  function show(i){
+    idx=(i+figs.length)%figs.length;
+    var im=figs[idx].querySelector('img'),fc=figs[idx].querySelector('figcaption');
+    img.src=im.getAttribute('src');img.alt=im.getAttribute('alt')||'';
+    cap.textContent=fc?fc.textContent:'';
+    cnt.textContent=fa(idx+1)+' از '+fa(figs.length);
+  }
+  function open(i){show(i);lb.hidden=false;document.body.style.overflow='hidden';}
+  function close(){lb.hidden=true;document.body.style.overflow='';}
+  figs.forEach(function(f,i){f.addEventListener('click',function(){open(i);});});
+  lb.querySelector('.glb-prev').addEventListener('click',function(e){e.stopPropagation();show(idx-1);});
+  lb.querySelector('.glb-next').addEventListener('click',function(e){e.stopPropagation();show(idx+1);});
+  lb.querySelectorAll('[data-glb-close]').forEach(function(b){b.addEventListener('click',close);});
+  document.addEventListener('keydown',function(e){
+    if(lb.hidden)return;
+    if(e.key==='Escape')close();
+    else if(e.key==='ArrowLeft')show(idx+1);
+    else if(e.key==='ArrowRight')show(idx-1);
+  });
+  var tx=0;
+  lb.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  lb.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>48){show(idx+(dx<0?1:-1));}
+  },{passive:true});
+})();
+</script>
+GLB;
     return $out;
 }
 
 /** مایگریشن نسخه ۹٫۱۳٫۱: پیچیدن محتوای گالری داخل کانتینر کاشی */
+/** مایگریشن نسخه ۹٫۱۳٫۳: استایل لایت‌باکس گالری */
+function seed_gallery_lightbox_css_v9133_if_needed(): void
+{
+    try {
+        if (get_setting('gallery_lightbox_css_9133', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '.glb') === false) {
+            $css .= "\n/* لایت‌باکس گالری پروژه‌ها (۹٫۱۳٫۳) */\n"
+                . ".glb{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center}\n"
+                . ".glb[hidden]{display:none}\n"
+                . ".glb-backdrop{position:absolute;inset:0;background:rgba(3,4,10,.92);backdrop-filter:blur(8px)}\n"
+                . ".glb-stage{position:relative;margin:0;max-width:min(92vw,1100px);max-height:86vh;display:flex;flex-direction:column;align-items:center;animation:glbIn .25s ease}\n"
+                . "@keyframes glbIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}\n"
+                . ".glb-img{max-width:100%;max-height:76vh;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6);object-fit:contain;background:#0a0d1d}\n"
+                . ".glb-meta{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:12px;color:#e8f6ff;font-size:14px;font-weight:600}\n"
+                . ".glb-count{color:#9aa7c7;font-size:12px;font-weight:400}\n"
+                . ".glb-close,.glb-prev,.glb-next{position:absolute;border:0;cursor:pointer;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);border-radius:50%;width:44px;height:44px;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .2s}\n"
+                . ".glb-close:hover,.glb-prev,.glb-next:hover{background:rgba(232,198,106,.25)}\n"
+                . ".glb-close{top:18px;inset-inline-end:18px}\n"
+                . ".glb-prev{top:50%;transform:translateY(-50%);inset-inline-end:14px}\n"
+                . ".glb-next{top:50%;transform:translateY(-50%);inset-inline-start:14px}\n"
+                . "@media(max-width:640px){.glb-prev{inset-inline-end:6px}.glb-next{inset-inline-start:6px}.glb-close{top:12px;inset-inline-end:12px}}\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('gallery_lightbox_css_9133', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
 function seed_gallery_tiles_v9131_if_needed(): void
 {
     try {
-        if (get_setting('gallery_tiles_9131', '0') === '1') {
+        if (get_setting('gallery_tiles_9131', '0') === '2') {
             return;
         }
         $pdo = db();
@@ -4589,7 +4675,7 @@ function seed_gallery_tiles_v9131_if_needed(): void
                 gallery_save_figures($pdo, $figs);
             }
         }
-        set_setting('gallery_tiles_9131', '1');
+        set_setting('gallery_tiles_9131', '2');
     } catch (Throwable $e) {
         // سکوت
     }
