@@ -1738,41 +1738,61 @@ if ($page === 'design') {
                 $out .= '</svg>';
                 return $out;
             };
-            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages): string {
+            $dash_icon = static function (string $name): string {
+                $paths = [
+                    'users' => '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+                    'box' => '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+                    'receipt' => '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/>',
+                    'bell' => '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+                    'factory' => '<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/>',
+                    'scale' => '<path d="M12 3v18"/><path d="M5 7l-3 7a3.5 3.5 0 0 0 6 0L5 7z"/><path d="M19 7l-3 7a3.5 3.5 0 0 0 6 0l-3-7z"/><path d="M3 7h18"/>',
+                    'clock' => '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+                    'card' => '<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
+                    'mail' => '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+                    'gear' => '<circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/>',
+                    'coins' => '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+                    'wallet' => '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
+                    'alert' => '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+                ];
+                $p = $paths[$name] ?? $paths['box'];
+                return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true">' . $p . '</svg>';
+            };
+            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages, $dash_icon): string {
+
                 if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
                     return '';
                 }
                 switch ($key) {
                     case 'stat_customers':
-                        return '<a class="stat-card sc-blue" href="admin.php?page=customers"><span><i class="sc-ico">👥</i>مشتری‌ها</span><strong>' . (int) $dashCounts['customers'] . '</strong></a>';
+                        return '<a class="stat-card sc-blue" href="admin.php?page=customers"><span><i class="sc-ico">' . $dash_icon('users') . '</i>مشتری‌ها</span><strong>' . (int) $dashCounts['customers'] . '</strong></a>';
                     case 'stat_products':
-                        return '<a class="stat-card sc-indigo" href="admin.php?page=products"><span><i class="sc-ico">📦</i>محصولات</span><strong>' . (int) $dashCounts['products'] . '</strong></a>';
+                        return '<a class="stat-card sc-indigo" href="admin.php?page=products"><span><i class="sc-ico">' . $dash_icon('box') . '</i>محصولات</span><strong>' . (int) $dashCounts['products'] . '</strong></a>';
                     case 'stat_orders':
-                        return '<a class="stat-card sc-teal" href="admin.php?page=orders"><span><i class="sc-ico">🧾</i>سفارش‌ها</span><strong>' . (int) $dashCounts['orders'] . '</strong></a>';
+                        return '<a class="stat-card sc-teal" href="admin.php?page=orders"><span><i class="sc-ico">' . $dash_icon('receipt') . '</i>سفارش‌ها</span><strong>' . (int) $dashCounts['orders'] . '</strong></a>';
                     case 'stat_new_orders':
-                        return (int) $dashCounts['new_orders'] > 0 ? '<a class="stat-card sc-blue sc-alert-blue" href="admin.php?page=orders&status=new"><span><i class="sc-ico">🔔</i>سفارش‌های جدید</span><strong>' . (int) $dashCounts['new_orders'] . '</strong></a>' : '';
+                        return (int) $dashCounts['new_orders'] > 0 ? '<a class="stat-card sc-blue sc-alert-blue" href="admin.php?page=orders&status=new"><span><i class="sc-ico">' . $dash_icon('bell') . '</i>سفارش‌های جدید</span><strong>' . (int) $dashCounts['new_orders'] . '</strong></a>' : '';
                     case 'stat_production':
-                        return (int) ($productionActiveCount ?? 0) > 0 ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=production"><span><i class="sc-ico">🏭</i>تولید در جریان</span><strong>' . (int) $productionActiveCount . '</strong></a>' : '';
+                        return (int) ($productionActiveCount ?? 0) > 0 ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=production"><span><i class="sc-ico">' . $dash_icon('factory') . '</i>تولید در جریان</span><strong>' . (int) $productionActiveCount . '</strong></a>' : '';
                     case 'stat_finance_month':
-                        return (isset($finPending) && is_array($finPending)) ? '<a class="stat-card sc-green" href="admin.php?page=finance"><span><i class="sc-ico">⚖️</i>تراز مالی این ماه</span><strong>' . e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) . ' تومان</strong></a>' : '';
+                        return (isset($finPending) && is_array($finPending)) ? '<a class="stat-card sc-green" href="admin.php?page=finance"><span><i class="sc-ico">' . $dash_icon('scale') . '</i>تراز مالی این ماه</span><strong>' . e(format_price((int) ($finMonthIncome ?? 0) - (int) ($finMonthExpenses ?? 0))) . ' تومان</strong></a>' : '';
                     case 'stat_pending':
-                        return (isset($finPending) && is_array($finPending) && (int) ($finPending['count'] ?? 0) > 0) ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=expenses&status=pending"><span><i class="sc-ico">⏳</i>در انتظار تأیید</span><strong>' . (int) $finPending['count'] . ' مورد</strong></a>' : '';
+                        return (isset($finPending) && is_array($finPending) && (int) ($finPending['count'] ?? 0) > 0) ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=expenses&status=pending"><span><i class="sc-ico">' . $dash_icon('clock') . '</i>در انتظار تأیید</span><strong>' . (int) $finPending['count'] . ' مورد</strong></a>' : '';
                     case 'stat_debt':
-                        return ((int) ($finDebtTotal ?? 0) > 0) ? '<a class="stat-card sc-red sc-alert-red" href="admin.php?page=statements"><span><i class="sc-ico">💳</i>بدهی مشتریان</span><strong>' . e(format_price((int) $finDebtTotal)) . ' تومان</strong></a>' : '';
+                        return ((int) ($finDebtTotal ?? 0) > 0) ? '<a class="stat-card sc-red sc-alert-red" href="admin.php?page=statements"><span><i class="sc-ico">' . $dash_icon('card') . '</i>بدهی مشتریان</span><strong>' . e(format_price((int) $finDebtTotal)) . ' تومان</strong></a>' : '';
                     case 'stat_messages':
-                        return '<a class="stat-card sc-purple" href="admin.php?page=messages"><span><i class="sc-ico">✉️</i>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
+                        return '<a class="stat-card sc-purple" href="admin.php?page=messages"><span><i class="sc-ico">' . $dash_icon('mail') . '</i>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
                     case 'stat_version':
-                        return '<a class="stat-card" href="admin.php?page=update"><span><i class="sc-ico">⚙️</i>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
+                        return '<a class="stat-card" href="admin.php?page=update"><span><i class="sc-ico">' . $dash_icon('gear') . '</i>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
                     case 'kpi_revenue':
-                        return '<a class="stat-card kpi kpi-revenue" href="admin.php?page=orders"><span><i class="sc-ico">💰</i>درآمد این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_revenue'] ?? 0))) . ' تومان</strong></a>';
+                        return '<a class="stat-card kpi kpi-revenue" href="admin.php?page=orders"><span><i class="sc-ico">' . $dash_icon('coins') . '</i>درآمد این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_revenue'] ?? 0))) . ' تومان</strong></a>';
                     case 'kpi_orders':
-                        return '<a class="stat-card kpi kpi-orders" href="admin.php?page=orders"><span><i class="sc-ico">📦</i>سفارش‌های این ماه</span><strong>' . (int) ($GLOBALS['kpi']['month_orders'] ?? 0) . '</strong></a>';
+                        return '<a class="stat-card kpi kpi-orders" href="admin.php?page=orders"><span><i class="sc-ico">' . $dash_icon('box') . '</i>سفارش‌های این ماه</span><strong>' . (int) ($GLOBALS['kpi']['month_orders'] ?? 0) . '</strong></a>';
                     case 'kpi_employees':
-                        return '<a class="stat-card kpi kpi-employees" href="admin.php?page=employees"><span><i class="sc-ico">👥</i>پرسنل فعال</span><strong>' . (int) ($GLOBALS['kpi']['active_employees'] ?? 0) . ' نفر</strong></a>';
+                        return '<a class="stat-card kpi kpi-employees" href="admin.php?page=employees"><span><i class="sc-ico">' . $dash_icon('users') . '</i>پرسنل فعال</span><strong>' . (int) ($GLOBALS['kpi']['active_employees'] ?? 0) . ' نفر</strong></a>';
                     case 'kpi_payroll':
-                        return '<a class="stat-card kpi kpi-payroll" href="admin.php?page=payroll"><span><i class="sc-ico">💵</i>حقوق این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_payroll'] ?? 0))) . ' تومان</strong></a>';
+                        return '<a class="stat-card kpi kpi-payroll" href="admin.php?page=payroll"><span><i class="sc-ico">' . $dash_icon('wallet') . '</i>حقوق این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_payroll'] ?? 0))) . ' تومان</strong></a>';
                     case 'kpi_assets':
-                        return '<a class="stat-card kpi kpi-assets" href="admin.php?page=assets"><span><i class="sc-ico">🏭</i>ارزش دفتری تجهیزات</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['asset_book_value'] ?? 0))) . ' تومان</strong></a>';
+                        return '<a class="stat-card kpi kpi-assets" href="admin.php?page=assets"><span><i class="sc-ico">' . $dash_icon('factory') . '</i>ارزش دفتری تجهیزات</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['asset_book_value'] ?? 0))) . ' تومان</strong></a>';
                 }
                 return '';
             };
@@ -1852,7 +1872,7 @@ if ($page === 'design') {
             <div class="stat-grid dash-cards">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat') { continue; } echo $renderStat($wk); ?>
                 <?php if ($wk === 'stat_orders' && $lowStockCount > 0 && admin_can_page('materials')): ?>
-                <a class="stat-card sc-red sc-alert-red" href="admin.php?page=materials"><span><i class="sc-ico">⚠️</i>مواد رو به اتمام</span><strong><?= (int) $lowStockCount ?> ماده</strong></a>
+                <a class="stat-card sc-red sc-alert-red" href="admin.php?page=materials"><span><i class="sc-ico">' . $dash_icon('alert') . '</i>مواد رو به اتمام</span><strong><?= (int) $lowStockCount ?> ماده</strong></a>
                 <?php endif; ?>
                 <?php endforeach; ?>
             </div>
@@ -3090,7 +3110,7 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card strong{display:block;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.5px}
 .dash-cards .stat-card .sc-sub{display:block;font-size:12px;color:#94a3b8;font-weight:400;margin-top:4px}
 /* آیکون دایره‌ای */
-.dash-cards .stat-card .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;font-size:19px;background:#f1f5f9;flex-shrink:0}
+.dash-cards .stat-card .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:#f1f5f9;flex-shrink:0;color:#475569}.dash-cards .stat-card .sc-ico svg{width:20px;height:20px;display:block}
 /* رنگ‌بندی نوار بالای کارت */
 .dash-cards .stat-card.sc-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
 .dash-cards .stat-card.sc-blue .sc-ico{background:#dbeafe}
@@ -3109,7 +3129,7 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
 .dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
 /* کارت‌های KPI — گرادیان پررنگ با متن سفید */
-.dash-cards .stat-card.kpi{color:#fff;border:none;padding:22px 18px}
+.dash-cards .stat-card.kpi .sc-ico{background:rgba(255,255,255,.18);color:#fff}.dash-cards .stat-card.kpi{color:#fff;border:none;padding:22px 18px}
 .dash-cards .stat-card.kpi::before{display:none}
 .dash-cards .stat-card.kpi span{color:rgba(255,255,255,.85)}
 .dash-cards .stat-card.kpi strong{color:#fff;font-size:24px}
