@@ -1114,7 +1114,7 @@ function finance_render_invoice_view(array $d): void
             <?php if (!empty($finInvCustomer['address'])): ?><tr><th>نشانی</th><td><?= e($finInvCustomer['address']) ?></td></tr><?php endif; ?>
         </tbody></table>
         <table>
-            <thead><tr><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>متراژ صورتحساب</th><th>قیمت واحد/متر (تومان)</th><th>مبلغ ردیف (تومان)</th></tr></thead>
+            <thead><tr><th>#</th><th>محصول</th><th>طول (<?= order_setting('length_unit', 'mm') === 'mm' ? 'میلی‌متر' : 'سانت' ?>)</th><th>تعداد</th><th>متراژ صورتحساب</th><th>قیمت واحد/متر (تومان)</th><th>مبلغ ردیف (تومان)</th></tr></thead>
             <tbody>
             <?php $rn = 0; foreach ($finInvItems as $it): $rn++; ?>
                 <tr>
@@ -1124,7 +1124,7 @@ function finance_render_invoice_view(array $d): void
                             <br><small class="muted"><?php foreach ($oj as $osnap): ?><?= e($osnap['attr'] ?? '') ?>: <?= e($osnap['option'] ?? '') ?>؛ <?php endforeach; ?></small>
                         <?php endif; ?>
                     </td>
-                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= order_setting('length_unit', 'mm') === 'mm' ? e(format_qty((float) $it['length_cm'] * 10)) : e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
                     <td><?= e(format_qty((float) $it['billable_m'])) ?> متر</td>
                     <td><?= e(format_price($it['unit_price_per_m'])) ?></td>

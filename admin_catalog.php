@@ -171,6 +171,20 @@ function catalog_handle_post(string $action): void
                 $price = max(0, (int) ($_POST['price_per_meter'] ?? 0));
                 $partnerRaw = trim((string) ($_POST['partner_price_per_meter'] ?? ''));
                 $partnerPrice = $partnerRaw === '' ? null : max(0, (int) $partnerRaw);
+                $pricingModel = in_array(($_POST['pricing_model'] ?? ''), ['per_meter', 'per_watt'], true) ? (string) $_POST['pricing_model'] : 'per_meter';
+                $pricePerWatt = max(0, (int) ($_POST['price_per_watt'] ?? 0));
+                $basePrice = max(0, (int) ($_POST['base_price'] ?? 0));
+                // قاب‌ها: آرایه نام/قیمت از فرم
+                $frames = [];
+                $frameNames = (array) ($_POST['frame_name'] ?? []);
+                $framePrices = (array) ($_POST['frame_price'] ?? []);
+                foreach ($frameNames as $i => $fn) {
+                    $fn = trim((string) $fn);
+                    if ($fn === '') { continue; }
+                    $fp = max(0, (int) ($framePrices[$i] ?? 0));
+                    $frames[] = ['name' => $fn, 'price' => $fp];
+                }
+                $framesJson = $frames !== [] ? json_encode($frames, JSON_UNESCAPED_UNICODE) : null;
                 $catId = (int) ($_POST['category_id'] ?? 0);
                 if ($catId <= 0 || get_category($catId) === null) {
                     $catId = null;
@@ -204,6 +218,10 @@ function catalog_handle_post(string $action): void
                     ':image'   => $image ?: null,
                     ':price'   => $price,
                     ':pprice'  => $partnerPrice,
+                    ':pmodel'  => $pricingModel,
+                    ':ppw'     => $pricePerWatt,
+                    ':bprice'  => $basePrice,
+                    ':frames'  => $framesJson,
                     ':labor_m' => $laborMeter,
                     ':labor_f' => $laborFixture,
                     ':ofc'      => $ofcCfg,
@@ -216,10 +234,10 @@ function catalog_handle_post(string $action): void
                 ];
                 if ($action === 'update_product' && $pid > 0) {
                     $data[':id'] = $pid;
-                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, labor_cost_per_meter = :labor_m, labor_cost_per_fixture = :labor_f, order_form_config = :ofc, seo_title = :seo_t, seo_description = :seo_d, seo_keywords = :seo_k, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, pricing_model = :pmodel, price_per_watt = :ppw, base_price = :bprice, frame_options_json = :frames, labor_cost_per_meter = :labor_m, labor_cost_per_fixture = :labor_f, order_form_config = :ofc, seo_title = :seo_t, seo_description = :seo_d, seo_keywords = :seo_k, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
                     flash('ok', 'محصول به‌روزرسانی شد.');
                 } else {
-                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, labor_cost_per_meter, labor_cost_per_fixture, order_form_config, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :labor_m, :labor_f, :ofc, :seo_t, :seo_d, :seo_k, :active, :sort, :prep)')->execute($data);
+                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, pricing_model, price_per_watt, base_price, frame_options_json, labor_cost_per_meter, labor_cost_per_fixture, order_form_config, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :pmodel, :ppw, :bprice, :frames, :labor_m, :labor_f, :ofc, :seo_t, :seo_d, :seo_k, :active, :sort, :prep)')->execute($data);
                     $pid = (int) $pdo->lastInsertId();
                     flash('ok', 'محصول جدید ثبت شد.');
                 }
@@ -900,6 +918,72 @@ function catalog_render_products(array $d): void
                 <label>تخفیف همکار — قیمت متری همکار (تومان) — خالی بماند تا درصد تخفیف همکار از تنظیمات اعمال شود
                     <input type="number" name="partner_price_per_meter" id="pf-partner" min="0" step="any" value="<?= ($editProduct['partner_price_per_meter'] ?? null) !== null && ($editProduct['partner_price_per_meter'] ?? '') !== '' ? (int) $editProduct['partner_price_per_meter'] : '' ?>" placeholder="خالی = خودکار با درصد همکار">
                 </label>
+                <label>مدل قیمت‌گذاری
+                    <select name="pricing_model" id="pf-model">
+                        <option value="per_meter" <?= (($editProduct['pricing_model'] ?? 'per_meter') === 'per_meter') ? 'selected' : '' ?>>متری (چراغ خطی)</option>
+                        <option value="per_watt" <?= (($editProduct['pricing_model'] ?? '') === 'per_watt') ? 'selected' : '' ?>>سفارشی بر اساس وات (چراغ رشد گیاه)</option>
+                    </select>
+                </label>
+                <div id="pf-watt-box" style="<?= (($editProduct['pricing_model'] ?? 'per_meter') === 'per_watt') ? '' : 'display:none' ?>">
+                    <div class="inline-fields">
+                        <label>قیمت هر وات (تومان)
+                            <input type="number" name="price_per_watt" min="0" step="any" value="<?= (int) ($editProduct['price_per_watt'] ?? 0) ?>">
+                        </label>
+                        <label>قیمت شروع (تومان) — در کاتالوگ «از X تومان» نمایش داده می‌شود
+                            <input type="number" name="base_price" min="0" step="any" value="<?= (int) ($editProduct['base_price'] ?? 0) ?>">
+                        </label>
+                    </div>
+                    <h4 style="margin:12px 0 6px">قاب‌ها (مدل + قیمت هر کدام)</h4>
+                    <p class="muted">قیمت صفر یعنی «طبق سفارش».</p>
+                    <div id="frame-rows">
+                        <?php
+                        $frameRows = [];
+                        if (!empty($editProduct['frame_options_json'])) {
+                            $decoded = json_decode((string) $editProduct['frame_options_json'], true);
+                            if (is_array($decoded)) { $frameRows = $decoded; }
+                        }
+                        if ($frameRows === []) { $frameRows = [['name' => 'سقفی', 'price' => 0], ['name' => 'آویز', 'price' => 0], ['name' => 'ریلی', 'price' => 0]]; }
+                        $frameRows[] = ['name' => '', 'price' => ''];
+                        foreach ($frameRows as $fr):
+                        ?>
+                        <div class="frame-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:end">
+                            <label style="flex:2">مدل قاب
+                                <input type="text" name="frame_name[]" value="<?= e((string) ($fr['name'] ?? '')) ?>" placeholder="مثلاً سقفی">
+                            </label>
+                            <label style="flex:1">قیمت (تومان)
+                                <input type="number" name="frame_price[]" min="0" step="any" value="<?= ($fr['price'] ?? '') !== '' ? (int) $fr['price'] : '' ?>" placeholder="0 = طبق سفارش">
+                            </label>
+                            <button type="button" class="btn small frame-remove">حذف</button>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <p><button type="button" class="btn small" id="frame-add">+ افزودن قاب</button></p>
+                </div>
+                <script>
+                (function(){
+                    var modelSel = document.getElementById('pf-model');
+                    var wattBox = document.getElementById('pf-watt-box');
+                    if (modelSel && wattBox) {
+                        modelSel.addEventListener('change', function(){
+                            wattBox.style.display = modelSel.value === 'per_watt' ? '' : 'none';
+                        });
+                    }
+                    var fbox = document.getElementById('frame-rows');
+                    var fadd = document.getElementById('frame-add');
+                    function bindRm(btn){ btn.addEventListener('click', function(){ btn.closest('.frame-row').remove(); }); }
+                    if (fbox) { fbox.querySelectorAll('.frame-remove').forEach(bindRm); }
+                    if (fadd && fbox) {
+                        fadd.addEventListener('click', function(){
+                            var first = fbox.querySelector('.frame-row');
+                            if (!first) return;
+                            var clone = first.cloneNode(true);
+                            clone.querySelectorAll('input').forEach(function(el){ el.value = ''; });
+                            fbox.appendChild(clone);
+                            bindRm(clone.querySelector('.frame-remove'));
+                        });
+                    }
+                })();
+                </script>
                 <label>ترتیب نمایش
                     <input type="number" name="sort_order" value="<?= (int) ($editProduct['sort_order'] ?? 0) ?>">
                 </label>

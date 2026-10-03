@@ -1083,7 +1083,7 @@ function production_render_view(array $d): void
         <section class="card wide">
             <h2>ردیف‌های تولید</h2>
             <table>
-                <thead><tr><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
+                <thead><tr><th>#</th><th>محصول</th><th>طول (<?= order_setting('length_unit', 'mm') === 'mm' ? 'میلی‌متر' : 'سانت' ?>)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
                 <tbody>
                 <?php $rn = 0; foreach ($prodItems as $it): $rn++; ?>
                     <tr>
@@ -1093,7 +1093,7 @@ function production_render_view(array $d): void
                                 <br><small class="muted"><?php foreach ($oj as $osnap): ?><?= e($osnap['attr'] ?? '') ?>: <?= e($osnap['option'] ?? '') ?>؛ <?php endforeach; ?></small>
                             <?php endif; ?>
                         </td>
-                        <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                        <td><?= order_setting('length_unit', 'mm') === 'mm' ? e(format_qty((float) $it['length_cm'] * 10)) : e(format_qty((float) $it['length_cm'])) ?></td>
                         <td><?= (int) $it['qty'] ?></td>
                         <td><?= (int) $it['wire_length_cm'] ?> سانت</td>
                         <td><?= (int) $it['has_endcap'] === 1 ? 'دارد' : '—' ?></td>
@@ -1161,7 +1161,7 @@ function production_render_view(array $d): void
         <h2>برگه تولید #<?= (int) $p['production_no'] ?> — کارگاه</h2>
         <p class="muted"><?= e(all_settings()['site_title'] ?? '') ?> — سفارش #<?= (int) $p['order_no'] ?> — مشتری: <?= e($p['customer_name'] ?? '—') ?> — مرحله: <?= e(production_stage_title((string) $p['stage_key'])) ?><?= $started ? ' — شروع: ' . e($p['started_at']) : ' (برنامه پیشنهادی؛ هنوز شروع نشده)' ?></p>
         <table>
-            <thead><tr><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
+            <thead><tr><th>#</th><th>محصول</th><th>طول (<?= order_setting('length_unit', 'mm') === 'mm' ? 'میلی‌متر' : 'سانت' ?>)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
             <tbody>
             <?php $rn = 0; foreach ($prodItems as $it): $rn++; ?>
                 <tr>
@@ -1171,7 +1171,7 @@ function production_render_view(array $d): void
                             <br><small><?php foreach ($oj as $osnap): ?><?= e($osnap['attr'] ?? '') ?>: <?= e($osnap['option'] ?? '') ?>؛ <?php endforeach; ?></small>
                         <?php endif; ?>
                     </td>
-                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= order_setting('length_unit', 'mm') === 'mm' ? e(format_qty((float) $it['length_cm'] * 10)) : e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
                     <td><?= (int) $it['wire_length_cm'] ?> سانت</td>
                     <td><?= (int) $it['has_endcap'] === 1 ? 'دارد' : '—' ?></td>
@@ -1270,13 +1270,13 @@ function production_render_view(array $d): void
 
         <h3>مشخصات محصول</h3>
         <table>
-            <thead><tr><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>سیم</th><th>درپوش</th></tr></thead>
+            <thead><tr><th>#</th><th>محصول</th><th>طول (<?= order_setting('length_unit', 'mm') === 'mm' ? 'میلی‌متر' : 'سانت' ?>)</th><th>تعداد</th><th>سیم</th><th>درپوش</th></tr></thead>
             <tbody>
             <?php $rn = 0; foreach ($prodItems as $it): $rn++; ?>
                 <tr>
                     <td><?= $rn ?></td>
                     <td><?= e($it['product_name']) ?></td>
-                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= order_setting('length_unit', 'mm') === 'mm' ? e(format_qty((float) $it['length_cm'] * 10)) : e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
                     <td><?= (int) $it['wire_length_cm'] ?> سانت</td>
                     <td><?= (int) $it['has_endcap'] === 1 ? 'دارد' : '—' ?></td>

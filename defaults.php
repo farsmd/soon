@@ -190,7 +190,7 @@ HTML,
             <div class="product-info">
                 <h1>{{product_name}}</h1>
                 {{#if product_description}}<div class="product-desc">{{product_description}}</div>{{/if}}
-                <p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_price_per_meter_formatted}} <span class="muted">| تخفیف همکار: {{partner_price_per_meter_formatted}} تومان</span>{{/if}}</p>
+                {{#if is_per_watt}}<p class="product-price-line">{{#if base_price_formatted}}از <strong>{{base_price_formatted}}</strong> تومان{{/if}}{{#if price_per_watt_formatted}} <span class="muted">— هر وات {{price_per_watt_formatted}} تومان + قیمت قاب</span>{{/if}}{{#if frame_options_line}}<br><span class="muted">قاب‌ها: {{frame_options_line}}</span>{{/if}}</p>{{else}}<p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_price_per_meter_formatted}} <span class="muted">| تخفیف همکار: {{partner_price_per_meter_formatted}} تومان</span>{{/if}}</p>{{/if}}
                 {{product_specs}}
                 {{product_gallery}}
             </div>
@@ -1851,14 +1851,33 @@ function process_site_order(): void
     // یک ردیف را از روی آرایه ورودی اعتبارسنجی و نرمال می‌کند؛ [ردیف|null, پیام خطا]
     $parseLine = function (array $src) use ($step, $wireMax, $wireDef, $lineNoteOn): array {
         $pid = (int) ($src['product_id'] ?? 0);
-        $lenCm = round((float) ($src['length_cm'] ?? 0), 1);
+        // ورودی میلی‌متر (اولویت) یا سانتی‌متر؛ ذخیره داخلی همیشه سانتی‌متر با دقت ۰٫۱ (= ۱ میلی‌متر)
+        if (isset($src['length_mm']) && $src['length_mm'] !== '') {
+            $lenMm = (float) $src['length_mm'];
+            if ($lenMm < 1) {
+                return [null, 'طول هر چراغ باید حداقل ۱ میلی‌متر باشد.'];
+            }
+            $lenCm = round($lenMm / 10, 1);
+        } else {
+            $lenCm = round((float) ($src['length_cm'] ?? 0), 1);
+        }
         $qty = max(1, (int) ($src['qty'] ?? 1));
-        if ($pid <= 0 || $lenCm <= 0) {
+        $product = $pid > 0 ? get_product($pid) : null;
+        $isPerWatt = $product !== null && (string) ($product['pricing_model'] ?? 'per_meter') === 'per_watt';
+        $watt = max(0, (int) ($src['watt'] ?? 0));
+        if ($pid <= 0) {
             return [null, '']; // ردیف خالی → نادیده گرفته می‌شود
         }
-        $product = get_product($pid);
         if ($product === null || (int) ($product['is_active'] ?? 0) !== 1) {
             return [null, 'محصول انتخابی معتبر نیست.'];
+        }
+        if ($isPerWatt) {
+            if ($watt <= 0) {
+                return [null, 'توان چراغ رشد گیاه را وارد کنید.'];
+            }
+            $lenCm = 0.0; // محصول پر-وات طول ندارد
+        } elseif ($lenCm <= 0) {
+            return [null, '']; // ردیف خالی → نادیده گرفته می‌شود
         }
         $wire = (isset($src['wire_cm']) && $src['wire_cm'] !== '') ? (float) $src['wire_cm'] : $wireDef;
         if ($wire < 0 || ($step > 0 && abs($wire / $step - round($wire / $step)) > 0.0001)) {
@@ -1895,6 +1914,7 @@ function process_site_order(): void
         return [[
             'product_id' => $pid,
             'length_cm' => $lenCm,
+            'watt' => $watt,
             'qty' => $qty,
             'wire_length_cm' => $wire,
             'has_endcap' => !empty($src['endcap']),
@@ -1925,6 +1945,7 @@ function process_site_order(): void
         // مسیر قدیمی تک‌ردیفه (سازگاری با فرم‌های کش‌شده و ارسال‌های دستی)
         [$ln, $e] = $parseLine([
             'product_id' => $_POST['product_id'] ?? 0,
+            'length_mm' => $_POST['so_length_mm'] ?? null,
             'length_cm' => $_POST['so_length_cm'] ?? 0,
             'qty' => $_POST['so_qty'] ?? 1,
             'wire_cm' => $_POST['so_wire_cm'] ?? '',
@@ -2122,6 +2143,7 @@ function site_order_form_html(array $product): string
     $wireMax = (int) order_setting('wire_max_cm', 100);
     $minBill = (float) order_setting('min_billable_m', 0.5);
     $lineNoteOn = order_setting('order_line_note', '1') === '1';
+    $lenUnit = order_setting('length_unit', 'mm') === 'mm' ? 'mm' : 'cm';
     $img = uploaded_image_url($product['image'] ?? '');
 
     // کاتالوگ محصولات فعال + گزینه‌های قابل‌ارائه هر محصول (برای انتخاب محصول هر ردیف و چیپ‌ها)
@@ -2185,7 +2207,7 @@ function site_order_form_html(array $product): string
         }
         return $h;
     };
-    $lineHtml = function ($idx, ?int $selPid, bool $removable) use ($optHtml, $chipsHtml, $step, $wireDef, $wireMax, $lineNoteOn): string {
+    $lineHtml = function ($idx, ?int $selPid, bool $removable) use ($optHtml, $chipsHtml, $step, $wireDef, $wireMax, $lineNoteOn, $lenUnit): string {
         $h = '<div class="so-line" data-line data-idx="' . $idx . '">';
         $h .= '<div class="so-line-head"><span class="so-line-title">چراغ <span data-num>۱</span></span>';
         if ($removable) {
@@ -2195,7 +2217,11 @@ function site_order_form_html(array $product): string
         $h .= '<div class="so-field"><label for="so-prod-' . $idx . '">محصول *</label><select id="so-prod-' . $idx . '" name="so_lines[' . $idx . '][product_id]" class="so-product-sel" required>' . $optHtml($selPid) . '</select></div>';
         $h .= $chipsHtml($selPid, $idx);
         $h .= '<div class="so-grid">';
-        $h .= '<div class="so-field"><label for="so-len-' . $idx . '">طول هر چراغ *</label><div class="so-input-unit"><input type="number" id="so-len-' . $idx . '" name="so_lines[' . $idx . '][length_cm]" step="0.1" min="0.1" required inputmode="decimal" data-len><span class="so-unit">سانتی‌متر</span></div><p class="so-help" data-meters>طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.</p></div>';
+        if ($lenUnit === 'mm') {
+            $h .= '<div class="so-field"><label for="so-len-' . $idx . '">طول هر چراغ *</label><div class="so-input-unit"><input type="number" id="so-len-' . $idx . '" name="so_lines[' . $idx . '][length_mm]" step="1" min="1" required inputmode="numeric" data-len><span class="so-unit">میلی‌متر</span></div><p class="so-help" data-meters>طول را به میلی‌متر وارد کنید؛ مثلاً ۲۱۰۰.</p></div>';
+        } else {
+            $h .= '<div class="so-field"><label for="so-len-' . $idx . '">طول هر چراغ *</label><div class="so-input-unit"><input type="number" id="so-len-' . $idx . '" name="so_lines[' . $idx . '][length_cm]" step="0.1" min="0.1" required inputmode="decimal" data-len><span class="so-unit">سانتی‌متر</span></div><p class="so-help" data-meters>طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.</p></div>';
+        }
         $h .= '<div class="so-field"><label>تعداد چراغ *</label><div class="so-stepper"><button type="button" data-step="-1" aria-label="کاهش تعداد">−</button><input type="number" name="so_lines[' . $idx . '][qty]" value="1" min="1" step="1" required inputmode="numeric" data-qty><button type="button" data-step="1" aria-label="افزایش تعداد">+</button></div></div>';
         $h .= '</div>';
         $h .= '<div class="so-field"><label>طول سیم هر چراغ</label><div class="so-range"><input type="range" name="so_lines[' . $idx . '][wire_cm]" min="0" max="' . $wireMax . '" step="' . $step . '" value="' . $wireDef . '" data-wire><output class="so-range-val" data-wire-val>' . $wireDef . ' سانت</output></div><p class="so-help">پیش‌فرض ' . $wireDef . ' سانت است؛ سیمِ بیشتر از پیش‌فرض در فاکتور حساب می‌شود.</p></div>';
@@ -2246,12 +2272,12 @@ function site_order_form_html(array $product): string
         . '<p class="so-minbill">طول کمتر از ' . e(format_qty($minBill)) . ' متر، ' . e(format_qty($minBill)) . ' متر حساب می‌شود. این برآورد اولیه است؛ مبلغ نهایی (با احتساب سیم اضافه و تخفیف) در پیش‌فاکتور مشخص می‌شود.</p>'
         . '<button type="submit" class="so-submit" id="so-submit">ثبت سفارش</button></div>';
     $html .= '</form>';
-    $html .= '<script>window.SO_CATALOG=' . json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) . ';window.SO_CFG=' . json_encode(['wireStep' => $step, 'wireDef' => $wireDef, 'wireMax' => $wireMax, 'minBill' => $minBill], JSON_UNESCAPED_UNICODE) . ';window.SO_DEF_PID=' . $pid . ';</script>';
+    $html .= '<script>window.SO_CATALOG=' . json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) . ';window.SO_CFG=' . json_encode(['wireStep' => $step, 'wireDef' => $wireDef, 'wireMax' => $wireMax, 'minBill' => $minBill, 'lenUnit' => $lenUnit], JSON_UNESCAPED_UNICODE) . ';window.SO_DEF_PID=' . $pid . ';</script>';
     $html .= <<<'JS'
 <script>(function(){var f=document.getElementById('so-form');if(!f)return;var CAT=window.SO_CATALOG||{},CFG=window.SO_CFG||{},DEF=window.SO_DEF_PID||0;var wrap=document.getElementById('so-lines'),tpl=document.getElementById('so-line-tpl'),counter=1;function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}function fa(n,d){return Number(n).toLocaleString('fa-IR',{maximumFractionDigits:d});}function money(n){return Math.round(n).toLocaleString('fa-IR');}function attrsHtml(pid,idx){var p=CAT[pid];if(!p||!p.attrs||!p.attrs.length)return'';var h='';p.attrs.forEach(function(a){h+='<div class="so-field" data-attr-group><span class="so-label">'+esc(a.title)+'</span><div class="so-chips" role="radiogroup" data-attrs>';a.options.forEach(function(o){var d=parseFloat(o.delta)||0;h+='<label class="so-chip"><input type="radio" class="so-option" name="so_lines['+idx+'][options]['+a.id+']" value="'+o.id+'" data-delta="'+d+'"'+(o.id===a.def?' checked':'')+'><span>'+esc(o.title)+(d!==0?(' <small>('+(d>0?'+':'')+fa(d,0)+' تومان/متر)</small>'):'')+'</span></label>';});h+='</div></div>';});return h;}function paintAttrs(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var idx=line.getAttribute('data-idx');line.querySelectorAll('[data-attr-group]').forEach(function(g){g.remove();});var holder=document.createElement('div');holder.innerHTML=attrsHtml(sel.value,idx);var ref=sel.closest('.so-field');while(holder.firstChild){ref.parentNode.insertBefore(holder.firstChild,ref.nextSibling);}paintCustom(line);applyFormCfg(line);calc();}
 function customHtml(pid,idx){var p=CAT[pid];if(!p||!p.custom||!p.custom.length)return'';var h='<div class="so-custom-fields" data-custom-group><h4>مشخصات تکمیلی</h4>';p.custom.forEach(function(f){var nm='so_lines['+idx+'][custom]['+f.id+']';h+='<div class="so-field"><label>'+esc(f.label)+(f.required?' *':'')+'</label>';if(f.type==='select'){h+='<select name="'+nm+'"'+(f.required?' required':'')+'><option value="">— انتخاب کنید —</option>';f.options.forEach(function(o){h+='<option value="'+esc(o)+'">'+esc(o)+'</option>';});h+='</select>';}else if(f.type==='textarea'){h+='<textarea name="'+nm+'" rows="2"'+(f.required?' required':'')+(f.placeholder?' placeholder="'+esc(f.placeholder)+'"':'')+'></textarea>';}else if(f.type==='number'){h+='<input type="number" name="'+nm+'" step="any"'+(f.required?' required':'')+(f.placeholder?' placeholder="'+esc(f.placeholder)+'"':'')+'>';}else if(f.type==='checkbox'){h+='<label class="check"><input type="checkbox" name="'+nm+'" value="1"> '+esc(f.placeholder||'بله')+'</label>';}else{h+='<input type="text" name="'+nm+'"'+(f.required?' required':'')+(f.placeholder?' placeholder="'+esc(f.placeholder)+'"':'')+' maxlength="255">';}if(f.help){h+='<p class="so-help">'+esc(f.help)+'</p>';}h+='</div>';});h+='</div>';return h;}
 function paintCustom(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var idx=line.getAttribute('data-idx');line.querySelectorAll('[data-custom-group]').forEach(function(g){g.remove();});var html=customHtml(sel.value,idx);if(!html)return;var holder=document.createElement('div');holder.innerHTML=html;var total=line.querySelector('[data-line-total]');if(total){line.insertBefore(holder.firstChild,total);}else{line.appendChild(holder.firstChild);}}
-function applyFormCfg(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var p=CAT[sel.value];var cfg=(p&&p.formcfg)?p.formcfg:{show_length:true,show_qty:true,show_wire:true,show_endcap:true,show_options:true};var lenF=line.querySelector('[data-len]');if(lenF){var f=lenF.closest('.so-field');if(f)f.style.display=cfg.show_length?'':'none';lenF.required=!!cfg.show_length;}var qtyF=line.querySelector('[data-qty]');if(qtyF){var qf=qtyF.closest('.so-field');if(qf)qf.style.display=cfg.show_qty?'':'none';}var wireF=line.querySelector('[data-wire]');if(wireF){var wf=wireF.closest('.so-field');if(wf)wf.style.display=cfg.show_wire?'':'none';}var ecF=line.querySelector('input[name$="[endcap]"]');if(ecF){var ef=ecF.closest('.so-field');if(ef)ef.style.display=cfg.show_endcap?'':'none';}line.querySelectorAll('[data-attr-group]').forEach(function(g){g.style.display=cfg.show_options?'':'none';});}function renumber(){var ls=wrap.querySelectorAll('[data-line]');ls.forEach(function(el,k){var n=el.querySelector('[data-num]');if(n)n.textContent=fa(k+1,0);var rm=el.querySelector('[data-remove]');if(rm)rm.style.display=(ls.length>1)?'':'none';});}function lineVals(line){var sel=line.querySelector('.so-product-sel');var pid=sel?sel.value:'0';var p=CAT[pid];var price=p?parseFloat(p.price):0;var d=0;line.querySelectorAll('.so-option:checked').forEach(function(s){d+=parseFloat(s.getAttribute('data-delta')||'0');});var lenEl=line.querySelector('[data-len]');var qtyEl=line.querySelector('[data-qty]');var L=(parseFloat(lenEl?lenEl.value:'')||0)/100;var Q=parseInt(qtyEl?qtyEl.value:'10',10);if(!(Q>0))Q=0;var minB=parseFloat(CFG.minBill||'0.5');var billOne=Math.max(L,minB);return{L:L,Q:Q,billOne:billOne,unit:price+d,lineTotal:billOne*(price+d)*Q};}function calc(){var totM=0,totQ=0,totP=0;wrap.querySelectorAll('[data-line]').forEach(function(line){var v=lineVals(line);var lenEl=line.querySelector('[data-len]');var mEl=line.querySelector('[data-meters]');if(mEl)mEl.textContent=v.L>0?('≈ '+fa(v.L,2)+' متر'):'طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.';var wEl=line.querySelector('[data-wire]');var wv=line.querySelector('[data-wire-val]');if(wEl&&wv)wv.textContent=fa(parseInt(wEl.value,10)||0,0)+' سانت';var lt=line.querySelector('[data-line-total]');if(lt)lt.textContent=(v.L>0&&v.Q>0)?(money(v.lineTotal)+' تومان'):'۰ تومان';if(v.L>0&&v.Q>0){totM+=v.billOne*v.Q;totQ+=v.Q;totP+=v.lineTotal;}});document.getElementById('so-billm').textContent=(totQ>0)?(fa(totM,2)+' متر'):'—';document.getElementById('so-qtyv').textContent=(totQ>0)?(fa(totQ,0)+' چراغ'):'—';document.getElementById('so-total').textContent=money(totP);}function addLine(){var html=tpl.innerHTML.replace(/__I__/g,String(counter));var d=document.createElement('div');d.innerHTML=html;var line=d.firstElementChild;line.setAttribute('data-idx',String(counter));counter++;wrap.appendChild(line);var sel=line.querySelector('.so-product-sel');if(sel&&DEF)sel.value=String(DEF);paintAttrs(line);renumber();calc();if(line.scrollIntoView)line.scrollIntoView({behavior:'smooth',block:'nearest'});}document.getElementById('so-add').addEventListener('click',addLine);f.addEventListener('click',function(e){var rm=e.target.closest('[data-remove]');if(rm){var ls=wrap.querySelectorAll('[data-line]');if(ls.length>1){rm.closest('[data-line]').remove();renumber();calc();}return;}var st=e.target.closest('[data-step]');if(st){var q=st.closest('.so-stepper').querySelector('[data-qty]');var v=parseInt(q.value,10)||1;v=Math.max(1,v+parseInt(st.getAttribute('data-step'),10));q.value=v;calc();return;}if(e.target.closest('#so-toggle')){var s=document.getElementById('so-summary');var open=s.classList.toggle('open');document.getElementById('so-toggle').setAttribute('aria-expanded',open?'true':'false');}});f.addEventListener('input',function(e){calc();});f.addEventListener('change',function(e){var sel=e.target.closest?e.target.closest('.so-product-sel'):null;if(sel){paintAttrs(sel.closest('[data-line]'));}else{calc();}});f.addEventListener('submit',function(){var b=document.getElementById('so-submit');if(b){b.disabled=true;b.textContent='در حال ثبت…';}});wrap.querySelectorAll('[data-line]').forEach(function(line){paintAttrs(line);});renumber();calc();})();</script>
+function applyFormCfg(line){var sel=line.querySelector('.so-product-sel');if(!sel)return;var p=CAT[sel.value];var cfg=(p&&p.formcfg)?p.formcfg:{show_length:true,show_qty:true,show_wire:true,show_endcap:true,show_options:true};var lenF=line.querySelector('[data-len]');if(lenF){var f=lenF.closest('.so-field');if(f)f.style.display=cfg.show_length?'':'none';lenF.required=!!cfg.show_length;}var qtyF=line.querySelector('[data-qty]');if(qtyF){var qf=qtyF.closest('.so-field');if(qf)qf.style.display=cfg.show_qty?'':'none';}var wireF=line.querySelector('[data-wire]');if(wireF){var wf=wireF.closest('.so-field');if(wf)wf.style.display=cfg.show_wire?'':'none';}var ecF=line.querySelector('input[name$="[endcap]"]');if(ecF){var ef=ecF.closest('.so-field');if(ef)ef.style.display=cfg.show_endcap?'':'none';}line.querySelectorAll('[data-attr-group]').forEach(function(g){g.style.display=cfg.show_options?'':'none';});}function renumber(){var ls=wrap.querySelectorAll('[data-line]');ls.forEach(function(el,k){var n=el.querySelector('[data-num]');if(n)n.textContent=fa(k+1,0);var rm=el.querySelector('[data-remove]');if(rm)rm.style.display=(ls.length>1)?'':'none';});}function lineVals(line){var sel=line.querySelector('.so-product-sel');var pid=sel?sel.value:'0';var p=CAT[pid];var price=p?parseFloat(p.price):0;var d=0;line.querySelectorAll('.so-option:checked').forEach(function(s){d+=parseFloat(s.getAttribute('data-delta')||'0');});var lenEl=line.querySelector('[data-len]');var qtyEl=line.querySelector('[data-qty]');var L=(parseFloat(lenEl?lenEl.value:'')||0)/(CFG.lenUnit==='mm'?1000:100);var Q=parseInt(qtyEl?qtyEl.value:'10',10);if(!(Q>0))Q=0;var minB=parseFloat(CFG.minBill||'0.5');var billOne=Math.max(L,minB);return{L:L,Q:Q,billOne:billOne,unit:price+d,lineTotal:billOne*(price+d)*Q};}function calc(){var totM=0,totQ=0,totP=0;wrap.querySelectorAll('[data-line]').forEach(function(line){var v=lineVals(line);var lenEl=line.querySelector('[data-len]');var mEl=line.querySelector('[data-meters]');if(mEl)mEl.textContent=v.L>0?('≈ '+fa(v.L,2)+' متر'):(CFG.lenUnit==='mm'?'طول را به میلی‌متر وارد کنید؛ مثلاً ۲۱۰۰.':'طول را به سانتی‌متر وارد کنید؛ تا یک رقم اعشار.');var wEl=line.querySelector('[data-wire]');var wv=line.querySelector('[data-wire-val]');if(wEl&&wv)wv.textContent=fa(parseInt(wEl.value,10)||0,0)+' سانت';var lt=line.querySelector('[data-line-total]');if(lt)lt.textContent=(v.L>0&&v.Q>0)?(money(v.lineTotal)+' تومان'):'۰ تومان';if(v.L>0&&v.Q>0){totM+=v.billOne*v.Q;totQ+=v.Q;totP+=v.lineTotal;}});document.getElementById('so-billm').textContent=(totQ>0)?(fa(totM,2)+' متر'):'—';document.getElementById('so-qtyv').textContent=(totQ>0)?(fa(totQ,0)+' چراغ'):'—';document.getElementById('so-total').textContent=money(totP);}function addLine(){var html=tpl.innerHTML.replace(/__I__/g,String(counter));var d=document.createElement('div');d.innerHTML=html;var line=d.firstElementChild;line.setAttribute('data-idx',String(counter));counter++;wrap.appendChild(line);var sel=line.querySelector('.so-product-sel');if(sel&&DEF)sel.value=String(DEF);paintAttrs(line);renumber();calc();if(line.scrollIntoView)line.scrollIntoView({behavior:'smooth',block:'nearest'});}document.getElementById('so-add').addEventListener('click',addLine);f.addEventListener('click',function(e){var rm=e.target.closest('[data-remove]');if(rm){var ls=wrap.querySelectorAll('[data-line]');if(ls.length>1){rm.closest('[data-line]').remove();renumber();calc();}return;}var st=e.target.closest('[data-step]');if(st){var q=st.closest('.so-stepper').querySelector('[data-qty]');var v=parseInt(q.value,10)||1;v=Math.max(1,v+parseInt(st.getAttribute('data-step'),10));q.value=v;calc();return;}if(e.target.closest('#so-toggle')){var s=document.getElementById('so-summary');var open=s.classList.toggle('open');document.getElementById('so-toggle').setAttribute('aria-expanded',open?'true':'false');}});f.addEventListener('input',function(e){calc();});f.addEventListener('change',function(e){var sel=e.target.closest?e.target.closest('.so-product-sel'):null;if(sel){paintAttrs(sel.closest('[data-line]'));}else{calc();}});f.addEventListener('submit',function(){var b=document.getElementById('so-submit');if(b){b.disabled=true;b.textContent='در حال ثبت…';}});wrap.querySelectorAll('[data-line]').forEach(function(line){paintAttrs(line);});renumber();calc();})();</script>
 JS;
     $html .= '</div>';
     return $html;

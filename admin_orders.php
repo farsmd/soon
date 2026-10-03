@@ -227,7 +227,16 @@ function orders_handle_post(string $action): void
                 if ($product === null || (int) ($product['is_active'] ?? 0) !== 1) {
                     throw new RuntimeException('یک ردیف، محصول معتبر ندارد.');
                 }
-                $len = round((float) ($ri['length_cm'] ?? 0), 1);
+                // ورودی میلی‌متر (اولویت) یا سانتی‌متر؛ ذخیره داخلی همیشه سانتی‌متر با دقت ۰٫۱
+                if (isset($ri['length_mm']) && $ri['length_mm'] !== '') {
+                    $lenMm = (float) $ri['length_mm'];
+                    if ($lenMm < 1) {
+                        throw new RuntimeException('طول ردیف «' . (string) $product['name'] . '» باید حداقل ۱ میلی‌متر باشد.');
+                    }
+                    $len = round($lenMm / 10, 1);
+                } else {
+                    $len = round((float) ($ri['length_cm'] ?? 0), 1);
+                }
                 $qty = max(1, (int) ($ri['qty'] ?? 1));
                 if ($len <= 0) {
                     throw new RuntimeException('طول ردیف «' . (string) $product['name'] . '» باید بیشتر از صفر باشد.');
@@ -700,6 +709,7 @@ function orders_render_new(array $d): void
         var PRODUCTS = <?= $newOrderProductsJs ?>;
         var TIERS = <?= json_encode($tiersJs, JSON_UNESCAPED_UNICODE) ?>;
         var MIN_BILL = <?= json_encode((float) $s['min_billable_m']) ?>;
+        var LEN_UNIT = <?= json_encode(order_setting('length_unit', 'mm') === 'mm' ? 'mm' : 'cm') ?>;
         var WIRE_STEP = <?= json_encode((int) $s['wire_step_cm']) ?>;
         var WIRE_DEFAULT = <?= json_encode((int) $s['wire_default_cm']) ?>;
         var WIRE_DEF = <?= json_encode((int) $s['wire_default_cm']) ?>;
@@ -766,7 +776,8 @@ function orders_render_new(array $d): void
                 ph += '<option value="' + pid + '">' + PRODUCTS[pid].name + '</option>';
             }
             ph += '</select></label>';
-            ph += '<label>طول هر چراغ (سانتی‌متر)<input type="number" name="items[' + cur + '][length_cm]" class="or-len" step="0.1" min="0.1" placeholder="مثلاً 120.5"></label>';
+            var lenIsMm = (LEN_UNIT === 'mm');
+            ph += '<label>طول هر چراغ (' + (lenIsMm ? 'میلی‌متر' : 'سانتی‌متر') + ')<input type="number" name="items[' + cur + '][' + (lenIsMm ? 'length_mm' : 'length_cm') + ']" class="or-len" step="' + (lenIsMm ? '1' : '0.1') + '" min="' + (lenIsMm ? '1' : '0.1') + '" placeholder="' + (lenIsMm ? 'مثلاً 2100' : 'مثلاً 120.5') + '"></label>';
             ph += '<label>تعداد<input type="number" name="items[' + cur + '][qty]" class="or-qty" min="1" value="1"></label>';
             ph += '<label>سیم هر چراغ<select name="items[' + cur + '][wire_cm]" class="or-wire"></select></label>';
             ph += '<label class="check" style="align-self:end"><input type="checkbox" name="items[' + cur + '][endcap]" value="1" class="or-endcap"> درپوش انتهایی</label>';
@@ -795,7 +806,8 @@ function orders_render_new(array $d): void
                 var pid = div.querySelector('.or-product').value;
                 var p = PRODUCTS[pid];
                 if (!p) return;
-                var lenCm = parseFloat(div.querySelector('.or-len').value) || 0;
+                var lenRaw = parseFloat(div.querySelector('.or-len').value) || 0;
+                var lenCm = (LEN_UNIT === 'mm') ? lenRaw / 10 : lenRaw;
                 var qty = parseInt(div.querySelector('.or-qty').value) || 0;
                 if (lenCm <= 0 || qty <= 0) return;
                 var lenM = lenCm / 100;
@@ -811,7 +823,7 @@ function orders_render_new(array $d): void
                 var steps = WIRE_STEP > 0 ? Math.max(0, Math.round((wire - WIRE_DEFAULT) / WIRE_STEP)) : 0;
                 var wireExtra = steps * WIRE_PRICE * qty;
                 totalM += bill * qty; sub += lineSub; wireSum += wireExtra; fixtures += qty;
-                div.querySelector('.or-line').textContent = 'مبلغ ردیف: ' + fmt(lineSub + wireExtra) + ' تومان (' + qty + ' × ' + lenCm + ' سانت)';
+                div.querySelector('.or-line').textContent = 'مبلغ ردیف: ' + fmt(lineSub + wireExtra) + ' تومان (' + qty + ' × ' + lenRaw + ' ' + (LEN_UNIT === 'mm' ? 'میلی‌متر' : 'سانت') + ')';
             });
             var pct = tierPct(totalM, partner);
             var disc = Math.round(sub * pct / 100);
@@ -1096,7 +1108,7 @@ function orders_render_view(array $d): void
             <?php if (!empty($o['customer_company'])): ?><tr><th>شرکت</th><td><?= e($o['customer_company']) ?></td></tr><?php endif; ?>
         </tbody></table>
         <table>
-            <thead><tr><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>متراژ صورتحساب</th><th>قیمت واحد/متر</th><th>سیم</th><th>درپوش</th><th>مبلغ ردیف</th></tr></thead>
+            <thead><tr><th>#</th><th>محصول</th><th>طول (<?= order_setting('length_unit', 'mm') === 'mm' ? 'میلی‌متر' : 'سانت' ?>)</th><th>تعداد</th><th>متراژ صورتحساب</th><th>قیمت واحد/متر</th><th>سیم</th><th>درپوش</th><th>مبلغ ردیف</th></tr></thead>
             <tbody>
             <?php $rn = 0; foreach ($viewItems as $it): $rn++; ?>
                 <tr>
@@ -1112,7 +1124,7 @@ function orders_render_view(array $d): void
                             <br><small class="muted"><?php foreach ($cfj as $csnap): ?><?= e($csnap['field']) ?>: <?= e($csnap['value']) ?>؛ <?php endforeach; ?></small>
                         <?php endif; ?>
                     </td>
-                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= order_setting('length_unit', 'mm') === 'mm' ? e(format_qty((float) $it['length_cm'] * 10)) : e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
                     <td><?= e(format_qty((float) $it['billable_m'])) ?> متر</td>
                     <td><?= e(format_price($it['unit_price_per_m'])) ?> تومان</td>
@@ -1156,7 +1168,7 @@ function orders_render_view(array $d): void
             <?php if (!empty($o['customer_company'])): ?><tr><th>شرکت</th><td><?= e($o['customer_company']) ?></td></tr><?php endif; ?>
         </tbody></table>
         <table>
-            <thead><tr><th style="width:38px">✓</th><th>#</th><th>محصول</th><th>طول (سانت)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
+            <thead><tr><th style="width:38px">✓</th><th>#</th><th>محصول</th><th>طول (<?= order_setting('length_unit', 'mm') === 'mm' ? 'میلی‌متر' : 'سانت' ?>)</th><th>تعداد</th><th>سیم</th><th>درپوش</th><th>توضیح</th></tr></thead>
             <tbody>
             <?php $rn = 0; foreach ($viewItems as $it): $rn++; ?>
                 <tr>
@@ -1173,7 +1185,7 @@ function orders_render_view(array $d): void
                             <br><small class="muted"><?php foreach ($cfj as $csnap): ?><?= e($csnap['field']) ?>: <?= e($csnap['value']) ?>؛ <?php endforeach; ?></small>
                         <?php endif; ?>
                     </td>
-                    <td><?= e(format_qty((float) $it['length_cm'])) ?></td>
+                    <td><?= order_setting('length_unit', 'mm') === 'mm' ? e(format_qty((float) $it['length_cm'] * 10)) : e(format_qty((float) $it['length_cm'])) ?></td>
                     <td><?= (int) $it['qty'] ?></td>
                     <td><?= (int) $it['wire_length_cm'] ?> سانت</td>
                     <td><?= (int) $it['has_endcap'] === 1 ? 'دارد' : '—' ?></td>

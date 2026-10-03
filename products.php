@@ -65,6 +65,24 @@ if ($productId > 0) {
 
     $retailBase  = product_base_price_per_meter($product, false);
     $partnerBase = product_base_price_per_meter($product, true);
+    $isPerWatt = ((string) ($product['pricing_model'] ?? 'per_meter')) === 'per_watt';
+    $basePriceFmt = $isPerWatt && (int) ($product['base_price'] ?? 0) > 0 ? format_price((int) $product['base_price']) : '';
+    $ppwFmt = $isPerWatt && (int) ($product['price_per_watt'] ?? 0) > 0 ? format_price((int) $product['price_per_watt']) : '';
+    // قاب‌ها برای نمایش (قیمت صفر = طبق سفارش)
+    $frameLine = '';
+    if ($isPerWatt && !empty($product['frame_options_json'])) {
+        $fr = json_decode((string) $product['frame_options_json'], true);
+        if (is_array($fr) && $fr !== []) {
+            $parts = [];
+            foreach ($fr as $f) {
+                $fn = trim((string) ($f['name'] ?? ''));
+                if ($fn === '') { continue; }
+                $fp = (int) ($f['price'] ?? 0);
+                $parts[] = $fn . ': ' . ($fp > 0 ? format_price($fp) . ' تومان' : 'طبق سفارش');
+            }
+            if ($parts !== []) { $frameLine = implode(' | ', $parts); }
+        }
+    }
     $extra = [
         'catalog_title' => $catalogTitle,
         'product_name'  => (string) $product['name'],
@@ -73,6 +91,10 @@ if ($productId > 0) {
         'category_title'      => (string) ($product['category_title'] ?? ''),
         'price_per_meter_formatted'         => format_price($retailBase),
         'partner_price_per_meter_formatted' => $partnerBase != $retailBase ? format_price($partnerBase) : '',
+        'is_per_watt'            => $isPerWatt ? '1' : '',
+        'base_price_formatted'   => $basePriceFmt,
+        'price_per_watt_formatted' => $ppwFmt,
+        'frame_options_line'     => $frameLine,
         'product_specs'      => product_specs_html($product),
         'product_gallery'    => product_gallery_html((int) $product['id']),
         'attributes_options' => product_options_selects_html($product),
