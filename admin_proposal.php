@@ -5,7 +5,12 @@ declare(strict_types=1);
 function proposal_render_page(): void
 {
     ?>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+    <style>
+    @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:400;font-display:swap;src:url('assets/fonts/Vazirmatn-Regular.woff2') format('woff2')}
+    @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:500;font-display:swap;src:url('assets/fonts/Vazirmatn-Medium.woff2') format('woff2')}
+    @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:700;font-display:swap;src:url('assets/fonts/Vazirmatn-Bold.woff2') format('woff2')}
+    @font-face{font-family:'Vazirmatn';font-style:normal;font-weight:800;font-display:swap;src:url('assets/fonts/Vazirmatn-ExtraBold.woff2') format('woff2')}
+    </style>
     <style>
     .pzx{--gold:#c9a227;--goldl:#e8c547;--bg:#0b0f1a;--card:#111a2e;--mut:#94a3b8;--txt:#f1f5f9;
       font-family:Vazirmatn,Tahoma,sans-serif;color:var(--txt);max-width:1020px;margin:0 auto;padding-bottom:50px}
