@@ -8,6 +8,7 @@ require __DIR__ . '/config.php';
 
 // لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲)
 cms_session_start();
+process_contact_form();
 process_partner_form();
 track_public_request();
 
@@ -24,7 +25,7 @@ if ($page === null) {
     $viewPage = [
         'title'   => 'صفحه پیدا نشد',
         'content' => '<p>صفحه‌ای با این آدرس وجود ندارد یا غیرفعال است.</p>'
-            . '<p><a class="btn" href="index.php">بازگشت به صفحه اصلی</a></p>',
+            . '<p><a class="btn" href="' . e(pretty_url('index.php')) . '">بازگشت به صفحه اصلی</a></p>',
     ];
 } else {
     $title = (string) ($page['seo_title'] ?? '') !== '' ? (string) $page['seo_title'] : ((string) $page['title'] . ' — ' . $siteTitle);
@@ -32,7 +33,16 @@ if ($page === null) {
     $viewPage = $page;
 }
 
-echo skeleton_head($settings, $title, $desc);
+$canonBase = site_base_url($settings);
+$pageSeo = [];
+if ($page !== null && $canonBase !== '') {
+    $pageSeo['url'] = $canonBase . '/' . $slug;
+    $pageSeo['breadcrumbs'] = [
+        ['name' => 'خانه', 'url' => $canonBase . '/'],
+        ['name' => (string) $page['title'], 'url' => $canonBase . '/' . $slug],
+    ];
+}
+echo skeleton_head($settings, $title, $desc, $pageSeo);
 echo render_db_template('header', $settings) . "\n";
 echo '<main id="main">' . "\n";
 $tplKey = ($page !== null && ($page['slug'] ?? '') === 'contact') ? 'contact_page' : 'single';
