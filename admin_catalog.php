@@ -1852,7 +1852,8 @@ function update_check(array $cfg): array
     }
 
     // حالت مخزن گیت‌هاب: خواندن config.php خام از شاخه
-    $rawUrl = 'https://raw.githubusercontent.com/' . $cfg['repo'] . '/' . $cfg['branch'] . '/config.php';
+    // کش‌بان: raw.githubusercontent چند دقیقه کش می‌کند؛ پارامتر زمانی آن را دور می‌زند
+    $rawUrl = 'https://raw.githubusercontent.com/' . $cfg['repo'] . '/' . $cfg['branch'] . '/config.php?t=' . time();
     $res = http_fetch($rawUrl, 15);
     if (!$res['ok']) {
         $result['error'] = 'بررسی نسخه تازه انجام نشد (مشکل شبکه یا دسترسی به گیت‌هاب): ' . (string) $res['error'];

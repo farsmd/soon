@@ -1703,7 +1703,11 @@ if ($page === 'design') {
     <div class="nav-overlay" id="navOverlay"></div>
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <span class="brand-avatar" aria-hidden="true"><?= e(mb_substr(trim((string) ($settings['site_title'] ?? '')), 0, 1) ?: 'م') ?></span>
+            <?php if (is_file(__DIR__ . '/uploads/gallery/logo.png')): ?>
+            <img src="uploads/gallery/logo.png" alt="لوگوی لاینرلایت" class="brand-logo">
+            <?php else: ?>
+            <span class="brand-sub">مدیریت یکپارچه لاینرلایت</span>
+            <?php endif; ?>
             <strong class="brand-name"><?= e($settings['site_title'] ?? '') ?></strong>
         </div>
 
@@ -3196,7 +3200,7 @@ body.nav-open .topbar{z-index:85}
 .layout{display:flex;min-height:calc(100vh - 54px)}
 .sidebar{width:232px;background:#fff;border-inline-end:1px solid #e5e7eb;display:flex;flex-direction:column;padding:0;overflow-y:auto}
 .sidebar-brand{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid #eef0f3}
-.brand-avatar{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#2563eb;color:#fff;font-weight:bold;font-size:18px}
+.brand-logo{width:40px;height:40px;border-radius:12px;object-fit:contain;background:#0f172a;padding:4px;flex-shrink:0}.brand-sub{font-size:11px;color:#8a94a6;font-weight:600;flex-shrink:0;white-space:nowrap}
 .brand-name{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .nav-group{border-bottom:1px solid #eef0f3;padding:4px 10px 10px}
 .nav-group summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 8px 6px;font-size:12px;font-weight:bold;color:#6b7280;border-radius:6px}
