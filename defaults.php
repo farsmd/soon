@@ -188,6 +188,12 @@ HTML,
                     <span class="contact-value" dir="ltr">{{contact_email}}</span>
                 </a>
                 {{/if}}
+                <a href="card.php" class="contact-card contact-qr-card">
+                    <span class="contact-icon">📱</span>
+                    <span class="contact-label">کارت ویزیت دیجیتال (QR)</span>
+                    <img src="qr-card.png" alt="QR کارت ویزیت لاینرلایت" class="contact-qr-img" loading="lazy">
+                    <span class="contact-value contact-qr-hint">اسکن کنید یا لمس کنید</span>
+                </a>
             </div>
             <div class="contact-form-wrap">
                 <h2>ارسال پیام</h2>
@@ -2178,6 +2184,9 @@ function order_form_css(): string
 .contact-icon{font-size:32px;flex-shrink:0;width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:var(--gold-soft);border-radius:12px}
 .contact-label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
 .contact-value{display:block;font-size:18px;font-weight:700}
+.contact-qr-card{flex-wrap:wrap}
+.contact-qr-img{width:110px;height:110px;border-radius:12px;background:#fff;padding:6px;flex-shrink:0}
+.contact-qr-hint{font-size:12px !important;font-weight:400 !important;color:var(--muted)}
 .contact-form-wrap{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:28px}
 .contact-form-wrap h2{margin:0 0 8px;font-size:22px}
 .contact-form-wrap .muted{margin:0 0 20px}
