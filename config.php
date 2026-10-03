@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.11.1');
+define('APP_VERSION', '9.11.2');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -2629,23 +2629,40 @@ function ip_is_private(string $ip): bool
  * تشخیص کشور از روی آی‌پی با کش دیتابیسی.
  * برمی‌گرداند: ['code' => 'IR', 'name' => 'ایران'] — در خطا کد خالی.
  */
-function detect_country_from_ip(string $ip): array
+/** خواندن کشور فقط از کش — هیچ تماس شبکه‌ای؛ امن برای مسیر داغ لود صفحه. */
+function detect_country_from_ip_cached(string $ip): array
 {
+    $out = ['hit' => false, 'code' => '', 'name' => ''];
     $ip = trim($ip);
     if ($ip === '' || ip_is_private($ip)) {
-        return ['code' => '', 'name' => 'داخلی'];
+        $out['hit'] = true;
+        $out['name'] = 'داخلی';
+        return $out;
     }
     try {
         $pdo = db();
         $st = $pdo->prepare('SELECT country_code, country_name, cached_at FROM ip_country_cache WHERE ip = ? LIMIT 1');
         $st->execute([$ip]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        // کش ۳۰ روزه
         if ($row !== false && (int) $row['cached_at'] > time() - 30 * 86400) {
-            return ['code' => (string) $row['country_code'], 'name' => (string) $row['country_name']];
+            $out['hit'] = true;
+            $out['code'] = (string) $row['country_code'];
+            $out['name'] = (string) $row['country_name'];
         }
-        // پرس‌وجو از ip-api.com با تایم‌اوت کوتاه
-        $code = ''; $name = '';
+    } catch (Throwable $ignored) {
+    }
+    return $out;
+}
+
+/** حل کشور یک IP با تماس API + ذخیره در کش — فقط در shutdown (غیرهم‌زمان) یا بک‌فیل ادمین صدا بزنید. */
+function resolve_country_for_ip(string $ip): array
+{
+    $ip = trim($ip);
+    if ($ip === '' || ip_is_private($ip)) {
+        return ['code' => '', 'name' => 'داخلی'];
+    }
+    $code = ''; $name = '';
+    try {
         $ctx = stream_context_create(['http' => ['timeout' => 3, 'ignore_errors' => true]]);
         $json = @file_get_contents('http://ip-api.com/json/' . urlencode($ip) . '?fields=status,country,countryCode', false, $ctx);
         if ($json !== false) {
@@ -2660,12 +2677,53 @@ function detect_country_from_ip(string $ip): array
                 }
             }
         }
-        $pdo->prepare('INSERT OR REPLACE INTO ip_country_cache (ip, country_code, country_name, cached_at) VALUES (?,?,?,?)')
+        db()->prepare('INSERT OR REPLACE INTO ip_country_cache (ip, country_code, country_name, cached_at) VALUES (?,?,?,?)')
             ->execute([$ip, $code, $name, time()]);
-        return ['code' => $code, 'name' => $name];
     } catch (Throwable $ignored) {
-        return ['code' => '', 'name' => ''];
     }
+    return ['code' => $code, 'name' => $name];
+}
+
+function detect_country_from_ip(string $ip): array
+{
+    $ip = trim($ip);
+    if ($ip === '' || ip_is_private($ip)) {
+        return ['code' => '', 'name' => 'داخلی'];
+    }
+    $cached = detect_country_from_ip_cached($ip);
+    if (!empty($cached['hit'])) {
+        return ['code' => $cached['code'], 'name' => $cached['name']];
+    }
+    return resolve_country_for_ip($ip);
+}
+
+/** زمان‌بندی حل کشور بازدید بعد از ارسال پاسخ — صفحه هرگز منتظر API نمی‌ماند. */
+function schedule_geo_resolve(int $logId, string $ip): void
+{
+    if ($logId <= 0 || $ip === '' || ip_is_private(trim($ip))) {
+        return;
+    }
+    register_shutdown_function(function () use ($logId, $ip) {
+        try {
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                @session_write_close();
+            }
+            if (function_exists('fastcgi_finish_request')) {
+                @fastcgi_finish_request();
+            } else {
+                while (ob_get_level() > 0) {
+                    @ob_end_flush();
+                }
+                @flush();
+            }
+            $geo = resolve_country_for_ip($ip);
+            if ($geo['code'] !== '' || $geo['name'] !== '') {
+                db()->prepare('UPDATE visit_logs SET country_code = ?, country_name = ? WHERE id = ?')
+                    ->execute([(string) $geo['code'], (string) $geo['name'], $logId]);
+            }
+        } catch (Throwable $ignored) {
+        }
+    });
 }
 
 /** نام فارسی کشور از روی کد — برای کدهای پرتکرار؛ بقیه همان نام انگلیسی. */
@@ -2723,11 +2781,14 @@ function track_public_request(): void
         if (defined('CMS_SESSION_STARTED') && ($GLOBALS['CMS_SID'] ?? '') !== '') {
             $sessionKey = substr(md5((string) $GLOBALS['CMS_SID']), 0, 10);
         }
-        // تشخیص کشور/دستگاه/مرورگر (کش‌دار؛ فقط آی‌پی‌های تازه به API می‌زنند)
+        // تشخیص دستگاه/مرورگر سریع و محلی است؛ کشور فقط از کش خوانده می‌شود
+        // (آی‌پی‌های تازه بعد از ارسال صفحه، غیرهم‌زمان حل می‌شوند تا لود کند نشود)
         $dbInfo = detect_device_browser($ua);
-        $geo = detect_country_from_ip(client_ip());
-        $countryCode = (string) ($geo['code'] ?? '');
-        $countryName = (string) ($geo['name'] ?? '');
+        $clientIp = client_ip();
+        $geoCached = detect_country_from_ip_cached($clientIp);
+        $geoHit = !empty($geoCached['hit']);
+        $countryCode = (string) ($geoCached['code'] ?? '');
+        $countryName = (string) ($geoCached['name'] ?? '');
         $deviceType = (string) ($dbInfo['device'] ?? '');
         $browserName = (string) ($dbInfo['browser'] ?? '');
         if ($method === 'POST' && isset($_POST['track_click'])) {
@@ -2740,14 +2801,16 @@ function track_public_request(): void
             $path = substr((string) ($_POST['p'] ?? ($_SERVER['REQUEST_URI'] ?? '')), 0, 300);
             $target = substr(trim((string) ($_POST['t'] ?? '')), 0, 200);
             db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user, country_code, country_name, device_type, browser_name) VALUES ('click', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey, $isBot, $adminUser, $countryCode, $countryName, $deviceType, $browserName]);
+                ->execute([$clientIp, $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), $path, $target, $sessionKey, $isBot, $adminUser, $countryCode, $countryName, $deviceType, $browserName]);
+            if (!$geoHit) { schedule_geo_resolve((int) db()->lastInsertId(), $clientIp); }
             prune_logs_maybe();
             http_response_code(204);
             exit;
         }
         if ($method === 'GET') {
             db()->prepare("INSERT INTO visit_logs (kind, ip, user_agent, referer, path, target, session_key, is_bot, admin_user, country_code, country_name, device_type, browser_name) VALUES ('visit', ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?)")
-                ->execute([client_ip(), $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey, $isBot, $adminUser, $countryCode, $countryName, $deviceType, $browserName]);
+                ->execute([$clientIp, $ua, substr((string) ($_SERVER['HTTP_REFERER'] ?? ''), 0, 500), substr((string) ($_SERVER['REQUEST_URI'] ?? ''), 0, 300), $sessionKey, $isBot, $adminUser, $countryCode, $countryName, $deviceType, $browserName]);
+            if (!$geoHit) { schedule_geo_resolve((int) db()->lastInsertId(), $clientIp); }
             prune_logs_maybe();
         }
     } catch (Throwable $ignored) {
