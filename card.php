@@ -3,7 +3,7 @@
 // با اسکن QR باز می‌شود؛ دکمه «ذخیره مخاطب» فایل vCard می‌دهد.
 declare(strict_types=1);
 
-const CARD_NAME     = 'نام شما'; // ← نام را اینجا بنویسید
+const CARD_NAME     = 'فرشاد میزرائی';
 const CARD_TITLE    = 'طراح روشنایی';
 const CARD_ORG      = 'لاینرلایت';
 const CARD_PHONE    = '+989366121221';
