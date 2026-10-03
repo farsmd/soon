@@ -98,6 +98,7 @@ function nav_icon(string $name): string
 {
     static $paths = [
         'dashboard' => '<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
+        'info' => '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>',
         'menu'      => '<path d="M4 6h16M4 12h16M4 18h16"/>',
         'eye'       => '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
         'file'      => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/>',
@@ -443,6 +444,7 @@ $pageTitles = [
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
+    'sysinfo'    => 'مشخصات نرم‌افزار',
     'logs'       => 'لاگ‌ها',
     'api'        => 'دسترسی API',
     'users'      => 'کاربران و نقش‌ها',
@@ -480,32 +482,35 @@ $navGroups = [
     'orders' => ['سفارش‌ها', [
         ['admin.php?page=orders', 'receipt', 'سفارش‌ها', 'orders'],
         ['admin.php?page=order_new', 'plus', 'سفارش تازه', 'order_new'],
-        ['admin.php?page=order_rules', 'sliders', 'قوانین قیمت‌گذاری', 'order_rules'],
-        ['admin.php?page=order_forms', 'layout', 'فرم‌های سفارش', 'order_forms'],
     ]],
     'production' => ['تولید', [
         ['admin.php?page=production', 'cut', 'برگه‌های تولید', 'production'],
-        ['admin.php?page=production_rules', 'sliders', 'مراحل تولید', 'production_rules'],
     ]],
     'finance' => ['مالی', [
         ['admin.php?page=finance', 'dashboard', 'داشبورد مالی', 'finance'],
         ['admin.php?page=invoices', 'receipt', 'فاکتورها', 'invoices'],
         ['admin.php?page=expenses', 'bag', 'هزینه‌ها', 'expenses'],
         ['admin.php?page=statements', 'users', 'صورتحساب مشتریان', 'statements'],
-        ['admin.php?page=finance_rules', 'sliders', 'قوانین مالی', 'finance_rules'],
     ]],
     'reports' => ['گزارش‌ها', [
         ['admin.php?page=reports', 'chart', 'گزارش‌ها', 'reports'],
     ]],
-    'system' => ['سیستم', [
-        ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
-        ['admin.php?page=settings', 'sliders', 'تنظیمات و پسورد', 'settings'],
+    'settings' => ['تنظیمات', [
+        ['admin.php?page=settings', 'sliders', 'تنظیمات سایت', 'settings'],
+        ['admin.php?page=order_rules', 'sliders', 'قوانین قیمت‌گذاری', 'order_rules'],
+        ['admin.php?page=order_forms', 'layout', 'فرم‌های سفارش', 'order_forms'],
+        ['admin.php?page=production_rules', 'sliders', 'مراحل تولید', 'production_rules'],
+        ['admin.php?page=finance_rules', 'sliders', 'قوانین مالی', 'finance_rules'],
         ['admin.php?page=sitemap', 'map', 'نقشه سایت', 'sitemap'],
-        ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
-        ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
-        ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
-        ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
+    ]],
+    'system' => ['سیستم', [
+        ['admin.php?page=sysinfo', 'info', 'مشخصات نرم‌افزار', 'sysinfo'],
         ['admin.php?page=update', 'refresh', 'آپدیت', 'update', ''],
+        ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
+        ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
+        ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
+        ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
+        ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
     ]],
 ];
 $activeNavGroup = 'main';
@@ -2529,6 +2534,34 @@ if ($page === 'design') {
             <section class="card wide">
                 <h2>نکته مهم درباره بکاپ و پسورد</h2>
                 <p class="muted">بکاپی که از «ابزار و بکاپ» دانلود می‌کنید روی دستگاه شما ذخیره می‌شود. نسخه‌های امن قبل از بازیابی یا تعویض دیتابیس، با نام‌های <code>database-backup-before-restore.sqlite</code> و <code>database-backup-before-switch.sqlite</code> در همان فولدر برنامه نگه داشته می‌شوند. همه تنظیمات، صفحه‌ها، بخش‌ها، پیام‌ها و هش پسورد مدیریت داخل فایل <code>database.sqlite</code> است؛ بنابراین بعد از اتصال به یک دیتابیس دیگر، ورود با پسورد ذخیره‌شده در همان دیتابیس جدید انجام می‌شود.</p>
+            </section>
+
+        <?php elseif ($page === 'sysinfo'): ?>
+            <h1>مشخصات نرم‌افزار</h1>
+            <p class="muted">اطلاعات فنی سیستم، نسخه‌ها و وضعیت هاست.</p>
+            <section class="card wide">
+                <h2>نسخه نرم‌افزار</h2>
+                <table>
+                    <tbody>
+                        <tr><th>نسخه CMS</th><td><span dir="ltr"><?= e(APP_VERSION) ?></span></td></tr>
+                        <tr><th>نسخه PHP</th><td><span dir="ltr"><?= e(PHP_VERSION) ?></span></td></tr>
+                        <tr><th>نسخه SQLite</th><td><span dir="ltr"><?= e(db()->query('SELECT sqlite_version()')->fetchColumn()) ?></span></td></tr>
+                        <tr><th>سیستم‌عامل سرور</th><td><span dir="ltr"><?= e(PHP_OS) ?></span></td></tr>
+                        <tr><th>وب‌سرور</th><td><?= e($_SERVER['SERVER_SOFTWARE'] ?? 'نامشخص') ?></td></tr>
+                    </tbody>
+                </table>
+            </section>
+            <section class="card wide">
+                <h2>وضعیت هاست</h2>
+                <table>
+                    <tbody>
+                        <tr><th>حافظه PHP</th><td><span dir="ltr"><?= e(ini_get('memory_limit')) ?></span></td></tr>
+                        <tr><th>حداکثر حجم آپلود</th><td><span dir="ltr"><?= e(ini_get('upload_max_filesize')) ?></span></td></tr>
+                        <tr><th>حداکثر زمان اجرا</th><td><span dir="ltr"><?= e(ini_get('max_execution_time')) ?> ثانیه</span></td></tr>
+                        <tr><th>مسیر دیتابیس</th><td><code><?= e(DB_FILE) ?></code></td></tr>
+                        <tr><th>حجم دیتابیس</th><td><?= e(format_bytes(@filesize(DB_FILE) ?: 0)) ?></td></tr>
+                    </tbody>
+                </table>
             </section>
 
         <?php elseif ($page === 'update'): ?>
