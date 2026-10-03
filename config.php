@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.10.0');
+define('APP_VERSION', '9.10.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -2130,7 +2130,8 @@ function contact_form_html(array $state): string
     if ((string) ($state['err'] ?? '') !== '') {
         $html .= '<div class="alert error" role="alert">' . e($state['err']) . '</div>';
     }
-    $action = (string) ($_SERVER['PHP_SELF'] ?? 'index.php');
+    // REQUEST_URI کوئری‌استرینگ (مثل ?slug=contact) را حفظ می‌کند؛ PHP_SELF آن را می‌انداخت و فرم به ۴۰۴ پست می‌شد
+    $action = (string) ($_SERVER['REQUEST_URI'] ?? 'index.php');
     $html .= '<form method="post" class="contact-form" action="' . e($action) . '#contact">';
     $html .= '<input type="hidden" name="contact_form" value="1">';
     $html .= '<input type="hidden" name="csrf" value="' . e((string) ($_SESSION['csrf'] ?? '')) . '">';
