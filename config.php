@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.5.0');
+define('APP_VERSION', '9.6.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -603,6 +603,10 @@ function init_db(PDO $pdo): void
         // فاز ۵ (نسخه ۸٫۴): مالی — شماره فاکتور بعدی و درصد مالیات بر ارزش افزوده
         'next_invoice_no'     => '1',
         'vat_percent'         => '10',
+        // اطلاعات تماس (نسخه ۹٫۶): نمایش در صفحه تماس با ما
+        'contact_phone'       => '+989366121221',
+        'contact_email'       => 'info@linerlight.ir',
+        'contact_whatsapp'    => '',
     ];
     $stmt = $pdo->prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (:key, :value)');
     foreach ($defaults as $k => $v) {
@@ -700,6 +704,19 @@ GALLERYHTML;
                 ':c'  => $galleryHtml,
                 ':st' => 'گالری پروژه‌ها | لاینرلایت',
                 ':sd' => 'نمونه پروژه‌های اجراشده با چراغ‌های خطی لاینرلایت؛ نورپردازی راه‌پله، فضای اداری، فروشگاه و مسکونی.',
+            ]);
+    }
+
+    // --- نسخه ۹٫۶: صفحه «تماس با ما» (فقط اگر با همین اسلاگ وجود نداشته باشد) ---
+    $contactPageExists = (int) $pdo->query("SELECT COUNT(*) FROM pages WHERE slug = 'contact'")->fetchColumn();
+    if ($contactPageExists === 0) {
+        $pdo->prepare('INSERT INTO pages (title, slug, content, seo_title, seo_description, is_active, sort_order, show_in_menu) VALUES (:t,:s,:c,:st,:sd,1,40,1)')
+            ->execute([
+                ':t'  => 'تماس با ما',
+                ':s'  => 'contact',
+                ':c'  => '',
+                ':st' => 'تماس با ما | لاینرلایت',
+                ':sd' => 'راه‌های ارتباط با لاینرلایت؛ تلفن، واتساپ و ایمیل. برای مشاوره و ثبت سفارش با ما در تماس باشید.',
             ]);
     }
 
@@ -1864,6 +1881,10 @@ function template_context(string $key, array $settings, ?array $section = null, 
         'page_title'        => $pageTitle,
         'page_content'      => $pageContent,
         'contact_form'      => '',
+        'contact_phone'     => (string) ($settings['contact_phone'] ?? ''),
+        'contact_email'     => (string) ($settings['contact_email'] ?? ''),
+        'contact_whatsapp'  => (string) ($settings['contact_whatsapp'] ?? ($settings['contact_phone'] ?? '')),
+        'contact_whatsapp_digits' => preg_replace('/[^0-9]/', '', (string) ($settings['contact_whatsapp'] ?? ($settings['contact_phone'] ?? ''))),
         'partner_form'      => '',
         'product_gallery'   => '',
         'slider_slides'     => '',
@@ -1872,7 +1893,7 @@ function template_context(string $key, array $settings, ?array $section = null, 
     if ($key === 'slider') {
         $ctx['products_showcase'] = products_showcase_html();
     }
-    if ($key === 'contact' && !array_key_exists('contact_form', $extra)) {
+    if (($key === 'contact' || $key === 'contact_page') && !array_key_exists('contact_form', $extra)) {
         $ctx['contact_form'] = contact_form_html(contact_state());
     }
     if (!array_key_exists('partner_form', $extra)) {
