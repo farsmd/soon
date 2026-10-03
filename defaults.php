@@ -2078,6 +2078,7 @@ function process_site_order(): void
                 ->execute([':o' => $oid, ':n' => 'ثبت سفارش از سایت']);
             set_setting('next_order_no', (string) ($orderNo + 1));
             $pdo->commit();
+            notify_admins('new_order', 'سفارش جدید ثبت شد', 'سفارش #' . $orderNo . ' از سایت ثبت شد (' . format_price($tot['total']) . ' تومان).', 'admin.php?page=orders');
         } catch (Throwable $ex) {
             $pdo->rollBack();
             site_order_state(['submitted' => true, 'ok' => false, 'msg' => '', 'err' => 'خطا در ثبت سفارش؛ لطفاً دوباره تلاش کنید.']);

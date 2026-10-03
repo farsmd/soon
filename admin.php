@@ -27,6 +27,65 @@ require_once __DIR__ . '/admin_reports.php';
 require_once __DIR__ . '/admin_users.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
+require_once __DIR__ . '/admin_notifications.php';
+
+// ---------- تاریخ شمسی (جلالی) — پیاده‌سازی الگوریتم استاندارد، بدون وابستگی خارجی ----------
+if (!function_exists('ll_gregorian_to_jalali')) {
+    /** تبدیل تاریخ میلادی به جلالی؛ خروجی [سال، ماه، روز] */
+    function ll_gregorian_to_jalali(int $gy, int $gm, int $gd): array
+    {
+        $g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+        $gy2 = ($gm > 2) ? ($gy + 1) : $gy;
+        $days = 355666 + (365 * $gy) + (int)(($gy2 + 3) / 4) - (int)(($gy2 + 99) / 100) + (int)(($gy2 + 399) / 400) + $gd + $g_d_m[$gm - 1];
+        $jy = -1595 + (33 * (int)($days / 12053));
+        $days %= 12053;
+        $jy += 4 * (int)($days / 1461);
+        $days %= 1461;
+        if ($days > 365) {
+            $jy += (int)(($days - 1) / 365);
+            $days = ($days - 1) % 365;
+        }
+        if ($days < 186) {
+            $jm = 1 + (int)($days / 31);
+            $jd = 1 + ($days % 31);
+        } else {
+            $jm = 7 + (int)(($days - 186) / 30);
+            $jd = 1 + (($days - 186) % 30);
+        }
+        return [$jy, $jm, $jd];
+    }
+    /** ارقام لاتین به فارسی */
+    function ll_fa_digits(string $s): string
+    {
+        return strtr($s, '0123456789', '۰۱۲۳۴۵۶۷۸۹');
+    }
+    /** قالب‌بندی شمسی یک رشته تاریخ/زمان؛ مثلاً «۱۱ مهر ۱۴۰۵ — ۱۴:۳۲» */
+    function ll_jalali_format(string $datetime, bool $withTime = false, bool $withWeekday = false): string
+    {
+        $ts = strtotime($datetime);
+        if ($ts === false) {
+            return '';
+        }
+        [$jy, $jm, $jd] = ll_gregorian_to_jalali((int) date('Y', $ts), (int) date('n', $ts), (int) date('j', $ts));
+        static $months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+        static $weekdays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+        $out = '';
+        if ($withWeekday) {
+            $w = (int) date('w', $ts);
+            $out .= $weekdays[($w + 1) % 7] . ' ';
+        }
+        $out .= $jd . ' ' . $months[$jm - 1] . ' ' . $jy;
+        if ($withTime) {
+            $out .= ' — ' . date('H:i', $ts);
+        }
+        return ll_fa_digits($out);
+    }
+    /** تاریخ امروز شمسی با روز هفته؛ مثلاً «شنبه ۱۱ مهر ۱۴۰۵» */
+    function ll_jalali_today(): string
+    {
+        return ll_jalali_format(date('Y-m-d H:i:s'), false, true);
+    }
+}
 
 // ---------- نشست ----------
 // نشست‌ها داخل دیتابیس سیستم ذخیره می‌شوند (نسخه ۸٫۲٫۱) تا پاک‌سازی و قفلِ مسیر
@@ -126,6 +185,7 @@ function nav_icon(string $name): string
         'key'       => '<circle cx="8" cy="15" r="4"/><path d="M11 12 21 2M16 7l3 3M13 10l2 2"/>',
         'image'     => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
         'handshake' => '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>',
+        'bell'      => '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -456,6 +516,7 @@ $pageTitles = [
     'assets'     => 'تجهیزات و دارایی‌ها',
     'assets_maintenance' => 'سوابق تعمیرات',
     'logs'       => 'لاگ‌ها',
+    'notifications' => 'اعلان‌ها',
     'api'        => 'دسترسی API',
     'users'      => 'کاربران و نقش‌ها',
     'settings'   => 'تنظیمات سایت',
@@ -527,6 +588,7 @@ $navGroups = [
         ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
         ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
+        ['admin.php?page=notifications', 'bell', 'اعلان‌ها', 'notifications'],
     ]],
 ];
 $activeNavGroup = 'main';
@@ -641,6 +703,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های لاگ‌ها و نشست (نسخه ۸٫۲) در admin_logs.php پردازش می‌شوند
         if (in_array($action, logs_post_actions(), true)) {
             logs_handle_post($action);
+        }
+        if (in_array($action, notifications_post_actions(), true)) {
+            notifications_handle_post($action);
         }
         // شخصی‌سازی داشبورد (نسخه ۸٫۵٫۰): ترتیب و فعال‌بودن ویجت‌ها
         if ($action === 'save_dashboard') {
@@ -1616,6 +1681,12 @@ if ($page === 'design') {
         <strong class="topbar-title"><?= e($currentPageTitle) ?></strong>
     </div>
     <nav class="topbar-actions">
+        <?php if (admin_can_page('notifications')): $notifUnread = unread_notification_count(); ?>
+        <a href="admin.php?page=notifications" aria-label="اعلان‌ها" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;background:rgba(255,255,255,.07);color:#e5e7eb">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <?php if ($notifUnread > 0): ?><span style="position:absolute;top:2px;inset-inline-start:2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1"><?= $notifUnread > 99 ? '99+' : $notifUnread ?></span><?php endif; ?>
+        </a>
+        <?php endif; ?>
         <?php if (admin_can_page('products')): ?><a href="admin.php?page=products" class="quick-add">محصول جدید</a><?php endif; ?>
         <?php if (admin_can_page('customers')): ?><a href="admin.php?page=customers" class="quick-add">مشتری جدید</a><?php endif; ?>
         <a href="index.php" target="_blank" rel="noopener">مشاهده سایت</a>
@@ -1757,7 +1828,35 @@ if ($page === 'design') {
                 $p = $paths[$name] ?? $paths['box'];
                 return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true">' . $p . '</svg>';
             };
-            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages, $dash_icon): string {
+            // بررسی سبک نسخه جدید: حداکثر هر ۶ ساعت یک بار، با تایم‌اوت کوتاه؛ در صورت خطا بی‌صدا رد می‌شود
+            $dash_version_info = static function (): array {
+                $out = ['latest' => '', 'ok' => false];
+                try {
+                    $cached = (string) get_setting('update_check_latest', '');
+                    $cachedAt = (int) get_setting('update_check_at', '0');
+                    if ((time() - $cachedAt) < 21600) {
+                        // کش تازه است (حتی اگر خالی باشد یعنی تلاش ناموفق اخیر)؛ بدون درخواست شبکه
+                        $out['latest'] = $cached;
+                        $out['ok'] = $cached !== '';
+                        return $out;
+                    }
+                    $ctx = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'linerlight-cms-update-check']]);
+                    $body = @file_get_contents('https://raw.githubusercontent.com/farsmd/soon/main/config.php', false, $ctx);
+                    if (is_string($body) && preg_match("/define\s*\(\s*'APP_VERSION'\s*,\s*'([^']+)'/", $body, $m)) {
+                        $out['latest'] = $m[1];
+                        $out['ok'] = true;
+                    }
+                    // ثبت زمان آخرین تلاش (موفق یا ناموفق) تا داشبورد بیش از حد لازم درخواست نزند
+                    try {
+                        set_setting('update_check_latest', $out['latest']);
+                        set_setting('update_check_at', (string) time());
+                    } catch (Throwable $e) {
+                    }
+                } catch (Throwable $e) {
+                }
+                return $out;
+            };
+            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages, $dash_icon, $dash_version_info): string {
 
                 if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
                     return '';
@@ -1782,7 +1881,14 @@ if ($page === 'design') {
                     case 'stat_messages':
                         return '<a class="stat-card sc-purple" href="admin.php?page=messages"><span><i class="sc-ico">' . $dash_icon('mail') . '</i>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
                     case 'stat_version':
-                        return '<a class="stat-card" href="admin.php?page=update"><span><i class="sc-ico">' . $dash_icon('gear') . '</i>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
+                        $vi = $dash_version_info();
+                        $verSub = '';
+                        if ($vi['ok'] && $vi['latest'] !== '' && version_compare((string) APP_VERSION, (string) $vi['latest'], '<')) {
+                            $verSub = '<span class="sc-sub" style="color:#b45309;font-weight:700">نسخه ' . e($vi['latest']) . ' موجود است ← آپدیت</span>';
+                        } elseif ($vi['ok'] && $vi['latest'] !== '') {
+                            $verSub = '<span class="sc-sub" style="color:#16a34a">به‌روز است ✓</span>';
+                        }
+                        return '<a class="stat-card" href="admin.php?page=update"><span><i class="sc-ico">' . $dash_icon('gear') . '</i>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong>' . $verSub . '</a>';
                     case 'kpi_revenue':
                         return '<a class="stat-card kpi kpi-revenue" href="admin.php?page=orders"><span><i class="sc-ico">' . $dash_icon('coins') . '</i>درآمد این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_revenue'] ?? 0))) . ' تومان</strong></a>';
                     case 'kpi_orders':
@@ -1819,7 +1925,7 @@ if ($page === 'design') {
             ?>
             <div class="dash-head">
                 <h1>داشبورد</h1>
-                <span class="dash-date">📅 <?= e(date('Y/m/d')) ?></span>
+                <span class="dash-date">📅 <?= e(ll_jalali_today()) ?></span>
             </div>
             <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد. هر کاربر فقط کارت‌ها و نمودارهای مربوط به بخش‌های مجاز خودش را می‌بیند.</p>
 
@@ -2532,6 +2638,8 @@ if ($page === 'design') {
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
             <?php logs_render($logsData); ?>
+        <?php elseif ($page === 'notifications'): ?>
+            <?php notifications_render_page(); ?>
         <?php elseif ($page === 'tools'): ?>
             <h1>ابزار و بکاپ</h1>
 
@@ -3148,7 +3256,7 @@ body.nav-open .topbar{z-index:85}
 /* سربرگ داشبورد */
 .dash-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 .dash-head h1{margin:0;font-size:26px;font-weight:800;color:#0f172a}
-.dash-date{color:#64748b;font-size:13px;background:#f1f5f9;padding:8px 14px;border-radius:99px}
+.dash-date{color:#334155;font-size:13px;font-weight:600;background:#f1f5f9;padding:8px 14px;border-radius:99px;border:1px solid #e2e8f0}
 /* کارت‌های نمودار */
 .dash-charts{margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
 .dash-charts .card{border:1px solid #e8ecf1;border-radius:16px;box-shadow:0 2px 12px rgba(17,24,39,.05);margin:0;max-width:none}

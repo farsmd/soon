@@ -631,7 +631,7 @@ function orders_render_list(array $d): void
         <div class="card wide"><p class="muted">هنوز سفارشی ثبت نشده است.</p></div>
     <?php else: ?>
     <table>
-        <thead><tr><th>شماره</th><th>مشتری</th><th>نوع</th><th>متراژ</th><th>مبلغ (تومان)</th><th>وضعیت</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+        <thead><tr><th>شماره</th><th>مشتری</th><th>نوع</th><th>متراژ</th><th>مبلغ (تومان)</th><th>وضعیت</th><th>زمان ثبت</th><th>عملیات</th></tr></thead>
         <tbody>
         <?php foreach ($ordersList as $o): ?>
             <tr>
@@ -641,7 +641,7 @@ function orders_render_list(array $d): void
                 <td><?= e(format_qty((float) ($o['total_meters'] ?? 0))) ?> متر</td>
                 <td><?= e(format_price($o['total'] ?? 0)) ?></td>
                 <td><span class="badge" style="background:<?= e(order_status_color((string) $o['status'])) ?>22;color:<?= e(order_status_color((string) $o['status'])) ?>"><?= e(order_status_title((string) $o['status'])) ?></span></td>
-                <td class="muted"><?= e(mb_substr((string) ($o['created_at'] ?? ''), 0, 10)) ?></td>
+                <td style="white-space:nowrap"><strong><?= e(ll_jalali_format((string) ($o['created_at'] ?? ''), true) ?: '—') ?></strong></td>
                 <td class="actions"><a class="btn small" href="admin.php?page=order_view&id=<?= (int) $o['id'] ?>">جزئیات</a></td>
             </tr>
         <?php endforeach; ?>
@@ -923,7 +923,7 @@ function orders_render_view(array $d): void
             <h2>اطلاعات سفارش</h2>
             <table><tbody>
                 <tr><th>مشتری</th><td><a href="admin.php?page=customers&view=<?= (int) $o['customer_id'] ?>"><?= e($o['customer_name'] ?? '—') ?></a> (<?= e(customer_type_label((string) ($o['customer_type'] ?? ''))) ?>) — <span dir="ltr"><?= e($o['customer_mobile'] ?? '') ?></span></td></tr>
-                <tr><th>تاریخ ثبت</th><td><?= e($o['created_at'] ?? '') ?></td></tr>
+                <tr><th>زمان ثبت سفارش</th><td><strong><?= e(ll_jalali_format((string) ($o['created_at'] ?? ''), true) ?: '—') ?></strong></td></tr>
                 <tr><th>متراژ / تعداد چراغ</th><td><?= e(format_qty((float) ($o['total_meters'] ?? 0))) ?> متر — <?= (int) ($o['total_fixtures'] ?? 0) ?> چراغ</td></tr>
                 <tr><th>زمان آماده‌سازی</th><td><?= (int) ($o['prep_days'] ?? 0) ?> روز (تخمینی: <?= e($viewPrepDate) ?>)</td></tr>
                 <?php if (!empty($o['notes'])): ?><tr><th>توضیحات</th><td><?= nl2br(e($o['notes'])) ?></td></tr><?php endif; ?>

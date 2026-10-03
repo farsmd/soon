@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<title>قطع اتصال | لاینرلایت</title>
+<link rel="icon" href="pwa-icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: Tahoma, "Vazirmatn", sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; text-align: center;
+  }
+  .card {
+    max-width: 380px; width: 100%;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 40px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  .logo {
+    width: 84px; height: 84px; border-radius: 22px;
+    margin: 0 auto 20px; display: block;
+    box-shadow: 0 8px 24px rgba(201,162,39,.25);
+  }
+  h1 { font-size: 20px; margin-bottom: 10px; color: #f8fafc; }
+  p { font-size: 14px; line-height: 1.9; color: #94a3b8; margin-bottom: 24px; }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #c9a227, #a8821c);
+    color: #0f172a; font-weight: 700; font-size: 15px;
+    border: none; border-radius: 12px;
+    padding: 13px 34px; cursor: pointer;
+    font-family: inherit;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(201,162,39,.35); }
+  .home { display: block; margin-top: 16px; font-size: 13px; color: #c9a227; text-decoration: none; }
+  .home:hover { text-decoration: underline; }
+  .brand { margin-top: 22px; font-size: 12px; color: #64748b; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="pwa-icon-192.png" alt="لاینرلایت" width="84" height="84">
+    <h1>اتصال اینترنت برقرار نیست</h1>
+    <p>به نظر می‌رسد به اینترنت دسترسی ندارید.<br>اتصال خود را بررسی کنید و دوباره تلاش کنید.</p>
+    <button class="btn" onclick="location.reload()">تلاش مجدد</button>
+    <a class="home" href="/">بازگشت به صفحه اصلی</a>
+    <div class="brand">لاینرلایت | سیستم مدیریت کسب‌وکار</div>
+  </div>
+</body>
+</html>
