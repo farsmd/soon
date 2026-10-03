@@ -57,6 +57,12 @@ function admin_page_catalog(): array
         'گزارش‌ها' => [
             'reports' => 'گزارش‌ها',
         ],
+        'منابع' => [
+            'employees'          => 'پرسنل',
+            'payroll'            => 'حقوق و دستمزد',
+            'assets'             => 'تجهیزات و دارایی‌ها',
+            'assets_maintenance' => 'سوابق تعمیرات',
+        ],
         'تنظیمات' => [
             'settings'         => 'تنظیمات سایت',
             'order_rules'      => 'قوانین قیمت‌گذاری',

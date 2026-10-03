@@ -17,6 +17,10 @@ require_once __DIR__ . '/admin_orders.php';
 require_once __DIR__ . '/admin_production.php';
 // صفحات و اکشن‌های مالی: فاکتور، دریافتی، هزینه و صورتحساب (فاز ۵ / نسخه ۸٫۴) هم در فایل جدا هستند
 require_once __DIR__ . '/admin_finance.php';
+// منابع انسانی: پرسنل و حقوق (نسخه ۹٫۷)
+require_once __DIR__ . '/admin_hr.php';
+// تجهیزات و دارایی‌ها (نسخه ۹٫۷)
+require_once __DIR__ . '/admin_assets.php';
 // گزارش‌های مدیریتی (فاز ۶ / نسخه ۸٫۶): فروش، محصولات، مصرف مواد، مشتریان و تولید
 require_once __DIR__ . '/admin_reports.php';
 // کاربران و نقش‌های پنل (فاز ۰ / نسخه ۸٫۷): ورود چندکاربره و سطح دسترسی صفحه/اکشن
@@ -445,6 +449,10 @@ $pageTitles = [
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
     'sysinfo'    => 'مشخصات نرم‌افزار',
+    'employees'  => 'پرسنل',
+    'payroll'    => 'حقوق و دستمزد',
+    'assets'     => 'تجهیزات و دارایی‌ها',
+    'assets_maintenance' => 'سوابق تعمیرات',
     'logs'       => 'لاگ‌ها',
     'api'        => 'دسترسی API',
     'users'      => 'کاربران و نقش‌ها',
@@ -502,6 +510,12 @@ $navGroups = [
         ['admin.php?page=production_rules', 'sliders', 'مراحل تولید', 'production_rules'],
         ['admin.php?page=finance_rules', 'sliders', 'قوانین مالی', 'finance_rules'],
         ['admin.php?page=sitemap', 'map', 'نقشه سایت', 'sitemap'],
+    ]],
+    'resources' => ['منابع', [
+        ['admin.php?page=employees', 'users', 'پرسنل', 'employees'],
+        ['admin.php?page=payroll', 'receipt', 'حقوق و دستمزد', 'payroll'],
+        ['admin.php?page=assets', 'box', 'تجهیزات و دارایی‌ها', 'assets'],
+        ['admin.php?page=assets_maintenance', 'list', 'سوابق تعمیرات', 'assets_maintenance'],
     ]],
     'system' => ['سیستم', [
         ['admin.php?page=sysinfo', 'info', 'مشخصات نرم‌افزار', 'sysinfo'],
@@ -606,6 +620,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های فاز ۵ (مالی) در admin_finance.php پردازش می‌شوند
         if (in_array($action, finance_post_actions(), true)) {
             finance_handle_post($action);
+        }
+        // اکشن‌های منابع انسانی در admin_hr.php پردازش می‌شوند
+        if (in_array($action, hr_post_actions(), true)) {
+            hr_handle_post($action);
+        }
+        // اکشن‌های تجهیزات در admin_assets.php پردازش می‌شوند
+        if (in_array($action, assets_post_actions(), true)) {
+            assets_handle_post($action);
         }
         // اکشن‌های فاز ۶ (گزارش‌ها) در admin_reports.php پردازش می‌شوند
         if (in_array($action, reports_post_actions(), true)) {
@@ -1416,6 +1438,12 @@ $productionData = production_load_data($page);
 extract($productionData);
 // داده‌های فاز ۵ (مالی): فاکتور، دریافتی، هزینه و صورتحساب
 $financeData = finance_load_data($page);
+// داده‌های منابع انسانی (نسخه ۹٫۷)
+$hrData = hr_load_data();
+extract($hrData);
+// داده‌های تجهیزات (نسخه ۹٫۷)
+$assetsData = assets_load_data($page);
+extract($assetsData);
 extract($financeData);
 
 // داده‌های فاز ۶ (گزارش‌ها): فروش، محصولات، مصرف مواد، مشتریان و تولید
@@ -1434,6 +1462,31 @@ $chartOrderStatus = []; // [['label' => string, 'value' => int, 'color' => strin
 $chartExpenseCat = [];  // [['label' => string, 'value' => int, 'color' => string]]
 $chartProdStages = [];  // [['label' => string, 'value' => int, 'color' => string]]
 if ($page === 'dashboard') {
+    // KPIهای مدیریتی (نسخه ۹٫۷) — برای ارائه به سرمایه‌گذار
+    $kpi = ['month_revenue' => 0, 'month_orders' => 0, 'active_employees' => 0, 'month_payroll' => 0, 'asset_book_value' => 0, 'total_customers' => 0];
+    try {
+        $mk = date('Y-m');
+        $kpi['month_revenue'] = (int) $pdo->query("SELECT COALESCE(SUM(total),0) FROM orders WHERE substr(created_at,1,7) = '$mk' AND status != 'cancelled'")->fetchColumn();
+        $kpi['month_orders'] = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE substr(created_at,1,7) = '$mk' AND status != 'cancelled'")->fetchColumn();
+        $kpi['active_employees'] = (int) $pdo->query("SELECT COUNT(*) FROM employees WHERE status = 'active'")->fetchColumn();
+        $kpi['month_payroll'] = (int) $pdo->query("SELECT COALESCE(SUM(net_amount),0) FROM salary_payments WHERE pay_month = '$mk'")->fetchColumn();
+        // ارزش دفتری تجهیزات
+        $eqs = $pdo->query("SELECT purchase_price, useful_life_years, purchase_date FROM equipment WHERE status != 'retired'")->fetchAll();
+        $bv = 0;
+        foreach ($eqs as $eq) {
+            $pp = (int) $eq['purchase_price'];
+            $life = max(0.1, (float) $eq['useful_life_years']);
+            $annual = $pp / $life;
+            $years = 0;
+            if (!empty($eq['purchase_date'])) {
+                $years = max(0, (time() - strtotime($eq['purchase_date'])) / (365.25 * 86400));
+            }
+            $bv += max(0, (int) round($pp - $annual * $years));
+        }
+        $kpi['asset_book_value'] = $bv;
+    } catch (Throwable $ignored) {
+    }
+    $GLOBALS['kpi'] = $kpi;
     try {
         $dashCounts['customers'] = (int) $pdo->query('SELECT COUNT(*) FROM customers')->fetchColumn();
         $dashCounts['products']  = (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
@@ -1605,6 +1658,11 @@ if ($page === 'design') {
                 'stat_debt'           => ['کارت آماری: بدهی مشتریان (فقط وقتی > ۰)', 'stat'],
                 'stat_messages'       => ['کارت آماری: پیام‌های تماس', 'stat'],
                 'stat_version'        => ['کارت آماری: نسخه برنامه', 'stat'],
+                'kpi_revenue'         => ['شاخص: درآمد این ماه', 'stat'],
+                'kpi_orders'          => ['شاخص: سفارش‌های این ماه', 'stat'],
+                'kpi_employees'       => ['شاخص: پرسنل فعال', 'stat'],
+                'kpi_payroll'         => ['شاخص: حقوق این ماه', 'stat'],
+                'kpi_assets'          => ['شاخص: ارزش دفتری تجهیزات', 'stat'],
                 'chart_income'        => ['نمودار دریافتی ۶ ماه اخیر', 'chart'],
                 'chart_orders'        => ['نمودار وضعیت سفارش‌ها', 'chart'],
                 'chart_expenses'      => ['نمودار هزینه‌ها برحسب دسته', 'chart'],
@@ -1621,6 +1679,11 @@ if ($page === 'design') {
                 'stat_debt'          => 'statements',
                 'stat_messages'      => 'messages',
                 'stat_version'       => 'dashboard',
+                'kpi_revenue'        => 'orders',
+                'kpi_orders'         => 'orders',
+                'kpi_employees'      => 'employees',
+                'kpi_payroll'        => 'payroll',
+                'kpi_assets'         => 'assets',
                 'chart_income'       => 'finance',
                 'chart_orders'       => 'orders',
                 'chart_expenses'     => 'expenses',
@@ -1693,6 +1756,16 @@ if ($page === 'design') {
                         return '<a class="stat-card" href="admin.php?page=messages"><span>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
                     case 'stat_version':
                         return '<a class="stat-card" href="admin.php?page=update"><span>نسخه برنامه</span><strong dir="ltr">' . e(APP_VERSION) . '</strong></a>';
+                    case 'kpi_revenue':
+                        return '<a class="stat-card" href="admin.php?page=orders" style="border-color:#6ee7b7;background:#ecfdf5"><span style="color:#065f46">💰 درآمد این ماه</span><strong style="color:#065f46">' . e(format_price((int) ($GLOBALS['kpi']['month_revenue'] ?? 0))) . ' تومان</strong></a>';
+                    case 'kpi_orders':
+                        return '<a class="stat-card" href="admin.php?page=orders"><span>📦 سفارش‌های این ماه</span><strong>' . (int) ($GLOBALS['kpi']['month_orders'] ?? 0) . '</strong></a>';
+                    case 'kpi_employees':
+                        return '<a class="stat-card" href="admin.php?page=employees"><span>👥 پرسنل فعال</span><strong>' . (int) ($GLOBALS['kpi']['active_employees'] ?? 0) . ' نفر</strong></a>';
+                    case 'kpi_payroll':
+                        return '<a class="stat-card" href="admin.php?page=payroll"><span>💵 حقوق این ماه</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['month_payroll'] ?? 0))) . ' تومان</strong></a>';
+                    case 'kpi_assets':
+                        return '<a class="stat-card" href="admin.php?page=assets"><span>🏭 ارزش دفتری تجهیزات</span><strong>' . e(format_price((int) ($GLOBALS['kpi']['asset_book_value'] ?? 0))) . ' تومان</strong></a>';
                 }
                 return '';
             };
@@ -2411,6 +2484,14 @@ if ($page === 'design') {
             <?php finance_render_rules($financeData); ?>
         <?php elseif ($page === 'reports'): ?>
             <?php reports_render($reportsData); ?>
+        <?php elseif ($page === 'employees'): ?>
+            <?php hr_render_employees($hrData); ?>
+        <?php elseif ($page === 'payroll'): ?>
+            <?php hr_render_payroll($hrData); ?>
+        <?php elseif ($page === 'assets'): ?>
+            <?php assets_render_list($assetsData); ?>
+        <?php elseif ($page === 'assets_maintenance'): ?>
+            <?php assets_render_maintenance($assetsData); ?>
         <?php elseif ($page === 'users'): ?>
             <?php users_render($usersData); ?>
         <?php elseif ($page === 'api'): ?>
