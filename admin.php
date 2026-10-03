@@ -1544,7 +1544,7 @@ if ($page === 'design') {
 <body>
 <header class="topbar">
     <div class="topbar-start">
-        <button type="button" class="icon-btn" id="navToggle" aria-label="منوی کناری"><?= nav_icon('menu') ?></button>
+        <button type="button" class="icon-btn" id="navToggle" aria-label="منوی کناری" onclick="if(window.__toggleAdminNav){window.__toggleAdminNav()}"><?= nav_icon('menu') ?></button>
         <strong class="topbar-title"><?= e($currentPageTitle) ?></strong>
     </div>
     <nav class="topbar-actions">
@@ -2759,13 +2759,14 @@ if ($page === 'design') {
     </main>
 </div>
 <script>
+window.__toggleAdminNav=function(){var b=document.body,mq=window.matchMedia('(max-width:899px)');if(mq.matches){var op=b.classList.toggle('nav-open');var t=document.getElementById('navToggle');if(t){t.setAttribute('aria-expanded',op?'true':'false')}}else{var r=b.classList.toggle('nav-rail');try{localStorage.setItem('adminNavRail',r?'1':'0')}catch(e){}if(r){var gs=document.querySelectorAll('.nav-group');for(var i=0;i<gs.length;i++){gs[i].open=true}}}};
 (function(){var b=document.body,t=document.getElementById('navToggle'),o=document.getElementById('navOverlay'),mq=window.matchMedia('(max-width:899px)'),gs=[].slice.call(document.querySelectorAll('.nav-group')),st={};
 try{st=JSON.parse(localStorage.getItem('adminNavGroups')||'{}')}catch(e){}
 gs.forEach(function(g){var k=g.getAttribute('data-group');if(g.querySelector('a.active')){g.open=true}else if(k in st){g.open=!!st[k]}g.addEventListener('toggle',function(){st[k]=g.open;try{localStorage.setItem('adminNavGroups',JSON.stringify(st))}catch(e){}})});
 function openAll(){gs.forEach(function(g){g.open=true})}
 try{if(localStorage.getItem('adminNavRail')==='1'&&!mq.matches){b.classList.add('nav-rail');openAll()}}catch(e){}
 function closeD(){b.classList.remove('nav-open');if(t){t.setAttribute('aria-expanded','false')}}
-if(t){t.addEventListener('click',function(){if(mq.matches){var op=b.classList.toggle('nav-open');t.setAttribute('aria-expanded',op?'true':'false')}else{var r=b.classList.toggle('nav-rail');try{localStorage.setItem('adminNavRail',r?'1':'0')}catch(e){}if(r){openAll()}}})}
+/* navToggle click handled by onclick -> window.__toggleAdminNav (robust against missing footer) */
 if(o){o.addEventListener('click',closeD)}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeD()}});
 if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){closeD()}})}})();

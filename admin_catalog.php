@@ -960,6 +960,22 @@ function catalog_render_products(array $d): void
                     <p><button type="button" class="btn small" id="frame-add">+ افزودن قاب</button></p>
                 </div>
                 <script>
+                // Fallback: اگر اسکریپت فوتر admin.php لود نشده باشد، دکمه منوی موبایل کار کند
+                if (!window.__toggleAdminNav) {
+                    window.__toggleAdminNav = function(){
+                        var b = document.body;
+                        var mq = window.matchMedia('(max-width:899px)');
+                        if (mq.matches) {
+                            var op = b.classList.toggle('nav-open');
+                            var t = document.getElementById('navToggle');
+                            if (t) { t.setAttribute('aria-expanded', op ? 'true' : 'false'); }
+                        } else {
+                            b.classList.toggle('nav-rail');
+                        }
+                    };
+                }
+                </script>
+                <script>
                 (function(){
                     var modelSel = document.getElementById('pf-model');
                     var wattBox = document.getElementById('pf-watt-box');
