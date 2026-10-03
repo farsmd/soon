@@ -1214,6 +1214,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('seo_description', trim((string) ($_POST['seo_description'] ?? '')));
                 set_setting('seo_keywords', trim((string) ($_POST['seo_keywords'] ?? '')));
                 set_setting('site_url', trim((string) ($_POST['site_url'] ?? '')));
+                set_setting('contact_phone', trim((string) ($_POST['contact_phone'] ?? '')));
+                set_setting('contact_email', trim((string) ($_POST['contact_email'] ?? '')));
+                set_setting('contact_whatsapp', trim((string) ($_POST['contact_whatsapp'] ?? '')));
                 // نقشه سایت
                 set_setting('sitemap_enabled', isset($_POST['sitemap_enabled']) ? '1' : '0');
                 set_setting('sitemap_home_freq', trim((string) ($_POST['sitemap_home_freq'] ?? 'daily')));
@@ -2740,6 +2743,16 @@ if ($page === 'design') {
                 </label>
                 <label>آدرس کامل سایت (برای canonical و نقشه سایت) — مثال: https://linerlight.ir
                     <input type="text" name="site_url" value="<?= e($settings['site_url'] ?? '') ?>" dir="ltr" placeholder="https://...">
+                </label>
+                <h3>اطلاعات تماس (نمایش در صفحه تماس با ما)</h3>
+                <label>شماره تماس
+                    <input type="text" name="contact_phone" value="<?= e($settings['contact_phone'] ?? '') ?>" dir="ltr" placeholder="09...">
+                </label>
+                <label>ایمیل
+                    <input type="text" name="contact_email" value="<?= e($settings['contact_email'] ?? '') ?>" dir="ltr" placeholder="info@...">
+                </label>
+                <label>شماره واتساپ (اگر با شماره تماس یکی است خالی بگذارید)
+                    <input type="text" name="contact_whatsapp" value="<?= e($settings['contact_whatsapp'] ?? '') ?>" dir="ltr" placeholder="09...">
                 </label>
                 <h3>مشتری‌ها و کاتالوگ محصول (فاز ۲)</h3>
                 <label>درصد تخفیف همکار (وقتی برای محصول قیمت همکار جداگانه ثبت نشده)

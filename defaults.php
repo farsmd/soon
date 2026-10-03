@@ -156,6 +156,49 @@ HTML,
 </section>
 HTML,
         ],
+        'contact_page' => [
+            'title'   => 'صفحه تماس با ما',
+            'content' => <<<'HTML'
+<section class="content-section contact-page">
+    <div class="container">
+        <div class="contact-hero">
+            <h1>{{page_title}}</h1>
+            <p class="contact-subtitle">برای مشاوره، ثبت سفارش و همکاری با ما در تماس باشید. کارشناسان ما در اسرع وقت پاسخگوی شما هستند.</p>
+        </div>
+        <div class="contact-grid">
+            <div class="contact-cards">
+                {{#if contact_phone}}
+                <a href="tel:{{contact_phone}}" class="contact-card">
+                    <span class="contact-icon">📞</span>
+                    <span class="contact-label">تلفن تماس</span>
+                    <span class="contact-value" dir="ltr">{{contact_phone}}</span>
+                </a>
+                {{/if}}
+                {{#if contact_whatsapp}}
+                <a href="https://wa.me/{{contact_whatsapp_digits}}" target="_blank" rel="noopener" class="contact-card">
+                    <span class="contact-icon">💬</span>
+                    <span class="contact-label">واتساپ</span>
+                    <span class="contact-value" dir="ltr">{{contact_whatsapp}}</span>
+                </a>
+                {{/if}}
+                {{#if contact_email}}
+                <a href="mailto:{{contact_email}}" class="contact-card">
+                    <span class="contact-icon">✉️</span>
+                    <span class="contact-label">ایمیل</span>
+                    <span class="contact-value" dir="ltr">{{contact_email}}</span>
+                </a>
+                {{/if}}
+            </div>
+            <div class="contact-form-wrap">
+                <h2>ارسال پیام</h2>
+                <p class="muted">فرم زیر را پر کنید تا با شما تماس بگیریم.</p>
+                {{contact_form}}
+            </div>
+        </div>
+    </div>
+</section>
+HTML,
+        ],
         'single' => [
             'title'   => 'صفحه تکی',
             'content' => <<<'HTML'
@@ -2120,6 +2163,31 @@ function order_form_css(): string
     .so-grid{grid-template-columns:1fr 1fr}
     .so-meta{display:block}
     .so-toggle{display:none}
+}
+
+/* ===== صفحه تماس با ما ===== */
+.contact-page{padding:40px 0 80px}
+.contact-hero{text-align:center;max-width:640px;margin:0 auto 40px}
+.contact-hero h1{font-size:32px;margin:0 0 12px}
+.contact-subtitle{color:var(--muted);font-size:17px;line-height:1.8;margin:0}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.contact-cards{display:flex;flex-direction:column;gap:16px}
+.contact-card{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:20px;text-decoration:none;color:var(--text);transition:transform .2s,box-shadow .2s,border-color .2s}
+.contact-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.18);border-color:var(--primary)}
+.contact-icon{font-size:32px;flex-shrink:0;width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:var(--gold-soft);border-radius:12px}
+.contact-label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.contact-value{display:block;font-size:18px;font-weight:700}
+.contact-form-wrap{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius);padding:28px}
+.contact-form-wrap h2{margin:0 0 8px;font-size:22px}
+.contact-form-wrap .muted{margin:0 0 20px}
+.contact-form-wrap .contact-form label{display:block;margin-bottom:16px;font-weight:600}
+.contact-form-wrap .contact-form input,.contact-form-wrap .contact-form textarea{width:100%;margin-top:6px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:15px}
+.contact-form-wrap .contact-form textarea{min-height:120px;resize:vertical}
+.contact-form-wrap .contact-form .btn{width:100%;padding:14px;font-size:16px}
+@media (max-width:768px){
+    .contact-grid{grid-template-columns:1fr}
+    .contact-hero h1{font-size:26px}
+    .contact-form-wrap{padding:20px}
 }
 @media print{
     .site-order{display:none!important}
