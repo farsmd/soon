@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.10.1');
+define('APP_VERSION', '9.11.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1080,6 +1080,43 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('reveal fix migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۱: کارت QR در صفحه تماس + استایل آن (یک بار) ---
+    try {
+        seed_contact_qr_v911_if_needed($pdo);
+    } catch (Throwable $e) {
+        error_log('contact qr migration failed: ' . $e->getMessage());
+    }
+}
+
+/**
+ * نسخه ۹٫۱۱ — افزودن کارت QR به قالب «تماس با ما» و استایل آن به CSS (فقط یک بار).
+ */
+function seed_contact_qr_v911_if_needed(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    if (get_setting('contact_qr_911', '') === '1') {
+        return;
+    }
+    $st = $pdo->prepare('SELECT content FROM site_templates WHERE template_key = :k');
+    $st->execute([':k' => 'contact_page']);
+    $old = $st->fetchColumn();
+    if ($old !== false && trim((string) $old) !== '') {
+        archive_design_revision($pdo, 'template', 'contact_page', (string) $old, 'template-archive: قالب «تماس با ما» قبل از افزودن کارت QR (نسخه ۹٫۱۱).');
+    }
+    $tpls = factory_templates();
+    $up = $pdo->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = :k");
+    $up->execute([':c' => $tpls['contact_page']['content'], ':k' => 'contact_page']);
+    // استایل کارت QR به CSS دیتابیس اضافه شود
+    $css = (string) get_setting('site_css', '');
+    if ($css !== '' && strpos($css, '.contact-qr-img') === false) {
+        $css .= "\n.contact-qr-card{flex-wrap:wrap}\n.contact-qr-img{width:110px;height:110px;border-radius:12px;background:#fff;padding:6px;flex-shrink:0}\n.contact-qr-hint{font-size:12px !important;font-weight:400 !important}\n";
+        set_setting('site_css', $css);
+    }
+    set_setting('contact_qr_911', '1');
 }
 
 /** قالب‌بندی خوانای حجم فایل (B/KB/MB/GB) */
