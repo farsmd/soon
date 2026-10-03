@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.13.0');
+define('APP_VERSION', '9.13.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1097,6 +1097,12 @@ PARTNERHTML;
         seed_pretty_urls_v9130_if_needed($pdo);
     } catch (Throwable $e) {
         error_log('pretty urls migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱۳٫۱: کاشی شدن گالری پروژه‌ها (یک بار) ---
+    try {
+        seed_gallery_tiles_v9131_if_needed();
+    } catch (Throwable $e) {
+        error_log('gallery tiles migration failed: ' . $e->getMessage());
     }
 }
 
@@ -4551,7 +4557,7 @@ function gallery_parse_figures(string $html): array
 /** ساخت HTML گالری از آرایه figureها */
 function gallery_build_html(array $figs): string
 {
-    $out = '';
+    $out = '<div class="gallery-tiles">' . "\n";
     foreach ($figs as $f) {
         $src = (string) ($f['src'] ?? '');
         $alt = (string) ($f['alt'] ?? $f['caption'] ?? '');
@@ -4564,7 +4570,29 @@ function gallery_build_html(array $figs): string
         }
         $out .= "</figure>\n";
     }
+    $out .= "</div>\n";
     return $out;
+}
+
+/** مایگریشن نسخه ۹٫۱۳٫۱: پیچیدن محتوای گالری داخل کانتینر کاشی */
+function seed_gallery_tiles_v9131_if_needed(): void
+{
+    try {
+        if (get_setting('gallery_tiles_9131', '0') === '1') {
+            return;
+        }
+        $pdo = db();
+        $row = $pdo->query("SELECT content FROM pages WHERE slug = 'gallery' LIMIT 1")->fetch();
+        if ($row && strpos((string) $row['content'], 'gallery-tiles') === false) {
+            $figs = gallery_parse_figures((string) $row['content']);
+            if ($figs !== []) {
+                gallery_save_figures($pdo, $figs);
+            }
+        }
+        set_setting('gallery_tiles_9131', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
 }
 
 /** خواندن figureهای صفحه گالری (slug = gallery) */
