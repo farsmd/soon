@@ -28,6 +28,7 @@ require_once __DIR__ . '/admin_users.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/admin_logs.php';
 require_once __DIR__ . '/admin_notifications.php';
+require_once __DIR__ . '/admin_proposal.php';
 
 // ---------- تاریخ شمسی (جلالی) — پیاده‌سازی الگوریتم استاندارد، بدون وابستگی خارجی ----------
 if (!function_exists('ll_gregorian_to_jalali')) {
@@ -517,6 +518,7 @@ $pageTitles = [
     'assets_maintenance' => 'سوابق تعمیرات',
     'logs'       => 'لاگ‌ها',
     'notifications' => 'اعلان‌ها',
+    'proposal' => 'پروپوزال سرمایه‌گذاری',
     'api'        => 'دسترسی API',
     'users'      => 'کاربران و نقش‌ها',
     'settings'   => 'تنظیمات سایت',
@@ -589,6 +591,7 @@ $navGroups = [
         ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
         ['admin.php?page=notifications', 'bell', 'اعلان‌ها', 'notifications'],
+        ['admin.php?page=proposal', 'chart', 'پروپوزال سرمایه‌گذاری', 'proposal'],
     ]],
 ];
 $activeNavGroup = 'main';
@@ -2640,6 +2643,8 @@ if ($page === 'design') {
             <?php logs_render($logsData); ?>
         <?php elseif ($page === 'notifications'): ?>
             <?php notifications_render_page(); ?>
+        <?php elseif ($page === 'proposal'): ?>
+            <?php proposal_render_page(); ?>
         <?php elseif ($page === 'tools'): ?>
             <h1>ابزار و بکاپ</h1>
 

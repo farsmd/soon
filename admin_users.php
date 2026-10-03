@@ -230,6 +230,10 @@ function admin_can_page(string $page): bool
     if ($u === null) {
         return false;
     }
+    // پروپوزال سرمایه‌گذاری: فقط مدیر کل
+    if ($page === 'proposal') {
+        return (string) ($u['role_key'] ?? '') === 'owner';
+    }
     $pages = user_role_pages((string) ($u['role_key'] ?? ''));
     if (in_array($page, $pages, true)) {
         return true;
