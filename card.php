@@ -43,8 +43,14 @@ body{background:var(--bg);color:var(--txt);font-family:"Vazirmatn","IRANSans","S
 background-image:radial-gradient(600px 300px at 50% -80px,rgba(201,162,39,.14),transparent 70%)}
 .card{background:linear-gradient(160deg,#141b30,#0d1322);border:1px solid rgba(201,162,39,.28);border-radius:24px;max-width:380px;width:100%;padding:34px 26px 28px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06);position:relative;overflow:hidden}
 .card::before{content:"";position:absolute;top:0;right:0;left:0;height:4px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-.qrlogo{width:104px;height:104px;border-radius:20px;margin:0 auto 16px;background:#fff;padding:8px;border:1px solid rgba(201,162,39,.4);box-shadow:0 8px 24px rgba(201,162,39,.18)}
+.qrlogo{width:104px;height:104px;border-radius:20px;margin:0 auto 16px;background:#fff;padding:8px;border:1px solid rgba(201,162,39,.4);box-shadow:0 8px 24px rgba(201,162,39,.18);cursor:zoom-in;transition:transform .2s}
+.qrlogo:active{transform:scale(.95)}
 .qrlogo img{width:100%;height:100%;display:block;border-radius:10px}
+.qrzoom{position:fixed;inset:0;background:rgba(4,6,12,.92);display:none;align-items:center;justify-content:center;z-index:50;cursor:zoom-out;padding:24px;backdrop-filter:blur(4px)}
+.qrzoom.open{display:flex}
+.qrzoom img{width:min(86vw,380px);height:min(86vw,380px);background:#fff;padding:16px;border-radius:24px;border:2px solid var(--gold);box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .25s ease}
+.qrzoom span{position:absolute;bottom:26px;color:var(--mut);font-size:13px}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 h1{font-size:24px;font-weight:800;margin-bottom:4px}
 .role{color:var(--gold-l);font-size:14px;margin-bottom:2px}
 .org{color:var(--mut);font-size:13px;margin-bottom:20px}
@@ -65,7 +71,7 @@ h1{font-size:24px;font-weight:800;margin-bottom:4px}
 </head>
 <body>
 <main class="card">
-    <div class="qrlogo"><img src="qr-card.png" alt="QR کارت ویزیت"></div>
+    <div class="qrlogo" id="qrthumb"><img src="qr-card.png" alt="QR کارت ویزیت"></div>
     <h1><?= htmlspecialchars(CARD_NAME, ENT_QUOTES, 'UTF-8') ?></h1>
     <div class="role"><?= htmlspecialchars(CARD_TITLE, ENT_QUOTES, 'UTF-8') ?></div>
     <div class="org"><?= htmlspecialchars(CARD_ORG, ENT_QUOTES, 'UTF-8') ?></div>
@@ -91,5 +97,13 @@ h1{font-size:24px;font-weight:800;margin-bottom:4px}
     <a class="save" href="card.php?vcard=1">⬇ ذخیره مخاطب</a>
     <div class="foot"><a href="<?= htmlspecialchars(CARD_SITE, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(CARD_ORG, ENT_QUOTES, 'UTF-8') ?></a> — کارت ویزیت دیجیتال</div>
 </main>
+<div class="qrzoom" id="qrzoom"><img src="qr-card.png" alt="QR بزرگ"><span>برای بستن لمس کنید</span></div>
+<script>
+(function(){
+  var z=document.getElementById('qrzoom'),t=document.getElementById('qrthumb');
+  t.addEventListener('click',function(){z.classList.add('open')});
+  z.addEventListener('click',function(){z.classList.remove('open')});
+})();
+</script>
 </body>
 </html>
