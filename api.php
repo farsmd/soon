@@ -412,4 +412,52 @@ if ($res === 'gallery_upload') {
     api_out(['ok' => true, 'filename' => $filename, 'url' => 'uploads/gallery/' . $filename]);
 }
 
-api_fail('منبع نامعتبر است (res). منابع مجاز: ping, pages, page, sections, section, settings, products, product, orders, order, gallery_upload', 404);
+// ---------- منابع انسانی و تجهیزات (نسخه ۹٫۸٫۱) ----------
+if ($res === 'employees') {
+    if ($isWrite) {
+        api_need_write($auth);
+        $name = trim((string) api_in('full_name', ''));
+        if ($name === '') { api_fail('نام پرسنل الزامی است.', 400); }
+        db()->prepare('INSERT INTO employees (full_name, position, mobile, national_id, hire_date, base_salary, employment_type, status, notes) VALUES (?,?,?,?,?,?,?,?,?)')
+            ->execute([$name, (string) api_in('position', ''), (string) api_in('mobile', ''), (string) api_in('national_id', ''), (string) api_in('hire_date', ''), (int) api_in('base_salary', 0), (string) api_in('employment_type', 'full_time'), 'active', (string) api_in('notes', '')]);
+        api_logged_write('employees', 'افزودن پرسنل «' . $name . '» از IP ' . $ip);
+        api_out(['ok' => true, 'id' => (int) db()->lastInsertId()]);
+    }
+    $rows = db()->query('SELECT * FROM employees ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+    api_out(['ok' => true, 'employees' => $rows]);
+}
+
+if ($res === 'salary_payments') {
+    if ($isWrite) {
+        api_need_write($auth);
+        $eid = (int) api_in('employee_id', 0);
+        $month = trim((string) api_in('pay_month', ''));
+        if ($eid <= 0 || $month === '') { api_fail('پرسنل و ماه الزامی است.', 400); }
+        $base = (int) api_in('base_amount', 0);
+        $bonus = (int) api_in('bonus', 0);
+        $ded = (int) api_in('deduction', 0);
+        $net = $base + $bonus - $ded;
+        db()->prepare('INSERT INTO salary_payments (employee_id, pay_month, base_amount, bonus, deduction, net_amount, paid_date, notes) VALUES (?,?,?,?,?,?,?,?)')
+            ->execute([$eid, $month, $base, $bonus, $ded, $net, (string) api_in('paid_date', ''), (string) api_in('notes', '')]);
+        api_logged_write('salary_payments', 'ثبت فیش حقوقی پرسنل ' . $eid . ' ماه ' . $month . ' از IP ' . $ip);
+        api_out(['ok' => true, 'id' => (int) db()->lastInsertId(), 'net_amount' => $net]);
+    }
+    $rows = db()->query('SELECT sp.*, e.full_name FROM salary_payments sp JOIN employees e ON e.id = sp.employee_id ORDER BY sp.id DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
+    api_out(['ok' => true, 'payments' => $rows]);
+}
+
+if ($res === 'equipment') {
+    if ($isWrite) {
+        api_need_write($auth);
+        $name = trim((string) api_in('name', ''));
+        if ($name === '') { api_fail('نام تجهیز الزامی است.', 400); }
+        db()->prepare('INSERT INTO equipment (name, category, purchase_date, purchase_price, useful_life_years, status, location, notes) VALUES (?,?,?,?,?,?,?,?)')
+            ->execute([$name, (string) api_in('category', ''), (string) api_in('purchase_date', ''), (int) api_in('purchase_price', 0), (float) api_in('useful_life_years', 5), 'active', (string) api_in('location', ''), (string) api_in('notes', '')]);
+        api_logged_write('equipment', 'افزودن تجهیز «' . $name . '» از IP ' . $ip);
+        api_out(['ok' => true, 'id' => (int) db()->lastInsertId()]);
+    }
+    $rows = db()->query('SELECT * FROM equipment ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+    api_out(['ok' => true, 'equipment' => $rows]);
+}
+
+api_fail('منبع نامعتبر است (res). منابع مجاز: ping, pages, page, sections, section, settings, products, product, orders, order, gallery_upload, employees, salary_payments, equipment', 404);
