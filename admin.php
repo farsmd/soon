@@ -191,6 +191,88 @@ function nav_icon(string $name): string
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
 
+/** آمار عکس‌های سنگین uploads برای نمایش در ابزار */
+function tools_image_stats(): array
+{
+    $count = 0; $size = 0;
+    $d = __DIR__ . '/uploads';
+    if (is_dir($d)) {
+        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($d, FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            if (!$f->isFile()) { continue; }
+            $ext = strtolower($f->getExtension());
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) { continue; }
+            if ($f->getSize() < 150 * 1024) { continue; }
+            $count++; $size += $f->getSize();
+        }
+    }
+    return ['count' => $count, 'size' => format_bytes($size)];
+}
+
+/** بهینه‌سازی عکس‌های uploads: تغییر اندازه به حداکثر ۱۲۰۰ پیکسل + فشرده‌سازی (یک کلیک) */
+function tools_optimize_images(): array
+{
+    if (!extension_loaded('gd')) {
+        return ['ok' => false, 'error' => 'افزونه GD روی این سرور فعال نیست.'];
+    }
+    $dirs = [__DIR__ . '/uploads'];
+    $files = [];
+    foreach ($dirs as $d) {
+        if (!is_dir($d)) { continue; }
+        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($d, FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            if (!$f->isFile()) { continue; }
+            $ext = strtolower($f->getExtension());
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) { continue; }
+            if ($f->getSize() < 150 * 1024) { continue; } // فقط فایل‌های بالای ۱۵۰KB
+            $files[] = $f->getPathname();
+        }
+    }
+    if (empty($files)) {
+        return ['ok' => true, 'done' => 0, 'saved' => '۰ بایت'];
+    }
+    $done = 0; $savedBytes = 0;
+    foreach ($files as $path) {
+        $before = filesize($path);
+        $info = @getimagesize($path);
+        if ($info === false) { continue; }
+        [$w, $h, $type] = $info;
+        // اگر کوچک است و JPEG است، فقط بازنویسی با کیفیت بهتر
+        $maxDim = 1200;
+        $scale = min(1, $maxDim / max($w, $h));
+        $nw = (int) round($w * $scale); $nh = (int) round($h * $scale);
+        $srcImg = match ($type) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
+            IMAGETYPE_PNG => @imagecreatefrompng($path),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false,
+            default => false,
+        };
+        if ($srcImg === false) { continue; }
+        $dst = imagecreatetruecolor($nw, $nh);
+        if ($type === IMAGETYPE_PNG || $type === IMAGETYPE_WEBP) {
+            imagealphablending($dst, false); imagesavealpha($dst, true);
+        }
+        imagecopyresampled($dst, $srcImg, 0, 0, 0, 0, $nw, $nh, $w, $h);
+        $tmp = $path . '.opt';
+        $ok = match ($type) {
+            IMAGETYPE_JPEG => imagejpeg($dst, $tmp, 82),
+            IMAGETYPE_PNG => imagepng($dst, $tmp, 6),
+            IMAGETYPE_WEBP => function_exists('imagewebp') ? imagewebp($dst, $tmp, 82) : false,
+            default => false,
+        };
+        imagedestroy($srcImg); imagedestroy($dst);
+        if ($ok && is_file($tmp) && filesize($tmp) < $before) {
+            @rename($tmp, $path);
+            $savedBytes += $before - filesize($path);
+            $done++;
+        } else {
+            @unlink($tmp);
+        }
+        if ($done >= 60) { break; } // سقف هر اجرا برای جلوگیری از تایم‌اوت
+    }
+    return ['ok' => true, 'done' => $done, 'saved' => format_bytes($savedBytes)];
+}
+
 /** صفحه «دسترسی API»: مدیریت توکن، دامنه‌ها و راهنمای اتصال عامل‌ها */
 function api_render(): void
 {
@@ -652,6 +734,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // دانلود بکاپ دیتابیس (فقط ادمین واردشده، با CSRF) — خروجی فایل است و همین‌جا تمام می‌شود
+    if ($action === 'optimize_images') {
+        $optResult = tools_optimize_images();
+        if ($optResult['ok']) {
+            flash('success', 'بهینه‌سازی انجام شد: ' . $optResult['done'] . ' عکس (' . $optResult['saved'] . ')');
+            log_admin_event('optimize_images', 'بهینه‌سازی ' . $optResult['done'] . ' عکس');
+        } else {
+            flash('error', $optResult['error']);
+        }
+        redirect_admin('admin.php?page=tools');
+    }
     if ($action === 'download_backup') {
         $tmp = __DIR__ . '/backup-' . date('YmdHis') . '.sqlite';
         if (!@copy(DB_FILE, $tmp)) {
@@ -2670,6 +2762,18 @@ if ($page === 'design') {
                 </label>
                 <button type="submit" class="btn danger-btn">بازیابی بکاپ</button>
             </form>
+
+            <h2>بهینه‌سازی عکس‌ها</h2>
+            <p class="muted">عکس‌های بالای ۱۵۰ کیلوبایت در پوشه <code>uploads</code> را به حداکثر ۱۲۰۰ پیکسل تغییر اندازه داده و فشرده می‌کند (JPEG با کیفیت ۸۲). این کار سرعت لود سایت را به‌طور محسوسی بالا می‌برد.</p>
+            <?php $imgStats = tools_image_stats(); ?>
+            <section class="card">
+                <p>تعداد عکس‌های سنگین: <b><?= (int) $imgStats['count'] ?></b> — حجم مجموع: <b><?= e($imgStats['size']) ?></b></p>
+                <form method="post" onsubmit="return confirm('عکس‌های سنگین بهینه شوند؟')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="optimize_images">
+                    <button type="submit" class="btn primary" <?= $imgStats['count'] === 0 ? 'disabled' : '' ?>>بهینه‌سازی عکس‌ها</button>
+                </form>
+            </section>
 
         <?php elseif ($page === 'database'): ?>
             <h1>اتصال دیتابیس</h1>

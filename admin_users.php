@@ -287,7 +287,7 @@ function admin_action_page_map(): array
         'save_user' => 'users', 'delete_user' => 'users', 'save_role' => 'users', 'delete_role' => 'users',
         // اکشن‌های داخلی admin.php
         'api_save' => 'api', 'api_generate' => 'api', 'api_revoke' => 'api',
-        'download_backup' => 'tools', 'restore_backup' => 'tools',
+        'download_backup' => 'tools', 'restore_backup' => 'tools', 'optimize_images' => 'tools',
         'save_dashboard' => 'settings',
         'stat_customers' => 'dashboard', 'stat_products' => 'dashboard', 'stat_orders' => 'dashboard', 'stat_new_orders' => 'dashboard',
         'stat_pending' => 'dashboard', 'stat_debt' => 'dashboard', 'stat_finance_month' => 'dashboard', 'stat_production' => 'dashboard',
