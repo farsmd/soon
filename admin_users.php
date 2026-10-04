@@ -79,6 +79,7 @@ function admin_page_catalog(): array
             'sysinfo'  => 'مشخصات نرم‌افزار',
             'update'   => 'آپدیت سیستم',
             'database' => 'اتصال دیتابیس',
+            'db_browse' => 'مرورگر دیتابیس',
             'tools'    => 'ابزار و بکاپ',
             'api'      => 'دسترسی API',
             'users'    => 'کاربران و نقش‌ها',
@@ -244,6 +245,7 @@ function admin_can_page(string $page): bool
         'order_view'      => 'orders',
         'invoice_view'    => 'invoices',
         'production_view' => 'production',
+        'db_browse'       => 'database',
     ][$page] ?? '';
     return $parent !== '' && in_array($parent, $pages, true);
 }

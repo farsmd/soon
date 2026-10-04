@@ -1164,6 +1164,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin('admin.php?page=order_forms');
                 // no break
 
+            // --- مرورگر دیتابیس (۹٫۱۹): فقط مدیر کل ---
+            case 'db_cell_update':
+                if ((string) (current_admin_user()['role_key'] ?? '') !== 'owner') { flash('error', 'فقط مدیر کل.'); redirect_admin('admin.php?page=database'); }
+                $tbl = trim((string) ($_POST['table'] ?? ''));
+                $col = trim((string) ($_POST['col'] ?? ''));
+                $rowid = (int) ($_POST['rowid'] ?? 0);
+                $val = (string) ($_POST['val'] ?? '');
+                // اعتبارسنجی
+                $valid = false;
+                try {
+                    $tables = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN);
+                    if (in_array($tbl, $tables, true)) {
+                        $cols = $pdo->query('PRAGMA table_info("' . str_replace('"', '""', $tbl) . '")')->fetchAll(PDO::FETCH_COLUMN, 1);
+                        $valid = in_array($col, $cols, true) && $rowid > 0;
+                    }
+                } catch (Throwable $e) {}
+                if ($valid) {
+                    $pdo->prepare('UPDATE "' . str_replace('"', '""', $tbl) . '" SET "' . str_replace('"', '""', $col) . '" = :v WHERE rowid = :r')
+                        ->execute([':v' => $val, ':r' => $rowid]);
+                    flash('ok', 'ذخیره شد.');
+                } else {
+                    flash('error', 'نامعتبر.');
+                }
+                redirect_admin('admin.php?page=db_browse&table=' . urlencode($tbl) . '&p=' . (int) ($_POST['p'] ?? 1));
+                // no break
+
+            case 'db_row_delete':
+                if ((string) (current_admin_user()['role_key'] ?? '') !== 'owner') { flash('error', 'فقط مدیر کل.'); redirect_admin('admin.php?page=database'); }
+                $tbl = trim((string) ($_POST['table'] ?? ''));
+                $rowid = (int) ($_POST['rowid'] ?? 0);
+                try {
+                    $tables = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN);
+                    if (in_array($tbl, $tables, true) && $rowid > 0) {
+                        $pdo->prepare('DELETE FROM "' . str_replace('"', '""', $tbl) . '" WHERE rowid = :r')->execute([':r' => $rowid]);
+                        flash('ok', 'ردیف حذف شد.');
+                    }
+                } catch (Throwable $e) { flash('error', 'خطا در حذف.'); }
+                redirect_admin('admin.php?page=db_browse&table=' . urlencode($tbl));
+                // no break
+
             case 'edit_order_form_field':
                 $fid = (int) ($_POST['id'] ?? 0);
                 $flabel = trim((string) ($_POST['field_label'] ?? ''));
@@ -1593,6 +1633,33 @@ if ($page === 'database') {
     $dbStats = db_stats($pdo);
     $databaseConnected = (bool) ($dbStats['connected'] ?? false);
     $dbFiles = db_files();
+}
+
+// مرورگر دیتابیس (۹٫۱۹) — فقط مدیر کل
+$dbBrowse = null;
+if ($page === 'db_browse') {
+    $tbl = trim((string) ($_GET['table'] ?? ''));
+    // اعتبارسنجی نام جدول
+    $validTables = [];
+    try {
+        $validTables = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {}
+    if ($tbl !== '' && in_array($tbl, $validTables, true)) {
+        $perPage = 25;
+        $pNum = max(1, (int) ($_GET['p'] ?? 1));
+        $total = (int) $pdo->query('SELECT COUNT(*) FROM "' . str_replace('"', '""', $tbl) . '"')->fetchColumn();
+        $pages = max(1, (int) ceil($total / $perPage));
+        $pNum = min($pNum, $pages);
+        $offset = ($pNum - 1) * $perPage;
+        $cols = $pdo->query('PRAGMA table_info("' . str_replace('"', '""', $tbl) . '")')->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $pdo->query('SELECT rowid, * FROM "' . str_replace('"', '""', $tbl) . '" LIMIT ' . $perPage . ' OFFSET ' . $offset)->fetchAll(PDO::FETCH_ASSOC);
+        // ستون کلید اصلی
+        $pkCol = null;
+        foreach ($cols as $c) { if ((int) ($c['pk'] ?? 0) === 1) { $pkCol = $c['name']; break; } }
+        $dbBrowse = ['table' => $tbl, 'cols' => $cols, 'rows' => $rows, 'total' => $total, 'page' => $pNum, 'pages' => $pages, 'pk' => $pkCol, 'tables' => $validTables];
+    } else {
+        $dbBrowse = ['table' => '', 'tables' => $validTables];
+    }
 }
 
 $updateCfg = update_repo_config();
@@ -3116,6 +3183,97 @@ if ($page === 'design') {
                 </form>
             </section>
 
+        <?php elseif ($page === 'db_browse'): ?>
+            <?php if ((string) (current_admin_user()['role_key'] ?? '') !== 'owner'): ?>
+                <div class="alert error">فقط مدیر کل به مرورگر دیتابیس دسترسی دارد.</div>
+            <?php elseif ($dbBrowse === null): ?>
+                <div class="alert error">خطا در بارگذاری.</div>
+            <?php elseif ($dbBrowse['table'] === ''): ?>
+                <h1>مرورگر دیتابیس</h1>
+                <p class="muted">جدولی را انتخاب کنید:</p>
+                <div class="stat-grid">
+                <?php foreach ($dbBrowse['tables'] as $t): ?>
+                    <a class="stat-card" href="admin.php?page=db_browse&table=<?= urlencode($t) ?>"><span><?= e($t) ?></span></a>
+                <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <h1>جدول: <code dir="ltr"><?= e($dbBrowse['table']) ?></code></h1>
+                <p class="muted"><?= (int) $dbBrowse['total'] ?> ردیف · صفحه <?= (int) $dbBrowse['page'] ?> از <?= (int) $dbBrowse['pages'] ?> · برای ویرایش روی هر سلول کلیک کنید</p>
+                <div class="crud-toolbar">
+                    <a href="admin.php?page=database" class="btn">بازگشت به لیست جدول‌ها</a>
+                </div>
+                <div style="overflow-x:auto">
+                <table class="db-browse">
+                    <thead><tr>
+                        <?php foreach ($dbBrowse['cols'] as $c): ?><th dir="ltr"><?= e($c['name']) ?><br><span class="muted"><?= e($c['type']) ?></span></th><?php endforeach; ?>
+                        <th>عملیات</th>
+                    </tr></thead>
+                    <tbody>
+                    <?php foreach ($dbBrowse['rows'] as $row): $rid = (int) $row['rowid']; ?>
+                        <tr>
+                        <?php foreach ($dbBrowse['cols'] as $c): $cn = $c['name']; $cv = $row[$cn] ?? ''; $isPk = ($dbBrowse['pk'] === $cn); ?>
+                            <td class="<?= $isPk ? 'pk-cell' : 'editable-cell' ?>" <?= $isPk ? '' : 'data-table="' . e($dbBrowse['table']) . '" data-col="' . e($cn) . '" data-rowid="' . $rid . '" data-page="' . (int) $dbBrowse['page'] . '" title="کلیک برای ویرایش"' ?>>
+                                <?= $cv === null ? '<span class="muted">NULL</span>' : e(mb_strimwidth((string) $cv, 0, 80, '…')) ?>
+                            </td>
+                        <?php endforeach; ?>
+                            <td><form method="post" class="inline" onsubmit="return confirm('این ردیف حذف شود؟')">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="db_row_delete">
+                                <input type="hidden" name="table" value="<?= e($dbBrowse['table']) ?>">
+                                <input type="hidden" name="rowid" value="<?= $rid ?>">
+                                <button type="submit" class="btn small danger-btn">حذف</button>
+                            </form></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                </div>
+                <?php if ($dbBrowse['pages'] > 1): ?>
+                <div class="crud-toolbar" style="justify-content:center">
+                    <?php if ($dbBrowse['page'] > 1): ?><a href="admin.php?page=db_browse&table=<?= urlencode($dbBrowse['table']) ?>&p=<?= $dbBrowse['page'] - 1 ?>" class="btn small">قبلی</a><?php endif; ?>
+                    <span class="muted">صفحه <?= (int) $dbBrowse['page'] ?> از <?= (int) $dbBrowse['pages'] ?></span>
+                    <?php if ($dbBrowse['page'] < $dbBrowse['pages']): ?><a href="admin.php?page=db_browse&table=<?= urlencode($dbBrowse['table']) ?>&p=<?= $dbBrowse['page'] + 1 ?>" class="btn small">بعدی</a><?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <style>
+                .db-browse .editable-cell{cursor:pointer;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+                .db-browse .editable-cell:hover{background:#fef9c3}
+                .db-browse .pk-cell{background:#f8fafc;color:#64748b}
+                .db-edit-input{width:100%;padding:6px;border:2px solid #2563eb;border-radius:6px;font-family:inherit;font-size:13px}
+                </style>
+                <script>
+                (function(){
+                    document.querySelectorAll('.db-browse .editable-cell').forEach(function(cell){
+                        cell.addEventListener('click', function(){
+                            if (cell.querySelector('input')) return;
+                            var orig = cell.textContent.trim();
+                            if (orig === 'NULL') orig = '';
+                            var input = document.createElement('input');
+                            input.type = 'text'; input.value = orig; input.className = 'db-edit-input';
+                            cell.innerHTML = ''; cell.appendChild(input); input.focus(); input.select();
+                            function save(){
+                                var form = document.createElement('form');
+                                form.method = 'post'; form.style.display = 'none';
+                                form.innerHTML = '<?= csrf_field() ?>'
+                                    + '<input name="action" value="db_cell_update">'
+                                    + '<input name="table" value="' + cell.dataset.table + '">'
+                                    + '<input name="col" value="' + cell.dataset.col + '">'
+                                    + '<input name="rowid" value="' + cell.dataset.rowid + '">'
+                                    + '<input name="p" value="' + cell.dataset.page + '">'
+                                    + '<input name="val">';
+                                form.querySelector('[name=val]').value = input.value;
+                                document.body.appendChild(form); form.submit();
+                            }
+                            input.addEventListener('blur', save);
+                            input.addEventListener('keydown', function(e){
+                                if (e.key === 'Enter') save();
+                                if (e.key === 'Escape') { cell.textContent = orig === '' ? 'NULL' : orig; }
+                            });
+                        });
+                    });
+                })();
+                </script>
+            <?php endif; ?>
         <?php elseif ($page === 'database'): ?>
             <h1>اتصال دیتابیس</h1>
             <p class="muted">از این صفحه می‌توانید وضعیت اتصال دیتابیس SQLite فعال را ببینید، بین فایل‌های دیتابیس موجود جابه‌جا شوید یا یک فایل دیتابیس دیگر آپلود کنید. قبل از هر تعویض، فایل تازه کامل اعتبارسنجی می‌شود و از دیتابیس فعلی نسخه امن نگه داشته می‌شود.</p>
@@ -3150,12 +3308,13 @@ if ($page === 'design') {
                 <h2>جدول‌های دیتابیس</h2>
                 <p class="muted">فهرست جدول‌های کاربر و تعداد ردیف فعلی هرکدام. جدول‌های داخلی SQLite در این فهرست نشان داده نمی‌شوند.</p>
                 <table>
-                    <thead><tr><th>نام جدول</th><th>تعداد ردیف</th></tr></thead>
+                    <thead><tr><th>نام جدول</th><th>تعداد ردیف</th><th>عملیات</th></tr></thead>
                     <tbody>
                     <?php foreach ($dbStats['tables'] as $table): ?>
                         <tr>
-                            <td><code><?= e($table['name']) ?></code></td>
+                            <td><a href="admin.php?page=db_browse&table=<?= urlencode($table['name']) ?>"><code><?= e($table['name']) ?></code></a></td>
                             <td><?= $table['rows'] === null ? 'خطا در شمارش' : (int) $table['rows'] ?></td>
+                            <td><a href="admin.php?page=db_browse&table=<?= urlencode($table['name']) ?>" class="btn small">مرور</a></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($dbStats['tables'] === []): ?><tr><td colspan="2" class="muted">جدولی پیدا نشد.</td></tr><?php endif; ?>
