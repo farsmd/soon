@@ -231,7 +231,14 @@ function hr_handle_post(string $action): void
             $base = max(0, (int) ($_POST['base_amount'] ?? 0));
             $bonus = max(0, (int) ($_POST['bonus'] ?? 0));
             $deduction = max(0, (int) ($_POST['deduction'] ?? 0));
-            $net = $base + $bonus - $deduction;
+            // خالص واقعی با فرمول کامل فیش (مزایا − بیمه − مالیات)، نه فرمول ساده؛
+            // تا رقم لیست با رقم داخل فیش یکی باشد (نسخه ۹٫۱۴٫۲)
+            $calc = hr_calculate_payslip($employee, [
+                'base_amount' => $base,
+                'bonus'       => $bonus,
+                'deduction'   => $deduction,
+            ]);
+            $net = (int) ($calc['net'] ?? ($base + $bonus - $deduction));
             $paidDate = trim((string) ($_POST['paid_date'] ?? ''));
             $pdo->prepare('INSERT INTO salary_payments (employee_id, pay_month, base_amount, bonus, deduction, net_amount, paid_date, notes) VALUES (:eid, :pm, :base, :bonus, :ded, :net, :pd, :notes)')->execute([
                 ':eid'   => $eid,
