@@ -3053,6 +3053,11 @@ if ($page === 'design') {
                             <option value="white" <?= $visual['default_theme'] === 'white' ? 'selected' : '' ?>>سفید</option>
                             <option value="glass" <?= $visual['default_theme'] === 'glass' ? 'selected' : '' ?>>شیشه‌ای</option>
                             <option value="smoke" <?= $visual['default_theme'] === 'smoke' ? 'selected' : '' ?>>دودی زرد</option>
+                            <option value="ocean" <?= $visual['default_theme'] === 'ocean' ? 'selected' : '' ?>>آبی اقیانوسی</option>
+                            <option value="forest" <?= $visual['default_theme'] === 'forest' ? 'selected' : '' ?>>سبز جنگلی</option>
+                            <option value="sunset" <?= $visual['default_theme'] === 'sunset' ? 'selected' : '' ?>>نارنجی غروب</option>
+                            <option value="royal" <?= $visual['default_theme'] === 'royal' ? 'selected' : '' ?>>بنفش سلطنتی</option>
+                            <option value="mono" <?= $visual['default_theme'] === 'mono' ? 'selected' : '' ?>>مینیمال</option>
                             <option value="system" <?= $visual['default_theme'] === 'system' ? 'selected' : '' ?>>مطابق تنظیم سیستم بازدیدکننده</option>
                         </select>
                     </label>
@@ -4087,7 +4092,14 @@ h1::after{content:'';display:block;width:48px;height:3px;background:var(--arch-b
 input,select,textarea{border:1px solid var(--arch-line)!important;border-radius:4px!important}
 input:focus,select:focus,textarea:focus{border-color:var(--arch-brass)!important;box-shadow:0 0 0 3px rgba(176,141,87,.12)!important;outline:none!important}
 /* تاپ‌بار */
-.topbar{background:var(--arch-surface)!important;border-bottom:1px solid var(--arch-line)!important;box-shadow:none!important}
+.topbar{background:#ffffff!important;border-bottom:2px solid #1a1a18!important;box-shadow:0 2px 8px rgba(0,0,0,.08)!important}
+.topbar .topbar-title{color:#1a1a18!important;font-weight:800!important;font-size:16px!important}
+.topbar .menu-toggle{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;border-radius:8px!important;padding:8px 12px!important;font-size:18px!important;font-weight:800!important}
+.topbar .menu-toggle:hover{background:#1a1a18!important;color:#fff!important}
+.topbar .topbar-actions .btn{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;font-weight:700!important}
+.topbar .topbar-actions .btn:hover{background:#b08d57!important;border-color:#b08d57!important;color:#fff!important}
+.topbar .user-menu-btn{color:#1a1a18!important;border:2px solid #1a1a18!important}
+.topbar .date-pill{background:#1a1a18!important;color:#fff!important;font-weight:600!important}
 
 /* ===== داشبورد پرچم‌دار (۹٫۲۳) ===== */
 .flagship-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);border-radius:24px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden;color:#fff}

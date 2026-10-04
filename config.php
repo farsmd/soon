@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.23.2');
+define('APP_VERSION', '9.24.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1197,7 +1197,8 @@ PARTNERHTML;
         error_log('gallery tiles migration failed: ' . $e->getMessage());
     }
     // --- نسخه ۹٫۱۵: تم‌های جدید (یک بار) ---
-    try { seed_themes_v9150_if_needed(); } catch (Throwable $e) {}
+    try { seed_themes_v9150_if_needed();
+seed_themes_v9240_if_needed(); } catch (Throwable $e) {}
     // --- نسخه ۹٫۱۴: استایل پیگیری سفارش (یک بار) ---
     try { seed_track_css_v9140_if_needed(); } catch (Throwable $e) {}
     // --- نسخه ۹٫۱۳٫۳: استایل لایت‌باکس گالری (یک بار) ---
@@ -2550,7 +2551,7 @@ function validated_visual_settings(array $settings): array
         $font = 'system';
     }
     $theme = (string) ($settings['default_theme'] ?? 'light');
-    if (!in_array($theme, ['light', 'dark', 'white', 'glass', 'smoke', 'system'], true)) {
+    if (!in_array($theme, ['light', 'dark', 'white', 'glass', 'smoke', 'ocean', 'forest', 'sunset', 'royal', 'mono', 'system'], true)) {
         $theme = 'light';
     }
     $width = (int) ($settings['container_width'] ?? 1200);
@@ -4724,6 +4725,30 @@ GLB;
 
 /** مایگریشن نسخه ۹٫۱۳٫۱: پیچیدن محتوای گالری داخل کانتینر کاشی */
 /** مایگریشن نسخه ۹٫۱۵: استایل تم‌های جدید + منوی انتخاب تم */
+function seed_themes_v9240_if_needed(): void
+{
+    try {
+        if (get_setting('themes_9240', '0') === '1') { return; }
+        $css = (string) get_setting('site_css', '');
+        if (strpos($css, 'data-theme="ocean"') === false) {
+            $seed = file_get_contents(__DIR__ . '/defaults.php');
+            if ($seed !== false) {
+                foreach (['ocean', 'forest', 'sunset', 'royal', 'mono'] as $t) {
+                    if (preg_match('/\/\* === تم [^\*]+ \(۹٫۲۴\) === \*\/(.*?)\/\* === تم /s', $seed, $mm)) {
+                        // استخراج تکی هر تم
+                    }
+                }
+                // استخراج همه تم‌های ۹٫۲۴ یکجا
+                if (preg_match('/\/\* === تم آبی اقیانوسی \(۹٫۲۴\) === \*\/(.*)$/s', $seed, $m)) {
+                    $css .= "\n" . trim($m[1]) . "\n";
+                    set_setting('site_css', $css);
+                }
+            }
+        }
+        set_setting('themes_9240', '1');
+    } catch (Throwable $e) {}
+}
+
 function seed_themes_v9150_if_needed(): void
 {
     try {
