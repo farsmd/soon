@@ -3825,7 +3825,7 @@ body.nav-open .topbar{z-index:85}
 .dash-cards a.stat-card{display:block;color:inherit}
 /* ===== داشبورد مدرن — کارت‌های آماری ===== */
 .dash-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
-@media(max-width:640px){.dash-cards{grid-template-columns:repeat(2,1fr);gap:10px}.dash-cards .stat-card{padding:14px 12px}.dash-cards .stat-card strong{font-size:22px}}
+@media(max-width:640px){.dash-cards{grid-template-columns:repeat(2,1fr)!important;gap:10px}.dash-cards .stat-card{padding:14px 12px}.dash-cards .stat-card strong{font-size:22px}.dash-kpi{grid-template-columns:repeat(2,1fr)!important}}
 .dash-cards .stat-card{position:relative;background:#fff;border:1px solid #e8ecf1;border-radius:16px;padding:20px 18px;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
 .dash-cards .stat-card::before{content:"";position:absolute;top:0;inset-inline-start:0;inset-inline-end:0;height:4px;background:linear-gradient(90deg,#e2e8f0,#cbd5e1);border-radius:16px 16px 0 0}
 .dash-cards a.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(17,24,39,.12);border-color:#cbd5e1;text-decoration:none}
@@ -3875,10 +3875,9 @@ body.nav-open .topbar{z-index:85}
 .dash-kpi .stat-card.kpi{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dash-kpi .stat-card.kpi span{text-align:right;flex:1}
 .dash-kpi .stat-card.kpi strong{text-align:left}
-@media (max-width:640px){.dash-kpi{grid-template-columns:1fr!important}}
+/* KPI در موبایل هم ۲ ستونه می‌ماند */
 /* موبایل: کارت‌ها تک‌ردیفه و جمع‌وجور (۹٫۱۶٫۱) */
 @media (max-width:640px){
-  .dash-cards{grid-template-columns:1fr!important}
   .topbar{padding:8px 10px}
   .topbar-title{font-size:14px}
   .topbar-actions .quick-add{display:none}
@@ -3887,8 +3886,13 @@ body.nav-open .topbar{z-index:85}
   body.nav-open .sidebar{transform:translateX(0)!important}
   .sidebar-brand{display:flex!important}
   .brand-logo{width:36px;height:36px}
-  .dash-cards{grid-template-columns:1fr!important;gap:10px}
   .dash-charts{grid-template-columns:1fr!important}
+  /* جلوگیری از اسکرول افقی */
+  body{overflow-x:hidden}
+  .main{overflow-x:hidden}
+  .chartjs-wrap{max-width:100%;overflow:hidden}
+  .dash-kpi .stat-card.kpi{min-width:0}
+  .dash-kpi .stat-card.kpi strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
 /* کارت‌های هشدار */
 .dash-cards .stat-card.sc-alert-amber{background:#fffbeb;border-color:#fde68a}
