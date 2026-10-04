@@ -4049,10 +4049,11 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
 .dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
 /* کارت‌های KPI — شیشه‌ای نئونی، کامپکت با آیکون (۹٫۱۶٫۱) */
-.dash-kpi .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 14px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25)}
+.dash-kpi .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:16px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25);position:relative;overflow:hidden}
+.dash-kpi .stat-card.kpi::after{content:'';position:absolute;top:-30px;inset-inline-end:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
 .dash-kpi .stat-card.kpi::before{display:none}
-.dash-kpi .stat-card.kpi span{color:rgba(255,255,255,.9);font-size:12px}
-.dash-kpi .stat-card.kpi strong{color:#fff;font-size:19px;text-shadow:0 1px 8px rgba(0,0,0,.2)}
+.dash-kpi .stat-card.kpi span{color:rgba(255,255,255,.85);font-size:12px;font-weight:600}
+.dash-kpi .stat-card.kpi strong{color:#fff;font-size:22px;font-weight:800;text-shadow:0 1px 8px rgba(0,0,0,.2);letter-spacing:-.5px}
 .dash-kpi .stat-card.kpi .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:22px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25);border-radius:14px;flex-shrink:0}.dash-kpi .stat-card.kpi .sc-ico svg{width:24px;height:24px;display:block}
 .dash-kpi .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
 .dash-kpi .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
