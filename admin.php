@@ -4036,6 +4036,48 @@ body.nav-open .topbar{z-index:85}
 .sidebar a:focus-visible,.icon-btn:focus-visible,.nav-group summary:focus-visible,.topbar-actions a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 .dash-cards a.stat-card{display:block;color:inherit}
 
+
+/* ===== تم معمارپسند (۹٫۲۳) — مینیمال و دقیق ===== */
+:root{
+    --arch-bg:#fafaf8;
+    --arch-surface:#ffffff;
+    --arch-ink:#1a1a18;
+    --arch-muted:#8a8a85;
+    --arch-line:#e8e8e3;
+    --arch-brass:#b08d57;
+    --arch-brass-light:#d4b896;
+}
+body{background:var(--arch-bg);color:var(--arch-ink);font-family:'Vazirmatn',Tahoma,sans-serif}
+/* سایدبار */
+.sidebar{background:#1a1a18!important;border-inline-end:1px solid #2a2a28}
+.sidebar .nav-link{color:#a8a8a3!important;border-radius:8px;margin:2px 8px;transition:all .2s}
+.sidebar .nav-link:hover{background:rgba(176,141,87,.12)!important;color:#fff!important}
+.sidebar .nav-link.active{background:linear-gradient(135deg,#b08d57,#d4b896)!important;color:#1a1a18!important;font-weight:700}
+.sidebar-brand{border-bottom:1px solid #2a2a28!important}
+/* کارت‌ها */
+.card{background:var(--arch-surface);border:1px solid var(--arch-line);border-radius:4px;box-shadow:0 1px 3px rgba(26,26,24,.06)}
+.card h1,.card h2,.card h3{font-weight:700;letter-spacing:-.3px}
+/* دکمه‌ها */
+.btn{border-radius:4px;font-weight:600;letter-spacing:.2px}
+.btn.primary{background:#1a1a18;border-color:#1a1a18}
+.btn.primary:hover{background:#b08d57;border-color:#b08d57}
+.btn.add{background:#b08d57;border-color:#b08d57;color:#fff}
+.btn.add:hover{background:#9a7a4a}
+/* جدول */
+table{border:1px solid var(--arch-line)}
+table thead{background:#1a1a18;color:#fff}
+table thead th{font-weight:600;font-size:12px;letter-spacing:.5px;padding:12px}
+table tbody td{border-bottom:1px solid var(--arch-line);padding:12px}
+table tbody tr:hover{background:#fafaf8}
+/* تیترها */
+h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:16px}
+h1::after{content:'';display:block;width:48px;height:3px;background:var(--arch-brass);margin-top:8px}
+/* اینپوت */
+input,select,textarea{border:1px solid var(--arch-line)!important;border-radius:4px!important}
+input:focus,select:focus,textarea:focus{border-color:var(--arch-brass)!important;box-shadow:0 0 0 3px rgba(176,141,87,.12)!important;outline:none!important}
+/* تاپ‌بار */
+.topbar{background:var(--arch-surface)!important;border-bottom:1px solid var(--arch-line)!important;box-shadow:none!important}
+
 /* ===== داشبورد پرچم‌دار (۹٫۲۳) ===== */
 .flagship-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);border-radius:24px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden;color:#fff}
 .flagship-hero::before{content:'';position:absolute;top:-50%;right:-10%;width:400px;height:400px;background:radial-gradient(circle,rgba(139,92,246,.3),transparent 70%);pointer-events:none}
