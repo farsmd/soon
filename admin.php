@@ -421,6 +421,7 @@ if ($passwordHash === '') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>راه‌اندازی مدیریت</title>
 <link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
+<script src="assets/chart.min.js"></script>
 <style><?= admin_css() ?></style>
 </head>
 <body>
@@ -1991,6 +1992,66 @@ if ($page === 'design') {
             $dashOn = array_fill_keys($dashEnabled, true);
             // نمودار میله‌ای پاستیلی (SVG بدون کتابخانه)
             $pastelPalette = ['#f9a8d4', '#93c5fd', '#6ee7b7', '#fcd34d', '#c4b5fd', '#fda4af', '#7dd3fc', '#bef264'];
+            // سازنده نمودار Chart.js با تم نئون شیشه‌ای (۹٫۱۸)
+            $chartJs = static function (string $type, array $labels, array $datasets, array $opts = []): string {
+                static $idx = 0; $idx++;
+                $cid = 'chartjs' . $idx;
+                $neonColors = ['#00e5ff', '#ff4081', '#69f0ae', '#ffd740', '#b388ff', '#ff8a80', '#40c4ff', '#b2ff59'];
+                foreach ($datasets as $di => &$ds) {
+                    if (!isset($ds['backgroundColor'])) {
+                        if ($type === 'doughnut') {
+                            $ds['backgroundColor'] = array_slice($neonColors, 0, count($labels));
+                            $ds['borderColor'] = '#ffffff';
+                            $ds['borderWidth'] = 3;
+                            $ds['hoverOffset'] = 12;
+                        } elseif ($type === 'line') {
+                            $c = $neonColors[$di % count($neonColors)];
+                            $ds['borderColor'] = $c;
+                            $ds['backgroundColor'] = $c . '33';
+                            $ds['fill'] = $ds['fill'] ?? true;
+                            $ds['tension'] = 0.4;
+                            $ds['borderWidth'] = 3;
+                            $ds['pointBackgroundColor'] = $c;
+                            $ds['pointBorderColor'] = '#fff';
+                            $ds['pointBorderWidth'] = 2;
+                            $ds['pointRadius'] = 5;
+                            $ds['pointHoverRadius'] = 8;
+                        } else {
+                            $ds['backgroundColor'] = array_map(fn($i) => $neonColors[$i % count($neonColors)] . 'cc', array_keys($labels));
+                            $ds['borderColor'] = array_map(fn($i) => $neonColors[$i % count($neonColors)], array_keys($labels));
+                            $ds['borderWidth'] = 2;
+                            $ds['borderRadius'] = 8;
+                        }
+                    }
+                }
+                $config = [
+                    'type' => $type,
+                    'data' => ['labels' => $labels, 'datasets' => $datasets],
+                    'options' => array_merge([
+                        'responsive' => true,
+                        'maintainAspectRatio' => false,
+                        'plugins' => [
+                            'legend' => ['position' => 'bottom', 'labels' => ['usePointStyle' => true, 'padding' => 16, 'font' => ['family' => 'Vazirmatn, Tahoma', 'size' => 12]]],
+                            'tooltip' => [
+                                'backgroundColor' => 'rgba(17,24,39,.9)',
+                                'backdropFilter' => 'blur(8px)',
+                                'titleFont' => ['family' => 'Vazirmatn, Tahoma', 'size' => 13],
+                                'bodyFont' => ['family' => 'Vazirmatn, Tahoma', 'size' => 12],
+                                'padding' => 12,
+                                'cornerRadius' => 10,
+                                'displayColors' => true,
+                            ],
+                        ],
+                        'scales' => $type === 'doughnut' ? [] : [
+                            'x' => ['grid' => ['display' => false], 'ticks' => ['font' => ['family' => 'Vazirmatn, Tahoma', 'size' => 11]]],
+                            'y' => ['beginAtZero' => true, 'grid' => ['color' => 'rgba(0,0,0,.06)'], 'ticks' => ['font' => ['family' => 'Vazirmatn, Tahoma', 'size' => 11]]],
+                        ],
+                    ], $opts),
+                ];
+                $json = json_encode($config, JSON_UNESCAPED_UNICODE);
+                return '<div class="chartjs-wrap"><canvas id="' . $cid . '"></canvas></div>'
+                    . '<script>(function(){if(typeof Chart==="undefined")return;new Chart(document.getElementById("' . $cid . '"),' . $json . ');})();</script>';
+            };
             $renderBarChart = static function (array $bars, string $unitLabel = '') use ($pastelPalette): string {
                 if ($bars === []) {
                     return '<p class="muted">داده‌ای برای نمایش نیست.</p>';
@@ -2209,31 +2270,45 @@ if ($page === 'design') {
                 }
                 return '<div class="timeline-chart">' . $bars . '</div><p class="muted center">سفارش‌های ۳۰ روز اخیر</p>';
             };
-            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $chartProfit, $chartFunnel, $chartTimeline, $renderBarChart, $dashWidgetPages, $svgDonut, $svgArea, $svgFunnel, $svgTimeline): string {
+            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $chartProfit, $chartFunnel, $chartTimeline, $renderBarChart, $dashWidgetPages, $chartJs): string {
                 if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
                     return '';
                 }
                 switch ($key) {
                     case 'chart_income':
-                        $bars = [];
-                        foreach ($chartIncome as $r) {
-                            $bars[] = ['label' => $r['month'], 'value' => (int) $r['value']];
-                        }
-                        return $bars === [] ? '' : '<section class="card"><h3>دریافتی ۶ ماه اخیر (تومان)</h3>' . $renderBarChart($bars) . '</section>';
+                        $labels = array_column($chartIncome, 'month');
+                        $vals = array_map(fn($r) => (int) $r['value'], $chartIncome);
+                        return $labels === [] ? '' : '<section class="card"><h3>دریافتی ۶ ماه اخیر (تومان)</h3>' . $chartJs('bar', $labels, [['label' => 'دریافتی', 'data' => $vals]]) . '</section>';
                     case 'chart_orders':
-                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>سفارش‌ها برحسب وضعیت</h3>' . $renderBarChart($chartOrderStatus) . '</section>';
+                        $labels = array_column($chartOrderStatus, 'label');
+                        $vals = array_column($chartOrderStatus, 'value');
+                        return $labels === [] ? '' : '<section class="card"><h3>سفارش‌ها برحسب وضعیت</h3>' . $chartJs('bar', $labels, [['label' => 'تعداد', 'data' => $vals]]) . '</section>';
                     case 'chart_expenses':
-                        return $chartExpenseCat === [] ? '' : '<section class="card"><h3>هزینه‌ها برحسب دسته</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
+                        $labels = array_column($chartExpenseCat, 'label');
+                        $vals = array_column($chartExpenseCat, 'value');
+                        return $labels === [] ? '' : '<section class="card"><h3>هزینه‌ها برحسب دسته</h3>' . $chartJs('bar', $labels, [['label' => 'مبلغ', 'data' => $vals]]) . '</section>';
                     case 'chart_production':
-                        return $chartProdStages === [] ? '' : '<section class="card"><h3>تولید برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
+                        $labels = array_column($chartProdStages, 'label');
+                        $vals = array_column($chartProdStages, 'value');
+                        return $labels === [] ? '' : '<section class="card"><h3>تولید برحسب مرحله</h3>' . $chartJs('bar', $labels, [['label' => 'تعداد', 'data' => $vals]]) . '</section>';
                     case 'chart_donut_orders':
-                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>توزیع سفارش‌ها</h3>' . $svgDonut($chartOrderStatus) . '</section>';
+                        $labels = array_column($chartOrderStatus, 'label');
+                        $vals = array_column($chartOrderStatus, 'value');
+                        return $labels === [] ? '' : '<section class="card"><h3>توزیع سفارش‌ها</h3>' . $chartJs('doughnut', $labels, [['data' => $vals]]) . '</section>';
                     case 'chart_profit':
-                        return $chartProfit === [] ? '' : '<section class="card wide"><h3>درآمد در برابر هزینه — ۶ ماه اخیر</h3>' . $svgArea($chartProfit) . '</section>';
+                        $labels = array_column($chartProfit, 'month');
+                        $rev = array_column($chartProfit, 'revenue');
+                        $cost = array_column($chartProfit, 'cost');
+                        return $labels === [] ? '' : '<section class="card wide"><h3>درآمد در برابر هزینه — ۶ ماه اخیر</h3>' . $chartJs('line', $labels, [['label' => 'درآمد', 'data' => $rev], ['label' => 'هزینه', 'data' => $cost]]) . '</section>';
                     case 'chart_funnel':
-                        return '<section class="card"><h3>قیف سفارشات</h3>' . $svgFunnel($chartFunnel) . '</section>';
+                        $flabels = ['new' => 'جدید', 'confirmed' => 'تأیید شده', 'in_production' => 'در تولید', 'ready' => 'آماده', 'delivered' => 'تحویل شده'];
+                        $labels = []; $vals = [];
+                        foreach ($flabels as $k => $t) { $labels[] = $t; $vals[] = (int) ($chartFunnel[$k] ?? 0); }
+                        return '<section class="card"><h3>قیف سفارشات</h3>' . $chartJs('bar', $labels, [['label' => 'تعداد', 'data' => $vals]], ['indexAxis' => 'y']) . '</section>';
                     case 'chart_timeline':
-                        return '<section class="card wide"><h3>تایم‌لاین سفارشات</h3>' . $svgTimeline($chartTimeline) . '</section>';
+                        $labels = array_map(fn($d) => substr($d['day'], 5), $chartTimeline);
+                        $vals = array_column($chartTimeline, 'value');
+                        return '<section class="card wide"><h3>تایم‌لاین سفارشات — ۳۰ روز اخیر</h3>' . $chartJs('bar', $labels, [['label' => 'سفارش', 'data' => $vals]]) . '</section>';
                 }
                 return '';
             };
@@ -3744,6 +3819,9 @@ body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
 .tl-bar{background:linear-gradient(180deg,#00e5ff,#2979ff);box-shadow:0 0 6px rgba(0,229,255,.4)}
 .tl-bar:hover{background:linear-gradient(180deg,#2979ff,#00e5ff);box-shadow:0 0 12px rgba(0,229,255,.7)}
 .funnel-bar{box-shadow:0 2px 12px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.4)}
+/* Chart.js — تم نئون شیشه‌ای (۹٫۱۸) */
+.chartjs-wrap{position:relative;height:280px;padding:8px}
+.chartjs-wrap canvas{background:rgba(255,255,255,.5);backdrop-filter:blur(8px);border-radius:16px;padding:12px}
 /* === تم‌های شیشه‌ای پنل ادمین (۹٫۱۵٫۴) === */
 html[data-admin-theme="glass-white"] body{background:#f0f4f8;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(34,197,94,.08),transparent)}
 html[data-admin-theme="glass-white"] .card,html[data-admin-theme="glass-white"] .stat-card{background:rgba(255,255,255,.65);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(34,197,94,.18);box-shadow:0 4px 16px rgba(34,197,94,.1);border-radius:18px}
