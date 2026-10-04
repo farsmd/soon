@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.13.4');
+define('APP_VERSION', '9.13.5');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -4664,18 +4664,20 @@ function seed_gallery_lightbox_css_v9133_if_needed(): void
 function seed_gallery_tiles_v9131_if_needed(): void
 {
     try {
-        if (get_setting('gallery_tiles_9131', '0') === '2') {
+        if (get_setting('gallery_tiles_9131', '0') === '3') {
             return;
         }
         $pdo = db();
         $row = $pdo->query("SELECT content FROM pages WHERE slug = 'gallery' LIMIT 1")->fetch();
-        if ($row && strpos((string) $row['content'], 'gallery-tiles') === false) {
+        // نسخه ۹٫۱۳٫۵: شرط درست — اگر لایت‌باکس داخل محتوا نیست، بازسازی کن
+        // (قبلاً اشتباهاً دنبال gallery-tiles می‌گشت که از ۹٫۱۳٫۱ وجود داشت و بازسازی رد می‌شد)
+        if ($row && strpos((string) $row['content'], 'id="glb"') === false) {
             $figs = gallery_parse_figures((string) $row['content']);
             if ($figs !== []) {
                 gallery_save_figures($pdo, $figs);
             }
         }
-        set_setting('gallery_tiles_9131', '2');
+        set_setting('gallery_tiles_9131', '3');
     } catch (Throwable $e) {
         // سکوت
     }
