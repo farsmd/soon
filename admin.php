@@ -1908,6 +1908,7 @@ if ($page === 'design') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($currentPageTitle) ?> — پنل مدیریت</title>
 <link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
+<script src="assets/chart.min.js"></script>
 <?php if (in_array(($page ?? ''), ['design', 'pages'], true)): ?>
 <link rel="stylesheet" href="assets/codemirror/lib/codemirror.min.css">
 <link rel="stylesheet" href="assets/codemirror/theme/dracula.min.css">
