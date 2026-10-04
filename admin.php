@@ -2439,24 +2439,59 @@ if ($page === 'design') {
             </div>
             <?php endif; ?>
 
-            <div class="stat-grid dash-cards">
+            <div class="stat-grid dash-cards" id="dash-cards">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat' || str_starts_with($wk, 'kpi_')) { continue; } echo $renderStat($wk); ?>
                 <?php if ($wk === 'stat_orders' && $lowStockCount > 0 && admin_can_page('materials')): ?>
                 <a class="stat-card sc-red sc-alert-red" href="admin.php?page=materials"><span><i class="sc-ico">' . $dash_icon('alert') . '</i>مواد رو به اتمام</span><strong><?= (int) $lowStockCount ?> ماده</strong></a>
                 <?php endif; ?>
                 <?php endforeach; ?>
             </div>
-            <div class="stat-grid dash-kpi">
+            <div class="stat-grid dash-kpi" id="dash-kpi">
                 <?php foreach ($dashEnabled as $wk): if (!str_starts_with($wk, 'kpi_')) { continue; } echo $renderStat($wk); endforeach; ?>
             </div>
 
             <?php $hasChart = false; foreach ($dashEnabled as $wk) { if (($dashWidgetDefs[$wk][1] ?? '') === 'chart' && (!isset($dashWidgetPages[$wk]) || admin_can_page($dashWidgetPages[$wk]))) { $hasChart = true; break; } } ?>
             <?php if ($hasChart): ?>
-            <div class="stat-grid dash-charts">
+            <div class="stat-grid dash-charts" id="dash-charts">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'chart') { continue; } echo $renderChart($wk); endforeach; ?>
             </div>
             <?php endif; ?>
 
+            <script src="assets/sortable.min.js"></script>
+            <script>
+            (function(){
+                if (typeof Sortable === 'undefined') return;
+                ['dash-cards', 'dash-kpi', 'dash-charts'].forEach(function(id){
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    // بازیابی ترتیب ذخیره‌شده
+                    var saved = null;
+                    try { saved = JSON.parse(localStorage.getItem('dash-order-' + id) || 'null'); } catch(e){}
+                    if (Array.isArray(saved) && saved.length) {
+                        var items = Array.from(el.children);
+                        var map = {};
+                        items.forEach(function(c){ var k = c.dataset.widget || c.textContent.trim().slice(0,30); map[k] = c; });
+                        saved.forEach(function(k){ if (map[k]) el.appendChild(map[k]); });
+                    }
+                    // فعال‌سازی درگ
+                    Sortable.create(el, {
+                        animation: 200,
+                        delay: 300,
+                        delayOnTouchOnly: true,
+                        ghostClass: 'dash-drag-ghost',
+                        onEnd: function(){
+                            var order = Array.from(el.children).map(function(c){ return c.dataset.widget || c.textContent.trim().slice(0,30); });
+                            try { localStorage.setItem('dash-order-' + id, JSON.stringify(order)); } catch(e){}
+                        }
+                    });
+                });
+            })();
+            </script>
+            <style>
+            .dash-drag-ghost{opacity:.4;background:#dbeafe!important}
+            #dash-cards .stat-card, #dash-kpi .stat-card{cursor:grab}
+            #dash-cards .stat-card:active, #dash-kpi .stat-card:active{cursor:grabbing}
+            </style>
             <?php if ($lowStockCount > 0 && admin_can_page('materials')): ?>
             <div class="alert error">
                 موجودی این مواد به حد هشدار رسیده است:
