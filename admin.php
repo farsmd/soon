@@ -619,19 +619,20 @@ $currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
 $navGroups = [
     'main' => ['اصلی', [
         ['admin.php?page=dashboard', 'dashboard', 'داشبورد', 'dashboard'],
-        ['index.php', 'eye', 'مشاهده سایت', '', ' target="_blank" rel="noopener"'],
     ]],
     'content' => ['محتوا', [
         ['admin.php?page=pages', 'file', 'صفحه‌ها', 'pages'],
-        ['admin.php?page=blog', 'pen', 'وبلاگ', 'blog'],
+        ['admin.php?page=blog', 'file', 'مقالات', 'blog'],
         ['admin.php?page=gallery', 'image', 'مدیریت گالری', 'gallery'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
-        ['admin.php?page=messages', 'mail', 'پیام‌های تماس', 'messages'],
-        ['admin.php?page=partners', 'handshake', 'درخواست‌های همکاری', 'partners'],
         ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
     ]],
-    'catalog' => ['کاتالوگ و مشتریان', [
+    'customers' => ['مشتریان', [
         ['admin.php?page=customers', 'users', 'مشتری‌ها', 'customers'],
+        ['admin.php?page=partners', 'handshake', 'درخواست‌های همکاری', 'partners'],
+        ['admin.php?page=messages', 'mail', 'پیام‌های تماس', 'messages'],
+    ]],
+    'catalog' => ['محصولات', [
         ['admin.php?page=categories', 'folder', 'دسته‌بندی‌ها', 'categories'],
         ['admin.php?page=products', 'bag', 'محصولات', 'products'],
         ['admin.php?page=attributes', 'list', 'ویژگی‌های محصول', 'attributes'],
@@ -1159,6 +1160,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'toggle_order_form_field':
                 $fid = (int) ($_POST['id'] ?? 0);
                 $pdo->prepare('UPDATE order_form_fields SET is_active = 1 - is_active WHERE id = :id')->execute([':id' => $fid]);
+                redirect_admin('admin.php?page=order_forms');
+                // no break
+
+            case 'edit_order_form_field':
+                $fid = (int) ($_POST['id'] ?? 0);
+                $flabel = trim((string) ($_POST['field_label'] ?? ''));
+                $ftype = (string) ($_POST['field_type'] ?? 'text');
+                if (!in_array($ftype, ['text', 'number', 'select', 'textarea', 'checkbox'], true)) { $ftype = 'text'; }
+                if ($fid > 0 && $flabel !== '') {
+                    $fopts = trim((string) ($_POST['field_options'] ?? ''));
+                    $optsArr = [];
+                    if ($fopts !== '') {
+                        foreach (explode('|', $fopts) as $op) {
+                            $op = trim($op);
+                            if ($op !== '') { $optsArr[] = $op; }
+                        }
+                    }
+                    $pdo->prepare("UPDATE order_form_fields SET field_type = :ft, label = :l, options_json = :oj, placeholder = :ph, help_text = :ht, is_required = :r WHERE id = :id")
+                        ->execute([
+                            ':ft' => $ftype, ':l' => $flabel,
+                            ':oj' => $optsArr !== [] ? json_encode($optsArr, JSON_UNESCAPED_UNICODE) : null,
+                            ':ph' => trim((string) ($_POST['field_placeholder'] ?? '')),
+                            ':ht' => trim((string) ($_POST['field_help'] ?? '')),
+                            ':r' => !empty($_POST['field_required']) ? 1 : 0,
+                            ':id' => $fid,
+                        ]);
+                    flash('ok', 'فیلد ویرایش شد.');
+                } else {
+                    flash('error', 'برچسب فیلد را وارد کنید.');
+                }
                 redirect_admin('admin.php?page=order_forms');
                 // no break
 
@@ -2834,7 +2865,8 @@ if ($page === 'design') {
                     echo '<td>' . e($typeLabels[$ff['field_type']] ?? $ff['field_type']) . '</td>';
                     echo '<td>' . ((int) $ff['is_required'] === 1 ? 'بله' : 'خیر') . '</td>';
                     echo '<td>' . ((int) $ff['is_active'] === 1 ? '<span class="badge ok">فعال</span>' : '<span class="badge off">غیرفعال</span>') . '</td>';
-                    echo '<td><form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle_order_form_field"><input type="hidden" name="id" value="' . (int) $ff['id'] . '"><button type="submit" class="btn small">' . ((int) $ff['is_active'] === 1 ? 'غیرفعال' : 'فعال') . '</button></form> ';
+                    echo '<td><a href="admin.php?page=order_forms&edit_field=' . (int) $ff['id'] . '" class="btn small edit">ویرایش</a> ';
+                    echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle_order_form_field"><input type="hidden" name="id" value="' . (int) $ff['id'] . '"><button type="submit" class="btn small">' . ((int) $ff['is_active'] === 1 ? 'غیرفعال' : 'فعال') . '</button></form> ';
                     echo '<form method="post" class="inline" onsubmit="return confirm(\'این فیلد حذف شود؟\')">' . csrf_field() . '<input type="hidden" name="action" value="delete_order_form_field"><input type="hidden" name="id" value="' . (int) $ff['id'] . '"><button type="submit" class="btn small danger-btn">حذف</button></form></td></tr>';
                 }
                 if ($fields === []) { echo '<tr><td colspan="5" class="muted">فیلدی تعریف نشده است.</td></tr>'; }
@@ -2846,6 +2878,41 @@ if ($page === 'design') {
                 $renderFieldTable('category', (int) $cc['id'], 'دسته: ' . (string) $cc['title']);
             }
             ?>
+            <?php $editFid = (int) ($_GET['edit_field'] ?? 0); $editField = null;
+            if ($editFid > 0) { $editField = $pdo->query("SELECT * FROM order_form_fields WHERE id = " . $editFid)->fetch(PDO::FETCH_ASSOC); }
+            ?>
+            <?php if ($editField): ?>
+            <h2>ویرایش فیلد: <?= e($editField['label']) ?></h2>
+            <form method="post" class="card wide">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="edit_order_form_field">
+                <input type="hidden" name="id" value="<?= (int) $editField['id'] ?>">
+                <div class="inline-fields">
+                    <label>برچسب فیلد *
+                        <input type="text" name="field_label" required maxlength="100" value="<?= e($editField['label']) ?>">
+                    </label>
+                    <label>نوع
+                        <select name="field_type">
+                            <?php foreach ($typeLabels as $tk => $tl): ?><option value="<?= $tk ?>" <?= $editField['field_type'] === $tk ? 'selected' : '' ?>><?= e($tl) ?></option><?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label>گزینه‌ها (با | جدا کنید)
+                        <input type="text" name="field_options" value="<?= e(implode('|', json_decode((string) ($editField['options_json'] ?? '[]'), true) ?: [])) ?>">
+                    </label>
+                    <label>متن راهنما
+                        <input type="text" name="field_placeholder" value="<?= e((string) ($editField['placeholder'] ?? '')) ?>">
+                    </label>
+                    <label>توضیح
+                        <input type="text" name="field_help" value="<?= e((string) ($editField['help_text'] ?? '')) ?>">
+                    </label>
+                    <label><input type="checkbox" name="field_required" value="1" <?= (int) $editField['is_required'] === 1 ? 'checked' : '' ?>> الزامی</label>
+                </div>
+                <div class="crud-toolbar">
+                    <button type="submit" class="btn primary">ذخیره تغییرات</button>
+                    <a href="admin.php?page=order_forms" class="btn">انصراف</a>
+                </div>
+            </form>
+            <?php endif; ?>
             <h2>افزودن فیلد تازه</h2>
             <form method="post" class="card wide">
                 <?= csrf_field() ?>
