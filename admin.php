@@ -1935,7 +1935,7 @@ if ($page === 'design') {
 <body>
 <header class="topbar">
     <div class="topbar-start">
-        <button type="button" class="icon-btn" id="navToggle" aria-label="منوی کناری" onclick="if(window.__toggleAdminNav){window.__toggleAdminNav()}"><?= nav_icon('menu') ?></button>
+        <button type="button" class="icon-btn menu-toggle" id="navToggle" aria-label="منوی کناری" onclick="if(window.__toggleAdminNav){window.__toggleAdminNav()}"><?= nav_icon('menu') ?></button>
         <strong class="topbar-title"><?= e($currentPageTitle) ?></strong>
     </div>
     <nav class="topbar-actions">
@@ -4017,6 +4017,11 @@ input[type=color]{width:72px;height:38px;padding:2px;border:1px solid #d1d5db;bo
 .content{padding:14px}
 table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tpl-preview{height:320px}
+.sidebar{position:fixed;top:0;bottom:0;inset-inline-start:0;width:min(300px,86vw);z-index:80;transform:translateX(110%);transition:transform .25s ease;box-shadow:0 0 44px rgba(0,0,0,.25)}
+[dir="rtl"] .sidebar{transform:translateX(110%)}
+body.nav-open .sidebar{transform:none!important}
+.nav-overlay{display:block;position:fixed;inset:0;z-index:75;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
 }
 /* منوی کناری */
 .topbar{position:sticky;top:0;z-index:70;display:flex;justify-content:space-between;align-items:center;background:#ffffff;color:#1a1a18;padding:8px 14px;gap:10px;box-shadow:0 1px 10px rgba(0,0,0,.08);border-bottom:1px solid #e8e8e3}
