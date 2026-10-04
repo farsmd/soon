@@ -85,7 +85,7 @@ function track_order_detail(PDO $pdo, array $order): array
 
     $hist = $pdo->prepare(
         'SELECT h.*, s.title AS status_title FROM order_status_history h ' .
-        'LEFT JOIN order_statuses s ON s.status_key = h.status_key ' .
+        'LEFT JOIN order_statuses s ON s.status_key = h.to_status ' .
         'WHERE h.order_id = :oid ORDER BY h.id ASC'
     );
     $hist->execute([':oid' => $order['id']]);
