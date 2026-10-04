@@ -4029,6 +4029,15 @@ body.nav-open .topbar{z-index:85}
 .topbar-start{display:flex;align-items:center;gap:10px;min-width:0}
 .topbar-title{font-size:16px;white-space:nowrap}
 .topbar-actions{display:flex;align-items:center;gap:6px}
+@media(max-width:768px){
+.topbar{padding:8px 10px;gap:8px}
+.topbar .topbar-title{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .menu-toggle{width:44px;height:44px;font-size:22px;flex-shrink:0}
+.topbar-actions{gap:4px}
+.topbar-actions .quick-add{display:none}
+.topbar-actions .icon-btn{width:38px;height:38px}
+.user-menu-wrap .icon-btn{width:38px;height:38px}
+}
 .topbar-actions a{margin-inline-start:0;color:#e5e7eb;padding:7px 11px;border-radius:8px;background:rgba(255,255,255,.07);white-space:nowrap}
 .topbar-actions a:hover{background:rgba(255,255,255,.16);color:#fff}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 auto;border-radius:8px;border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;cursor:pointer;padding:0}
