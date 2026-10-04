@@ -2010,6 +2010,8 @@ if ($page === 'design') {
                 'stat_pending'        => ['کارت آماری: هزینه‌های در انتظار تأیید (فقط وقتی > ۰)', 'stat'],
                 'stat_debt'           => ['کارت آماری: بدهی مشتریان (فقط وقتی > ۰)', 'stat'],
                 'stat_messages'       => ['کارت آماری: پیام‌های تماس', 'stat'],
+                'stat_visits_today'   => ['کارت آماری: بازدید امروز سایت', 'stat'],
+                'stat_visits_month'   => ['کارت آماری: بازدید این ماه سایت', 'stat'],
                 'stat_version'        => ['کارت آماری: نسخه برنامه', 'stat'],
                 'kpi_revenue'         => ['شاخص: درآمد این ماه', 'stat'],
                 'kpi_orders'          => ['شاخص: سفارش‌های این ماه', 'stat'],
@@ -2036,6 +2038,8 @@ if ($page === 'design') {
                 'stat_pending'       => 'expenses',
                 'stat_debt'          => 'statements',
                 'stat_messages'      => 'messages',
+                'stat_visits_today'  => 'logs',
+                'stat_visits_month'  => 'logs',
                 'stat_version'       => 'dashboard',
                 'kpi_revenue'        => 'orders',
                 'kpi_orders'         => 'orders',
@@ -2201,7 +2205,7 @@ if ($page === 'design') {
                 }
                 return $out;
             };
-            $renderStat = static function (string $key) use ($dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages, $dash_icon, $dash_version_info): string {
+            $renderStat = static function (string $key) use ($visitsToday, $visitsMonth, $dashCounts, $productionActiveCount, $messages, $lowStockCount, $finPending, $finMonthIncome, $finMonthExpenses, $finDebtTotal, $dashWidgetPages, $dash_icon, $dash_version_info): string {
 
                 if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
                     return '';
@@ -2223,6 +2227,10 @@ if ($page === 'design') {
                         return (isset($finPending) && is_array($finPending) && (int) ($finPending['count'] ?? 0) > 0) ? '<a class="stat-card sc-amber sc-alert-amber" href="admin.php?page=expenses&status=pending"><span><i class="sc-ico">' . $dash_icon('clock') . '</i>در انتظار تأیید</span><strong>' . (int) $finPending['count'] . ' مورد</strong></a>' : '';
                     case 'stat_debt':
                         return ((int) ($finDebtTotal ?? 0) > 0) ? '<a class="stat-card sc-red sc-alert-red" href="admin.php?page=statements"><span><i class="sc-ico">' . $dash_icon('card') . '</i>بدهی مشتریان</span><strong>' . e(format_price((int) $finDebtTotal)) . ' تومان</strong></a>' : '';
+                    case 'stat_visits_today':
+                        return '<a class="stat-card sc-cyan" href="admin.php?page=logs"><span><i class="sc-ico">' . $dash_icon('eye') . '</i>بازدید امروز</span><strong>' . (int) $visitsToday . '</strong></a>';
+                    case 'stat_visits_month':
+                        return '<a class="stat-card sc-blue" href="admin.php?page=logs"><span><i class="sc-ico">' . $dash_icon('chart') . '</i>بازدید این ماه</span><strong>' . (int) $visitsMonth . '</strong></a>';
                     case 'stat_messages':
                         return '<a class="stat-card sc-purple" href="admin.php?page=messages"><span><i class="sc-ico">' . $dash_icon('mail') . '</i>پیام‌های تماس</span><strong>' . count($messages) . '</strong></a>';
                     case 'stat_version':
@@ -2340,6 +2348,12 @@ if ($page === 'design') {
                 }
                 return '<div class="timeline-chart">' . $bars . '</div><p class="muted center">سفارش‌های ۳۰ روز اخیر</p>';
             };
+            // شمارنده بازدید امروز و این ماه — بدون ربات و ادمین (۹٫۲۲)
+            $visitsToday = 0; $visitsMonth = 0;
+            try {
+                $visitsToday = (int) $pdo->query("SELECT COUNT(*) FROM visit_logs WHERE kind = 'visit' AND COALESCE(is_bot,0) = 0 AND COALESCE(admin_user,'') = '' AND substr(created_at,1,10) = date('now')")->fetchColumn();
+                $visitsMonth = (int) $pdo->query("SELECT COUNT(*) FROM visit_logs WHERE kind = 'visit' AND COALESCE(is_bot,0) = 0 AND COALESCE(admin_user,'') = '' AND substr(created_at,1,7) = substr(date('now'),1,7)")->fetchColumn();
+            } catch (Throwable $e) {}
             // بازدید روزانه ۱۴ روز اخیر — بدون ربات و ادمین (۹٫۲۲)
             $chartVisits = [];
             try {
@@ -4035,6 +4049,7 @@ body.nav-open .topbar{z-index:85}
 /* رنگ‌بندی نوار بالای کارت */
 .dash-cards .stat-card.sc-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
 .dash-cards .stat-card.sc-blue .sc-ico{background:#dbeafe}
+.dash-cards .stat-card.sc-cyan .sc-ico{background:#cffafe;color:#0e7490}
 .dash-cards .stat-card.sc-green::before{background:linear-gradient(90deg,#10b981,#059669)}
 .dash-cards .stat-card.sc-green .sc-ico{background:#d1fae5}
 .dash-cards .stat-card.sc-amber::before{background:linear-gradient(90deg,#f59e0b,#d97706)}
