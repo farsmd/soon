@@ -1723,6 +1723,38 @@ if ($page === 'dashboard') {
         }
     } catch (Throwable $ignored) {
     }
+    // --- نمودارهای فانتزی ۹٫۱۶: سود در برابر هزینه (۶ ماه) ---
+    $chartProfit = [];
+    try {
+        for ($i = 5; $i >= 0; $i--) {
+            $mk = date('Y-m', strtotime("-$i months"));
+            $rev = (int) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE substr(paid_date,1,7) = '$mk'")->fetchColumn();
+            $cost = (int) $pdo->query("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE substr(expense_date,1,7) = '$mk' AND status = 'approved'")->fetchColumn();
+            $chartProfit[] = ['month' => $mk, 'revenue' => $rev, 'cost' => $cost, 'profit' => $rev - $cost];
+        }
+    } catch (Throwable $ignored) {
+    }
+    // --- قیف سفارشات (پایپ‌لاین) ---
+    $chartFunnel = [];
+    try {
+        $funnelStages = ['new' => 0, 'confirmed' => 0, 'in_production' => 0, 'ready' => 0, 'delivered' => 0];
+        $rows = $pdo->query("SELECT status, COUNT(*) AS c FROM orders WHERE status != 'cancelled' GROUP BY status")->fetchAll();
+        $byStatus = [];
+        foreach ($rows as $r) { $byStatus[(string) $r['status']] = (int) $r['c']; }
+        foreach ($funnelStages as $sk => $v) { $funnelStages[$sk] = $byStatus[$sk] ?? 0; }
+        $chartFunnel = $funnelStages;
+    } catch (Throwable $ignored) {
+    }
+    // --- تایم‌لاین سفارشات ۳۰ روز اخیر ---
+    $chartTimeline = [];
+    try {
+        for ($i = 29; $i >= 0; $i--) {
+            $d = date('Y-m-d', strtotime("-$i days"));
+            $c = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE substr(created_at,1,10) = '$d' AND status != 'cancelled'")->fetchColumn();
+            $chartTimeline[] = ['day' => $d, 'value' => $c];
+        }
+    } catch (Throwable $ignored) {
+    }
 }
 // عنوان‌های نمایشی قالب‌های دیتابیس (برای برچسب فهرست قالب در فرم بخش‌ها)
 $templateTitles = [];
@@ -1870,6 +1902,10 @@ if ($page === 'design') {
                 'chart_orders'        => ['نمودار وضعیت سفارش‌ها', 'chart'],
                 'chart_expenses'      => ['نمودار هزینه‌ها برحسب دسته', 'chart'],
                 'chart_production'    => ['نمودار برگه‌های تولید برحسب مرحله', 'chart'],
+                'chart_donut_orders'  => ['🍩 توزیع سفارش‌ها (دونات)', 'chart'],
+                'chart_profit'        => ['💰 درآمد در برابر هزینه', 'chart'],
+                'chart_funnel'        => ['🔻 قیف سفارشات', 'chart'],
+                'chart_timeline'      => ['📊 تایم‌لاین ۳۰ روزه سفارشات', 'chart'],
             ];
             $dashWidgetPages = [
                 'stat_customers'     => 'customers',
@@ -1891,6 +1927,10 @@ if ($page === 'design') {
                 'chart_orders'       => 'orders',
                 'chart_expenses'     => 'expenses',
                 'chart_production'   => 'production',
+                'chart_donut_orders' => 'orders',
+                'chart_profit'       => 'finance',
+                'chart_funnel'       => 'orders',
+                'chart_timeline'     => 'orders',
             ];
             $dashEnabledRaw = json_decode((string) get_setting('dash_widgets', ''), true);
             $dashEnabled = (is_array($dashEnabledRaw) && $dashEnabledRaw !== [])
@@ -2027,7 +2067,99 @@ if ($page === 'design') {
                 }
                 return '';
             };
-            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $renderBarChart, $dashWidgetPages): string {
+            // --- نمودارهای SVG فانتزی (۹٫۱۶) ---
+            $svgDonut = static function (array $items, int $size = 180): string {
+                $total = array_sum(array_column($items, 'value'));
+                if ($total <= 0) { return '<p class="muted">داده‌ای نیست</p>'; }
+                $cx = $cy = $size / 2; $r = $size / 2 - 14; $inner = $r * 0.62;
+                $circ = 2 * M_PI * $r; $offset = 0; $segs = ''; $uid = 'd' . substr(md5(json_encode($items)), 0, 6);
+                $legend = '';
+                foreach ($items as $i => $it) {
+                    $frac = (float) $it['value'] / $total;
+                    $len = $frac * $circ;
+                    $color = (string) ($it['color'] ?? '#a7b8e0');
+                    $segs .= sprintf('<circle cx="%s" cy="%s" r="%s" fill="none" stroke="%s" stroke-width="22" stroke-dasharray="%s %s" stroke-dashoffset="%s" stroke-linecap="round" transform="rotate(-90 %s %s)" class="donut-seg" style="animation-delay:%sms"/>',
+                        $cx, $cy, $r, $color, max(0, $len - 3), $circ - max(0, $len - 3), -$offset, $cx, $cy, $i * 120);
+                    $offset += $len;
+                    $pct = round($frac * 100);
+                    $legend .= '<div class="donut-legend-item"><span class="donut-dot" style="background:' . $color . '"></span>' . e((string) $it['label']) . ' <b>' . (int) $it['value'] . '</b> <span class="muted">' . $pct . '٪</span></div>';
+                }
+                return '<div class="donut-wrap"><svg width="' . $size . '" height="' . $size . '" viewBox="0 0 ' . $size . ' ' . $size . '">'
+                    . '<circle cx="' . $cx . '" cy="' . $cy . '" r="' . $r . '" fill="none" stroke="#e5e7eb" stroke-width="22"/>'
+                    . $segs
+                    . '<text x="' . $cx . '" y="' . ($cy - 4) . '" text-anchor="middle" class="donut-total">' . $total . '</text>'
+                    . '<text x="' . $cx . '" y="' . ($cy + 18) . '" text-anchor="middle" class="donut-label">سفارش</text>'
+                    . '</svg><div class="donut-legend">' . $legend . '</div></div>';
+            };
+            $svgArea = static function (array $data): string {
+                // نمودار خطی سود/هزینه با گرادیان
+                $w = 560; $h = 220; $pad = 36;
+                $maxV = 1;
+                foreach ($data as $d) { $maxV = max($maxV, $d['revenue'], $d['cost']); }
+                $n = count($data);
+                if ($n < 2) { return '<p class="muted">داده کافی نیست</p>'; }
+                $x = static function ($i) use ($n, $w, $pad) { return $pad + ($i * ($w - 2 * $pad) / max(1, $n - 1)); };
+                $y = static function ($v) use ($maxV, $h, $pad) { return $h - $pad - ($v / $maxV) * ($h - 2 * $pad); };
+                $revPts = []; $costPts = [];
+                foreach ($data as $i => $d) {
+                    $revPts[] = round($x($i), 1) . ',' . round($y($d['revenue']), 1);
+                    $costPts[] = round($x($i), 1) . ',' . round($y($d['cost']), 1);
+                }
+                $revLine = implode(' ', $revPts); $costLine = implode(' ', $costPts);
+                $revArea = $pad . ',' . ($h - $pad) . ' ' . $revLine . ' ' . ($w - $pad) . ',' . ($h - $pad);
+                $costArea = $pad . ',' . ($h - $pad) . ' ' . $costLine . ' ' . ($w - $pad) . ',' . ($h - $pad);
+                $uid = 'a' . substr(md5($revLine), 0, 6);
+                $dots = '';
+                foreach ($data as $i => $d) {
+                    $dots .= '<circle cx="' . round($x($i), 1) . '" cy="' . round($y($d['revenue']), 1) . '" r="4.5" fill="#16a34a" stroke="#fff" stroke-width="2"><title>' . e($d['month']) . ': ' . number_format($d['revenue']) . '</title></circle>';
+                    $dots .= '<circle cx="' . round($x($i), 1) . '" cy="' . round($y($d['cost']), 1) . '" r="4.5" fill="#dc2626" stroke="#fff" stroke-width="2"><title>' . e($d['month']) . ': ' . number_format($d['cost']) . '</title></circle>';
+                }
+                $labels = '';
+                foreach ($data as $i => $d) {
+                    if ($i % 2 === 0) { $labels .= '<text x="' . round($x($i), 1) . '" y="' . ($h - 10) . '" text-anchor="middle" class="chart-xlabel">' . e(substr($d['month'], 5)) . '</text>'; }
+                }
+                return '<svg viewBox="0 0 ' . $w . ' ' . $h . '" class="fancy-chart" role="img">'
+                    . '<defs><linearGradient id="' . $uid . 'g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16a34a" stop-opacity=".35"/><stop offset="1" stop-color="#16a34a" stop-opacity="0"/></linearGradient>'
+                    . '<linearGradient id="' . $uid . 'r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dc2626" stop-opacity=".25"/><stop offset="1" stop-color="#dc2626" stop-opacity="0"/></linearGradient></defs>'
+                    . '<polygon points="' . $revArea . '" fill="url(#' . $uid . 'g)"/>'
+                    . '<polygon points="' . $costArea . '" fill="url(#' . $uid . 'r)"/>'
+                    . '<polyline points="' . $revLine . '" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" class="chart-line"/>'
+                    . '<polyline points="' . $costLine . '" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 4" class="chart-line"/>'
+                    . $dots . $labels
+                    . '</svg><div class="chart-legend"><span><i style="background:#16a34a"></i>درآمد</span><span><i style="background:#dc2626"></i>هزینه</span></div>';
+            };
+            $svgFunnel = static function (array $stages): string {
+                // قیف پایپ‌لاین سفارش
+                $labels = ['new' => 'جدید', 'confirmed' => 'تأیید شده', 'in_production' => 'در تولید', 'ready' => 'آماده', 'delivered' => 'تحویل شده'];
+                $colors = ['new' => '#93c5fd', 'confirmed' => '#6ee7b7', 'in_production' => '#fcd34d', 'ready' => '#c4b5fd', 'delivered' => '#6ee7b7'];
+                $max = max(1, max($stages));
+                $html = '<div class="funnel">';
+                $prev = null;
+                foreach ($labels as $k => $t) {
+                    $v = (int) ($stages[$k] ?? 0);
+                    $w = max(12, round($v / $max * 100));
+                    $conv = '';
+                    if ($prev !== null && $prev > 0) {
+                        $pct = round($v / $prev * 100);
+                        $conv = '<span class="funnel-conv">▼ ' . $pct . '٪</span>';
+                    }
+                    $html .= $conv . '<div class="funnel-bar" style="width:' . $w . '%;background:linear-gradient(135deg,' . $colors[$k] . ',' . $colors[$k] . 'cc)"><span>' . e($t) . '</span><b>' . $v . '</b></div>';
+                    $prev = $v;
+                }
+                return $html . '</div>';
+            };
+            $svgTimeline = static function (array $data): string {
+                // تایم‌لاین ۳۰ روزه میله‌ای
+                $max = 1;
+                foreach ($data as $d) { $max = max($max, $d['value']); }
+                $bars = '';
+                foreach ($data as $d) {
+                    $h = max(4, round($d['value'] / $max * 100));
+                    $bars .= '<div class="tl-bar" style="height:' . $h . '%" title="' . e($d['day']) . ': ' . (int) $d['value'] . ' سفارش"></div>';
+                }
+                return '<div class="timeline-chart">' . $bars . '</div><p class="muted center">سفارش‌های ۳۰ روز اخیر</p>';
+            };
+            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $chartProfit, $chartFunnel, $chartTimeline, $renderBarChart, $dashWidgetPages, $svgDonut, $svgArea, $svgFunnel, $svgTimeline): string {
                 if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
                     return '';
                 }
@@ -2044,6 +2176,14 @@ if ($page === 'design') {
                         return $chartExpenseCat === [] ? '' : '<section class="card"><h3>💸 هزینه‌ها برحسب دسته</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
                     case 'chart_production':
                         return $chartProdStages === [] ? '' : '<section class="card"><h3>🏭 تولید برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
+                    case 'chart_donut_orders':
+                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>🍩 توزیع سفارش‌ها</h3>' . $svgDonut($chartOrderStatus) . '</section>';
+                    case 'chart_profit':
+                        return $chartProfit === [] ? '' : '<section class="card wide"><h3>💰 درآمد در برابر هزینه — ۶ ماه اخیر</h3>' . $svgArea($chartProfit) . '</section>';
+                    case 'chart_funnel':
+                        return '<section class="card"><h3>🔻 قیف سفارشات</h3>' . $svgFunnel($chartFunnel) . '</section>';
+                    case 'chart_timeline':
+                        return '<section class="card wide"><h3>📊 تایم‌لاین سفارشات</h3>' . $svgTimeline($chartTimeline) . '</section>';
                 }
                 return '';
             };
@@ -3438,6 +3578,30 @@ body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
 }
 @media (max-width:480px){.topbar-title{font-size:14px}.topbar-actions a{padding:6px 8px}}
 @media (prefers-reduced-motion:reduce){.sidebar,.nav-overlay,.nav-group summary::after{transition:none}}
+/* === نمودارهای فانتزی داشبورد (۹٫۱۶) === */
+.fancy-chart{width:100%;height:auto;display:block}
+.chart-line{stroke-dasharray:1000;stroke-dashoffset:1000;animation:drawLine 1.6s ease forwards}
+@keyframes drawLine{to{stroke-dashoffset:0}}
+.chart-xlabel{font-size:11px;fill:#6b7280}
+.chart-legend{display:flex;gap:18px;justify-content:center;margin-top:8px;font-size:13px}
+.chart-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-inline-end:6px;vertical-align:middle}
+.donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center}
+.donut-seg{opacity:0;animation:fadeSeg .5s ease forwards}
+@keyframes fadeSeg{to{opacity:1}}
+.donut-total{font-size:26px;font-weight:800;fill:#111827}
+.donut-label{font-size:13px;fill:#6b7280}
+.donut-legend{display:flex;flex-direction:column;gap:8px;font-size:13px}
+.donut-legend-item{display:flex;align-items:center;gap:8px}
+.donut-dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.funnel{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0}
+.funnel-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-radius:14px;color:#1f2937;font-size:14px;min-width:120px;transition:transform .2s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.funnel-bar:hover{transform:scale(1.03)}
+.funnel-bar b{font-size:18px}
+.funnel-conv{font-size:11px;color:#9ca3af;margin:2px 0}
+.timeline-chart{display:flex;align-items:flex-end;gap:3px;height:140px;padding:10px 4px 0;direction:ltr}
+.tl-bar{flex:1;min-width:4px;background:linear-gradient(180deg,#c9a227,#e8c66a);border-radius:4px 4px 0 0;transition:all .2s;cursor:pointer}
+.tl-bar:hover{background:linear-gradient(180deg,#a8841c,#c9a227);transform:scaleY(1.05)}
+.card.wide{max-width:100%}
 /* === تم‌های شیشه‌ای پنل ادمین (۹٫۱۵٫۴) === */
 html[data-admin-theme="glass-white"] body{background:#f0f4f8;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(34,197,94,.08),transparent)}
 html[data-admin-theme="glass-white"] .card,html[data-admin-theme="glass-white"] .stat-card{background:rgba(255,255,255,.65);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(34,197,94,.18);box-shadow:0 4px 16px rgba(34,197,94,.1);border-radius:18px}
