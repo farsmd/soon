@@ -4047,8 +4047,8 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card.sc-blue .sc-ico{background:#dbeafe}
 .dash-cards .stat-card.sc-cyan .sc-ico{background:#cffafe;color:#0e7490}
 .stat-card.stat-dual{flex-direction:column;align-items:stretch!important}
-.stat-card.stat-dual .dual-rows{display:flex;gap:12px;margin-top:8px}
-.stat-card.stat-dual .dual-rows>div{flex:1;text-align:center;background:rgba(14,116,144,.08);border-radius:10px;padding:8px}
+.stat-card.stat-dual .dual-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.stat-card.stat-dual .dual-rows>div{display:flex;align-items:center;justify-content:space-between;background:rgba(14,116,144,.08);border-radius:10px;padding:8px 12px}
 .stat-card.stat-dual .dual-rows small{display:block;font-size:11px;color:#64748b;margin-bottom:2px}
 .stat-card.stat-dual .dual-rows strong{font-size:18px;color:#0e7490}
 .dash-cards .stat-card.sc-green::before{background:linear-gradient(90deg,#10b981,#059669)}
