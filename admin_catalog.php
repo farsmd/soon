@@ -903,8 +903,11 @@ function catalog_render_products(array $d): void
                     <input type="text" name="sku" dir="ltr" value="<?= e($editProduct['sku'] ?? '') ?>">
                 </label>
                 <label>توضیح
-                    <textarea name="description" rows="3"><?= e($editProduct['description'] ?? '') ?></textarea>
+                    <textarea name="description" id="product-desc-editor" rows="3"><?= e($editProduct['description'] ?? '') ?></textarea>
                 </label>
+                <script src="assets/tinymce/tinymce.min.js"></script>
+                <script src="assets/tinymce-init.js"></script>
+                <script>initTinyMCE('#product-desc-editor', 280);</script>
                 <label>عکس محصول
                     <input type="file" name="image" accept="image/*">
                 </label>

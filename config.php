@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.20.0');
+define('APP_VERSION', '9.20.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
