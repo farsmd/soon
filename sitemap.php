@@ -73,6 +73,31 @@ if ($baseUrl !== '') {
     $urls[] = ['loc' => $baseUrl . '/products', 'changefreq' => 'weekly', 'priority' => '0.9'];
 }
 
+// صفحه پیگیری سفارش
+if ($baseUrl !== '') {
+    $urls[] = ['loc' => $baseUrl . '/track', 'changefreq' => 'monthly', 'priority' => '0.6'];
+}
+
+// وبلاگ: فهرست + مقالات منتشرشده (۹٫۱۵٫۲)
+if ($baseUrl !== '') {
+    $urls[] = ['loc' => $baseUrl . '/blog', 'changefreq' => 'daily', 'priority' => '0.8'];
+}
+try {
+    $posts = db()->query("SELECT slug FROM blog_posts WHERE status = 'published' ORDER BY published_at DESC")->fetchAll();
+    foreach ($posts as $bp) {
+        $bslug = (string) ($bp['slug'] ?? '');
+        if ($bslug !== '' && $baseUrl !== '') {
+            $urls[] = [
+                'loc' => $baseUrl . '/blog/' . urlencode($bslug),
+                'changefreq' => 'weekly',
+                'priority' => '0.7',
+            ];
+        }
+    }
+} catch (Throwable $e) {
+    // ignore
+}
+
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 foreach ($urls as $u) {
