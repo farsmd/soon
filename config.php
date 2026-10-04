@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.19.0');
+define('APP_VERSION', '9.19.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -4765,17 +4765,26 @@ function seed_track_css_v9140_if_needed(): void
                 . ".track-timeline li .dot{width:10px;height:10px;border-radius:50%;background:#4a5578}\n"
                 . ".track-timeline li.done{color:#c8d4f0}.track-timeline li.done .dot{background:#22c55e}\n"
                 . ".track-timeline li.current{color:#fff;border-color:#e8c66a;background:rgba(232,198,106,.12)}.track-timeline li.current .dot{background:#e8c66a;box-shadow:0 0 8px #e8c66a}\n";
-            $css .= "\n/* وبلاگ (۹٫۱۴) */\n"
-                . ".blog-list{max-width:1000px;margin:0 auto;padding:24px 16px}\n"
-                . ".blog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:20px}\n"
-                . ".blog-card{display:block;border-radius:14px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);text-decoration:none;color:inherit;transition:transform .2s}\n"
-                . ".blog-card:hover{transform:translateY(-4px)}\n"
-                . ".blog-card img{width:100%;height:180px;object-fit:cover}\n"
-                . ".blog-card-body{padding:16px}.blog-card-body h2{font-size:17px;margin:0 0 8px}.blog-card-body p{font-size:14px;color:#9aa7c7;margin:0 0 8px}\n"
-                . ".blog-post{max-width:800px;margin:0 auto;padding:24px 16px}\n"
-                . ".blog-post h1{margin:12px 0}.blog-featured{width:100%;border-radius:14px;margin:16px 0}\n"
-                . ".blog-content{line-height:2;font-size:16px}.blog-content img{max-width:100%;border-radius:10px}\n"
-                . ".breadcrumbs{font-size:13px;color:#9aa7c7;margin-bottom:8px}.breadcrumbs a{color:#e8c66a}\n";
+            $css .= "\n/* وبلاگ (۹٫۱۴) — تم‌دار و جذاب (۹٫۱۹) */\n"
+                . ".blog-list{max-width:1100px;margin:0 auto;padding:32px 16px}\n"
+                . ".blog-list>h1{font-size:28px;margin-bottom:4px}\n"
+                . ".blog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;margin-top:24px}\n"
+                . ".blog-card{display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e8ecf1);text-decoration:none;color:inherit;transition:transform .25s ease,box-shadow .25s ease;box-shadow:0 2px 12px rgba(0,0,0,.06)}\n"
+                . ".blog-card:hover{transform:translateY(-6px);box-shadow:0 16px 40px rgba(0,0,0,.14)}\n"
+                . ".blog-card .blog-thumb{position:relative;width:100%;height:190px;overflow:hidden;background:linear-gradient(135deg,#1a1a2e,#16213e)}\n"
+                . ".blog-card .blog-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease}\n"
+                . ".blog-card:hover .blog-thumb img{transform:scale(1.06)}\n"
+                . ".blog-card .blog-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.35),transparent 50%)}\n"
+                . ".blog-card-body{padding:20px;display:flex;flex-direction:column;gap:10px;flex:1}\n"
+                . ".blog-card-body h2{font-size:17px;line-height:1.7;margin:0}\n"
+                . ".blog-card-body p{font-size:14px;line-height:1.9;color:var(--muted,#64748b);margin:0;flex:1}\n"
+                . ".blog-card-meta{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted,#94a3b8);border-top:1px solid var(--card-border,#f1f5f9);padding-top:12px}\n"
+                . ".blog-card-meta .read-more{color:#d4a017;font-weight:700}\n"
+                . ".blog-post{max-width:820px;margin:0 auto;padding:32px 16px}\n"
+                . ".blog-post h1{margin:12px 0;line-height:1.8}\n"
+                . ".blog-featured{width:100%;border-radius:18px;margin:20px 0;box-shadow:0 8px 30px rgba(0,0,0,.12)}\n"
+                . ".blog-content{line-height:2.1;font-size:16.5px}.blog-content h2{margin:28px 0 12px;font-size:20px}.blog-content img{max-width:100%;border-radius:12px}\n"
+                . ".breadcrumbs{font-size:13px;color:var(--muted,#94a3b8);margin-bottom:8px}.breadcrumbs a{color:#d4a017}\n";
             set_setting('site_css', $css);
         }
         set_setting('track_css_9140', '1');

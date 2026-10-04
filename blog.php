@@ -90,13 +90,18 @@ echo render_db_template('header', $settings) . "\n";
     <div class="blog-grid">
         <?php foreach ($posts as $p): ?>
         <a class="blog-card" href="<?= e($canonBase . '/blog/' . $p['slug']) ?>">
+            <div class="blog-thumb">
             <?php if (trim((string) $p['featured_image']) !== ''): ?>
                 <img src="<?= e((string) $p['featured_image']) ?>" alt="<?= e((string) $p['title']) ?>" loading="lazy">
             <?php endif; ?>
+            </div>
             <div class="blog-card-body">
                 <h2><?= e((string) $p['title']) ?></h2>
                 <?php if (trim((string) $p['excerpt']) !== ''): ?><p><?= e((string) $p['excerpt']) ?></p><?php endif; ?>
-                <span class="muted"><?= e(blog_fa_date((string) ($p['published_at'] ?? $p['created_at']))) ?></span>
+                <div class="blog-card-meta">
+                    <span><?= e(blog_fa_date((string) ($p['published_at'] ?? $p['created_at']))) ?></span>
+                    <span class="read-more">خواندن ←</span>
+                </div>
             </div>
         </a>
         <?php endforeach; ?>
