@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.14.1');
+define('APP_VERSION', '9.14.2');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1054,6 +1054,45 @@ PARTNERHTML;
         )");
     } catch (Throwable $e) {
         error_log('hr/assets tables migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱۴٫۲: یکسان‌سازی خالص فیش‌های قدیمی با فرمول کامل ---
+    // خالص ذخیره‌شده قدیمی با فرمول ساده (پایه+پاداش−کسورات) بود؛ حالا با فرمول
+    // کامل (مزایا − بیمه − مالیات) بازمحاسبه می‌شود تا با داخل فیش یکی باشد.
+    try {
+        if (get_setting('payslip_recalc_9142', '0') !== '1') {
+            $bonK = (int) get_setting('wage_bon_kargari', '2200000');
+            $hous = (int) get_setting('wage_housing', '3000000');
+            $marr = (int) get_setting('wage_marriage', '500000');
+            $chAl = (int) get_setting('wage_child_allowance', '1662555');
+            $seni = (int) get_setting('wage_seniority', '500000');
+            $insP = (int) get_setting('wage_insurance_worker', '7');
+            $taxT = (int) get_setting('wage_tax_threshold', '24000000');
+            $rows = $pdo->query(
+                'SELECT sp.id, sp.base_amount, sp.bonus, sp.deduction, e.children_count, e.hire_date ' .
+                'FROM salary_payments sp JOIN employees e ON e.id = sp.employee_id'
+            )->fetchAll(PDO::FETCH_ASSOC);
+            $upd = $pdo->prepare('UPDATE salary_payments SET net_amount = :n WHERE id = :id');
+            foreach ($rows as $r) {
+                $chTotal = max(0, (int) ($r['children_count'] ?? 0)) * $chAl;
+                // سنوات: حداقل ۱ سال سابقه
+                $senAmt = 0;
+                $hd = trim((string) ($r['hire_date'] ?? ''));
+                if ($hd !== '') {
+                    try {
+                        $d1 = new DateTime($hd); $d2 = new DateTime();
+                        if ($d1 <= $d2 && $d1->diff($d2)->y >= 1) { $senAmt = $seni; }
+                    } catch (Throwable $ignored) {}
+                }
+                $earn = (int)$r['base_amount'] + $bonK + $hous + $marr + $chTotal + $senAmt + (int)$r['bonus'];
+                $ins = (int) round($earn * $insP / 100);
+                $tax = (int) round(max(0, $earn - $taxT) * 0.10);
+                $net = $earn - $ins - $tax - (int)$r['deduction'];
+                $upd->execute([':n' => $net, ':id' => $r['id']]);
+            }
+            set_setting('payslip_recalc_9142', '1');
+        }
+    } catch (Throwable $e) {
+        error_log('payslip recalc failed: ' . $e->getMessage());
     }
     // --- نسخه ۹٫۱۴: جدول وبلاگ/مقالات ---
     try {
