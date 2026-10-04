@@ -16,6 +16,7 @@ function admin_page_catalog(): array
         'اصلی و محتوا' => [
             'dashboard' => 'داشبورد',
             'pages'     => 'صفحه‌ها',
+            'blog'      => 'مقالات',
             'gallery'   => 'مدیریت گالری',
             'sections'  => 'بخش‌های صفحه اصلی',
             'messages'  => 'پیام‌های تماس',
