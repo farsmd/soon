@@ -2024,6 +2024,7 @@ if ($page === 'design') {
                 'chart_profit'        => ['💰 درآمد در برابر هزینه', 'chart'],
                 'chart_funnel'        => ['🔻 قیف سفارشات', 'chart'],
                 'chart_timeline'      => ['📊 تایم‌لاین ۳۰ روزه سفارشات', 'chart'],
+                'chart_visits'        => ['بازدید روزانه (بدون ربات و ادمین)', 'chart'],
             ];
             $dashWidgetPages = [
                 'stat_customers'     => 'customers',
@@ -2049,6 +2050,7 @@ if ($page === 'design') {
                 'chart_profit'       => 'finance',
                 'chart_funnel'       => 'orders',
                 'chart_timeline'     => 'orders',
+                'chart_visits'       => 'logs',
             ];
             $dashEnabledRaw = json_decode((string) get_setting('dash_widgets', ''), true);
             $dashEnabled = (is_array($dashEnabledRaw) && $dashEnabledRaw !== [])
@@ -2338,7 +2340,19 @@ if ($page === 'design') {
                 }
                 return '<div class="timeline-chart">' . $bars . '</div><p class="muted center">سفارش‌های ۳۰ روز اخیر</p>';
             };
-            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $chartProfit, $chartFunnel, $chartTimeline, $renderBarChart, $dashWidgetPages, $chartJs): string {
+            // بازدید روزانه ۱۴ روز اخیر — بدون ربات و ادمین (۹٫۲۲)
+            $chartVisits = [];
+            try {
+                $vrows = $pdo->query("SELECT substr(created_at,1,10) as d, COUNT(*) as c FROM visit_logs WHERE kind = 'visit' AND COALESCE(is_bot,0) = 0 AND COALESCE(admin_user,'') = '' AND created_at >= date('now','-13 days') GROUP BY d ORDER BY d")->fetchAll(PDO::FETCH_ASSOC);
+                $vmap = [];
+                foreach ($vrows as $vr) { $vmap[$vr['d']] = (int) $vr['c']; }
+                for ($i = 13; $i >= 0; $i--) {
+                    $d = date('Y-m-d', strtotime("-$i days"));
+                    $chartVisits[] = ['day' => $d, 'value' => $vmap[$d] ?? 0];
+                }
+            } catch (Throwable $e) {}
+
+            $renderChart = static function (string $key) use ($chartIncome, $chartOrderStatus, $chartExpenseCat, $chartProdStages, $chartProfit, $chartFunnel, $chartTimeline, $chartVisits, $renderBarChart, $dashWidgetPages, $chartJs): string {
                 if (isset($dashWidgetPages[$key]) && !admin_can_page($dashWidgetPages[$key])) {
                     return '';
                 }
@@ -2377,6 +2391,11 @@ if ($page === 'design') {
                         $labels = array_map(fn($d) => substr($d['day'], 5), $chartTimeline);
                         $vals = array_column($chartTimeline, 'value');
                         return '<section class="card wide"><h3>تایم‌لاین سفارشات — ۳۰ روز اخیر</h3>' . $chartJs('bar', $labels, [['label' => 'سفارش', 'data' => $vals]]) . '</section>';
+                    case 'chart_visits':
+                        $vlabels = array_map(fn($d) => substr($d['day'], 5), $chartVisits);
+                        $vvals = array_column($chartVisits, 'value');
+                        $vtotal = array_sum($vvals);
+                        return '<section class="card wide"><h3>بازدید روزانه — ۱۴ روز اخیر <span class="muted">(مجموع: ' . (int) $vtotal . ')</span></h3>' . $chartJs('line', $vlabels, [['label' => 'بازدید', 'data' => $vvals]]) . '</section>';
                 }
                 return '';
             };
