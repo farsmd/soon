@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.14.4');
+define('APP_VERSION', '9.15.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1196,6 +1196,8 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('gallery tiles migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۵: تم‌های جدید (یک بار) ---
+    try { seed_themes_v9150_if_needed(); } catch (Throwable $e) {}
     // --- نسخه ۹٫۱۴: استایل پیگیری سفارش (یک بار) ---
     try { seed_track_css_v9140_if_needed(); } catch (Throwable $e) {}
     // --- نسخه ۹٫۱۳٫۳: استایل لایت‌باکس گالری (یک بار) ---
@@ -1704,7 +1706,15 @@ function menu_html(string $class = 'main-nav'): string
     foreach (menu_items() as $item) {
         $html .= '<a href="' . e($item['url']) . '">' . e($item['title']) . '</a>';
     }
-    $html .= '<button type="button" class="theme-toggle" id="theme-toggle" title="تغییر تم روشن/تیره" aria-label="تغییر تم روشن یا تیره">🌓</button>';
+    $html .= '<div class="theme-picker" id="theme-picker">'
+        . '<button type="button" class="theme-toggle" id="theme-toggle" title="انتخاب تم" aria-label="انتخاب تم" aria-haspopup="true">🎨</button>'
+        . '<div class="theme-menu" id="theme-menu" hidden role="menu">'
+        . '<button type="button" data-theme-val="dark" role="menuitem">🌙 تیره</button>'
+        . '<button type="button" data-theme-val="light" role="menuitem">☀️ روشن</button>'
+        . '<button type="button" data-theme-val="white" role="menuitem">⚪ سفید</button>'
+        . '<button type="button" data-theme-val="glass" role="menuitem">🫧 شیشه‌ای</button>'
+        . '<button type="button" data-theme-val="smoke" role="menuitem">💨 دودی زرد</button>'
+        . '</div></div>';
     $html .= '</div></nav>';
     $cache[$class] = $html;
     return $html;
@@ -2546,7 +2556,7 @@ function validated_visual_settings(array $settings): array
         $font = 'system';
     }
     $theme = (string) ($settings['default_theme'] ?? 'light');
-    if (!in_array($theme, ['light', 'dark', 'system'], true)) {
+    if (!in_array($theme, ['light', 'dark', 'white', 'glass', 'smoke', 'system'], true)) {
         $theme = 'light';
     }
     $width = (int) ($settings['container_width'] ?? 1200);
@@ -2650,7 +2660,9 @@ function skeleton_head(array $settings, string $title, string $description, arra
     $keywords = trim((string) ($seo['keywords'] ?? ''));
 
     $out  = "<!DOCTYPE html>\n";
-    $out .= "<html lang=\"fa\" dir=\"rtl\">\n<head>\n";
+    $defTheme = (string) ($visual['default_theme'] ?? 'dark');
+    $htmlThemeAttr = ($defTheme !== '' && $defTheme !== 'dark' && $defTheme !== 'system') ? ' data-theme="' . e($defTheme) . '"' : '';
+    $out .= "<html lang=\"fa\" dir=\"rtl\"{$htmlThemeAttr}>\n<head>\n";
     $out .= '<meta charset="UTF-8">' . "\n";
     $out .= '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     $out .= '<title>' . e($title) . '</title>' . "\n";
@@ -2756,7 +2768,7 @@ $out .= '<meta name="mobile-web-app-capable" content="yes">' . "\n";
 $out .= '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
 $out .= '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' . "\n";
 $out .= '<meta name="apple-mobile-web-app-title" content="لاینرلایت">' . "\n";
-    $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t===\'light\'){document.documentElement.setAttribute(\'data-theme\',\'light\');}}catch(e){}})();</script>' . "\n";
+    $out .= '<script>(function(){try{var t=localStorage.getItem(\'cms-theme\');if(t&&t!==\'dark\'){document.documentElement.setAttribute(\'data-theme\',t);}}catch(e){}})();</script>' . "\n";
     $out .= "</head>\n<body>\n";
     $out .= '<a class="skip-link" href="#main">پرش به محتوای اصلی</a>' . "\n";
     return $out;
@@ -2780,13 +2792,20 @@ function skeleton_foot(): string
         if(list){list.addEventListener('click',function(ev){if(ev.target&&ev.target.tagName==='A'){closeNav();}});}
         document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&list&&list.classList.contains('open')){closeNav();navToggle.focus();}});
     }
-    var themeBtn=document.getElementById('theme-toggle');
-    if(themeBtn){
-        themeBtn.addEventListener('click',function(){
-            var light=document.documentElement.getAttribute('data-theme')==='light';
-            if(light){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}
-            try{localStorage.setItem('cms-theme',light?'dark':'light');}catch(e){}
-        });
+    var themeBtn=document.getElementById('theme-toggle'),themeMenu=document.getElementById('theme-menu');
+    function applyTheme(t){
+        if(t==='dark'){document.documentElement.removeAttribute('data-theme');}
+        else{document.documentElement.setAttribute('data-theme',t);}
+        try{localStorage.setItem('cms-theme',t);}catch(e){}
+        if(themeMenu){var btns=themeMenu.querySelectorAll('[data-theme-val]');for(var i=0;i<btns.length;i++){btns[i].classList.toggle('active',btns[i].getAttribute('data-theme-val')===t);}}
+    }
+    if(themeBtn&&themeMenu){
+        themeBtn.addEventListener('click',function(e){e.stopPropagation();themeMenu.hidden=!themeMenu.hidden;});
+        document.addEventListener('click',function(){themeMenu.hidden=true;});
+        themeMenu.addEventListener('click',function(e){e.stopPropagation();});
+        var tbtns=themeMenu.querySelectorAll('[data-theme-val]');
+        for(var j=0;j<tbtns.length;j++){tbtns[j].addEventListener('click',function(){applyTheme(this.getAttribute('data-theme-val'));themeMenu.hidden=true;});}
+        try{var saved=localStorage.getItem('cms-theme');if(saved){applyTheme(saved);}}catch(e){}
     }
     var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var sliders=document.querySelectorAll('[data-slider]');
@@ -4724,6 +4743,31 @@ GLB;
 }
 
 /** مایگریشن نسخه ۹٫۱۳٫۱: پیچیدن محتوای گالری داخل کانتینر کاشی */
+/** مایگریشن نسخه ۹٫۱۵: استایل تم‌های جدید + منوی انتخاب تم */
+function seed_themes_v9150_if_needed(): void
+{
+    try {
+        if (get_setting('themes_9150', '0') === '1') { return; }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, 'data-theme="white"') === false) {
+            // CSS تم‌ها از defaults.php خوانده می‌شود
+            $seed = file_get_contents(__DIR__ . '/defaults.php');
+            if ($seed !== false && preg_match('/\/\* === تم سفید \(۹٫۱۵\) === \*\/(.*?)html\[data-theme="light"\] body::before\{/s', $seed, $m)) {
+                $css .= "\n" . trim($m[1]) . "\n";
+            }
+            // استایل منوی انتخاب تم
+            $css .= ".theme-picker{position:relative;display:inline-block}\n"
+                . ".theme-menu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:160px;background:var(--surface);border:1px solid var(--surface-border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:1000}\n"
+                . ".theme-menu[hidden]{display:none}\n"
+                . ".theme-menu button{display:flex;width:100%;align-items:center;gap:8px;padding:10px 12px;border:0;background:none;color:var(--text);font-size:14px;border-radius:8px;cursor:pointer;text-align:start}\n"
+                . ".theme-menu button:hover{background:var(--gold-soft)}\n"
+                . ".theme-menu button.active{background:var(--gold-soft);font-weight:700}\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('themes_9150', '1');
+    } catch (Throwable $e) {}
+}
+
 /** مایگریشن نسخه ۹٫۱۴: استایل صفحه پیگیری سفارش */
 function seed_track_css_v9140_if_needed(): void
 {

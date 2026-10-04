@@ -1332,7 +1332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $font = 'system';
                 }
                 $theme = (string) ($_POST['default_theme'] ?? 'light');
-                if (!in_array($theme, ['light', 'dark', 'system'], true)) {
+                if (!in_array($theme, ['light', 'dark', 'white', 'glass', 'smoke', 'system'], true)) {
                     $theme = 'light';
                 }
                 set_setting('primary_color', valid_hex_color($_POST['primary_color'] ?? null, '#2563eb'));
@@ -2485,8 +2485,11 @@ if ($page === 'design') {
                     </label>
                     <label>تم پیش‌فرض برای بازدیدکننده تازه
                         <select name="default_theme">
-                            <option value="light" <?= $visual['default_theme'] === 'light' ? 'selected' : '' ?>>روشن</option>
                             <option value="dark" <?= $visual['default_theme'] === 'dark' ? 'selected' : '' ?>>تیره</option>
+                            <option value="light" <?= $visual['default_theme'] === 'light' ? 'selected' : '' ?>>روشن</option>
+                            <option value="white" <?= $visual['default_theme'] === 'white' ? 'selected' : '' ?>>سفید</option>
+                            <option value="glass" <?= $visual['default_theme'] === 'glass' ? 'selected' : '' ?>>شیشه‌ای</option>
+                            <option value="smoke" <?= $visual['default_theme'] === 'smoke' ? 'selected' : '' ?>>دودی زرد</option>
                             <option value="system" <?= $visual['default_theme'] === 'system' ? 'selected' : '' ?>>مطابق تنظیم سیستم بازدیدکننده</option>
                         </select>
                     </label>
