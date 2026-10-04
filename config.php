@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.15.0');
+define('APP_VERSION', '9.15.1');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1706,15 +1706,7 @@ function menu_html(string $class = 'main-nav'): string
     foreach (menu_items() as $item) {
         $html .= '<a href="' . e($item['url']) . '">' . e($item['title']) . '</a>';
     }
-    $html .= '<div class="theme-picker" id="theme-picker">'
-        . '<button type="button" class="theme-toggle" id="theme-toggle" title="انتخاب تم" aria-label="انتخاب تم" aria-haspopup="true">🎨</button>'
-        . '<div class="theme-menu" id="theme-menu" hidden role="menu">'
-        . '<button type="button" data-theme-val="dark" role="menuitem">🌙 تیره</button>'
-        . '<button type="button" data-theme-val="light" role="menuitem">☀️ روشن</button>'
-        . '<button type="button" data-theme-val="white" role="menuitem">⚪ سفید</button>'
-        . '<button type="button" data-theme-val="glass" role="menuitem">🫧 شیشه‌ای</button>'
-        . '<button type="button" data-theme-val="smoke" role="menuitem">💨 دودی زرد</button>'
-        . '</div></div>';
+    // انتخاب تم فقط از پنل مدیریت (تنظیمات ظاهری ← تم پیش‌فرض)
     $html .= '</div></nav>';
     $cache[$class] = $html;
     return $html;
@@ -2792,21 +2784,7 @@ function skeleton_foot(): string
         if(list){list.addEventListener('click',function(ev){if(ev.target&&ev.target.tagName==='A'){closeNav();}});}
         document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&list&&list.classList.contains('open')){closeNav();navToggle.focus();}});
     }
-    var themeBtn=document.getElementById('theme-toggle'),themeMenu=document.getElementById('theme-menu');
-    function applyTheme(t){
-        if(t==='dark'){document.documentElement.removeAttribute('data-theme');}
-        else{document.documentElement.setAttribute('data-theme',t);}
-        try{localStorage.setItem('cms-theme',t);}catch(e){}
-        if(themeMenu){var btns=themeMenu.querySelectorAll('[data-theme-val]');for(var i=0;i<btns.length;i++){btns[i].classList.toggle('active',btns[i].getAttribute('data-theme-val')===t);}}
-    }
-    if(themeBtn&&themeMenu){
-        themeBtn.addEventListener('click',function(e){e.stopPropagation();themeMenu.hidden=!themeMenu.hidden;});
-        document.addEventListener('click',function(){themeMenu.hidden=true;});
-        themeMenu.addEventListener('click',function(e){e.stopPropagation();});
-        var tbtns=themeMenu.querySelectorAll('[data-theme-val]');
-        for(var j=0;j<tbtns.length;j++){tbtns[j].addEventListener('click',function(){applyTheme(this.getAttribute('data-theme-val'));themeMenu.hidden=true;});}
-        try{var saved=localStorage.getItem('cms-theme');if(saved){applyTheme(saved);}}catch(e){}
-    }
+    // تم سایت فقط از تنظیمات پیش‌فرض پنل اعمال می‌شود
     var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var sliders=document.querySelectorAll('[data-slider]');
     Array.prototype.forEach.call(sliders,function(root){
