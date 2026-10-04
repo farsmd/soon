@@ -22,8 +22,11 @@ process_partner_form();
 $settings = all_settings();
 $sections = get_sections(true); // فقط فعال‌ها، به ترتیب
 
-$seoTitle = (string) ($settings['seo_title'] ?? '') !== '' ? (string) $settings['seo_title'] : (string) ($settings['site_title'] ?? 'وب‌سایت من');
-$seoDesc  = (string) ($settings['seo_description'] ?? '') !== '' ? (string) $settings['seo_description'] : (string) ($settings['site_description'] ?? '');
+$seoTitle = trim((string) ($settings['seo_title'] ?? ''));
+if ($seoTitle === '') { $seoTitle = trim((string) ($settings['site_title'] ?? '')); }
+if ($seoTitle === '') { $seoTitle = 'لاینرلایت | چراغ خطی و نورپردازی دکوراتیو'; }
+$seoDesc = trim((string) ($settings['seo_description'] ?? ''));
+if ($seoDesc === '') { $seoDesc = trim((string) ($settings['site_description'] ?? '')); }
 // سئوی حرفه‌ای صفحه اصلی (نسخه ۸٫۱۰٫۰): کلمات کلیدی و تصویر OG
 $seoKeywords = (string) ($settings['seo_keywords'] ?? '');
 if ($seoKeywords === '') {
