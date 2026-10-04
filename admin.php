@@ -4308,6 +4308,12 @@ html[data-admin-theme="glass-white"] .card,html[data-admin-theme="glass-white"] 
 html[data-admin-theme="glass-white"] table{background:rgba(255,255,255,.6);backdrop-filter:blur(12px);border:1px solid rgba(34,197,94,.15);border-radius:16px}
 html[data-admin-theme="glass-white"] .sidebar{background:rgba(255,255,255,.6)!important;backdrop-filter:blur(20px) saturate(1.5);border-inline-end:1px solid rgba(34,197,94,.15)!important}
 html[data-admin-theme="glass-white"] .btn{border-radius:12px}
+html[data-admin-theme="glass-white"] .topbar{background:rgba(255,255,255,.7)!important;backdrop-filter:blur(20px);color:#111827!important;border-bottom:1px solid rgba(34,197,94,.15)!important}
+html[data-admin-theme="glass-white"] .topbar .topbar-title{color:#111827!important;font-weight:700}
+html[data-admin-theme="glass-white"] .topbar .menu-toggle{color:#111827!important;border:1px solid rgba(34,197,94,.3)!important;background:rgba(255,255,255,.6)!important}
+html[data-admin-theme="glass-smoke"] .topbar{background:rgba(28,28,30,.8)!important;backdrop-filter:blur(20px);color:#f5f5f7!important;border-bottom:1px solid rgba(255,255,255,.08)!important}
+html[data-admin-theme="glass-smoke"] .topbar .topbar-title{color:#f5f5f7!important;font-weight:700}
+html[data-admin-theme="glass-smoke"] .topbar .menu-toggle{color:#f5f5f7!important;border:1px solid rgba(255,255,255,.15)!important;background:rgba(72,72,74,.6)!important}
 html[data-admin-theme="glass-smoke"] body{background:#1c1c1e;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(250,204,21,.06),transparent);color:#f5f5f7;-webkit-font-smoothing:antialiased}
 html[data-admin-theme="glass-smoke"] a{color:#facc15}
 html[data-admin-theme="glass-smoke"] .muted{color:#98989f}
