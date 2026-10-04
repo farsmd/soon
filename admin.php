@@ -4015,6 +4015,9 @@ input[type=color]{width:72px;height:38px;padding:2px;border:1px solid #d1d5db;bo
 @media (max-width:899px){
 .layout{flex-direction:column}
 .content{padding:14px}
+.dash-charts{grid-template-columns:1fr!important}
+.dash-charts .card{min-width:0;overflow:hidden}
+.dash-charts canvas{max-width:100%!important;height:auto!important}
 table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tpl-preview{height:320px}
 .sidebar{position:fixed;top:0;bottom:0;inset-inline-start:0;width:min(300px,86vw);z-index:80;transform:translateX(110%);transition:transform .25s ease;box-shadow:0 0 44px rgba(0,0,0,.25)}
