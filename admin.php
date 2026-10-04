@@ -2585,25 +2585,79 @@ if ($page === 'design') {
                 (function(){
                     if (typeof grapesjs === 'undefined') return;
                     var codeArea = document.getElementById('page-content-code');
+                    var gjsWrap = document.getElementById('gjs-wrap');
                     var editor = grapesjs.init({
                         container: '#gjs',
                         fromElement: false,
-                        height: '500px',
+                        height: '600px',
                         width: 'auto',
                         storageManager: false,
-                        panels: { defaults: [] },
+                        deviceManager: {
+                            devices: [
+                                { name: 'دسکتاپ', width: '' },
+                                { name: 'تبلت', width: '768px', widthMedia: '992px' },
+                                { name: 'موبایل', width: '375px', widthMedia: '768px' },
+                            ]
+                        },
+                        panels: {
+                            defaults: [
+                                { id: 'basic-actions', el: '.gjs-pn-basic', buttons: [
+                                    { id: 'undo', className: 'fa fa-undo', command: 'core:undo', attributes: { title: 'برگردان' } },
+                                    { id: 'redo', className: 'fa fa-repeat', command: 'core:redo', attributes: { title: 'جلوبر' } },
+                                    { id: 'fullscreen', className: 'fa fa-expand', command: 'gjs-fullscreen', attributes: { title: 'تمام‌صفحه' } },
+                                    { id: 'preview-devices', className: '', buttons: [
+                                        { id: 'device-desktop', className: 'fa fa-desktop', command: 'set-device-desktop', attributes: { title: 'دسکتاپ' } },
+                                        { id: 'device-tablet', className: 'fa fa-tablet', command: 'set-device-tablet', attributes: { title: 'تبلت' } },
+                                        { id: 'device-mobile', className: 'fa fa-mobile', command: 'set-device-mobile', attributes: { title: 'موبایل' } },
+                                    ]},
+                                ]},
+                                { id: 'panel-blocks', el: '.gjs-pn-blocks', buttons: [{ id: 'show-blocks', active: true, label: 'بلوک‌ها', command: 'show-blocks' }] },
+                                { id: 'panel-layers', el: '.gjs-pn-layers', buttons: [{ id: 'show-layers', label: 'لایه‌ها', command: 'show-layers' }] },
+                                { id: 'panel-styles', el: '.gjs-pn-styles', buttons: [{ id: 'show-styles', label: 'استایل', command: 'show-styles' }] },
+                            ]
+                        },
                         blockManager: {
                             appendTo: '#gjs-blocks',
                             blocks: [
-                                { id: 'text', label: 'متن', content: '<p>متن خود را اینجا بنویسید</p>', category: 'پایه' },
-                                { id: 'heading', label: 'تیتر', content: '<h2>تیتر</h2>', category: 'پایه' },
-                                { id: 'image', label: 'عکس', content: { type: 'image' }, category: 'پایه' },
-                                { id: 'columns', label: 'دو ستون', content: '<div style="display:flex;gap:16px"><div style="flex:1"><p>ستون ۱</p></div><div style="flex:1"><p>ستون ۲</p></div></div>', category: 'چیدمان' },
-                                { id: 'button', label: 'دکمه', content: '<a href="#" style="display:inline-block;padding:12px 28px;background:#d4a017;color:#fff;border-radius:10px;text-decoration:none">دکمه</a>', category: 'پایه' },
-                                { id: 'divider', label: 'جداکننده', content: '<hr>', category: 'پایه' },
+                                { id: 'hero', label: 'هیرو', category: 'سکشن', content: '<section style="padding:80px 20px;text-align:center;background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff"><h1 style="font-size:36px;margin-bottom:16px">تیتر اصلی</h1><p style="font-size:18px;opacity:.8;margin-bottom:24px">توضیح کوتاه</p><a href="#" style="display:inline-block;padding:14px 36px;background:#d4a017;color:#fff;border-radius:12px;text-decoration:none;font-weight:700">دکمه</a></section>' },
+                                { id: 'features', label: 'ویژگی‌ها', category: 'سکشن', content: '<section style="padding:60px 20px"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1000px;margin:0 auto"><div style="text-align:center;padding:24px"><div style="font-size:40px;margin-bottom:12px">⭐</div><h3>ویژگی ۱</h3><p>توضیح</p></div><div style="text-align:center;padding:24px"><div style="font-size:40px;margin-bottom:12px">🚀</div><h3>ویژگی ۲</h3><p>توضیح</p></div><div style="text-align:center;padding:24px"><div style="font-size:40px;margin-bottom:12px">💡</div><h3>ویژگی ۳</h3><p>توضیح</p></div></div></section>' },
+                                { id: 'cta', label: 'دعوت به اقدام', category: 'سکشن', content: '<section style="padding:60px 20px;background:#fef9c3;text-align:center"><h2>آماده‌اید؟</h2><p>همین حالا شروع کنید</p><a href="#" style="display:inline-block;padding:14px 36px;background:#16a34a;color:#fff;border-radius:12px;text-decoration:none;font-weight:700;margin-top:16px">شروع</a></section>' },
+                                { id: 'faq', label: 'سؤالات متداول', category: 'سکشن', content: '<section style="padding:60px 20px;max-width:800px;margin:0 auto"><h2 style="text-align:center;margin-bottom:32px">سؤالات متداول</h2><details style="margin-bottom:12px;padding:16px;border:1px solid #e5e7eb;border-radius:10px"><summary style="font-weight:700;cursor:pointer">سؤال ۱؟</summary><p style="margin-top:8px">پاسخ...</p></details><details style="margin-bottom:12px;padding:16px;border:1px solid #e5e7eb;border-radius:10px"><summary style="font-weight:700;cursor:pointer">سؤال ۲؟</summary><p style="margin-top:8px">پاسخ...</p></details></section>' },
+                                { id: 'text', label: 'متن', category: 'پایه', content: '<p>متن خود را اینجا بنویسید</p>' },
+                                { id: 'heading', label: 'تیتر', category: 'پایه', content: '<h2>تیتر</h2>' },
+                                { id: 'image', label: 'عکس', category: 'پایه', content: { type: 'image' } },
+                                { id: 'columns-2', label: 'دو ستون', category: 'چیدمان', content: '<div style="display:flex;gap:16px"><div style="flex:1"><p>ستون ۱</p></div><div style="flex:1"><p>ستون ۲</p></div></div>' },
+                                { id: 'columns-3', label: 'سه ستون', category: 'چیدمان', content: '<div style="display:flex;gap:16px"><div style="flex:1"><p>ستون ۱</p></div><div style="flex:1"><p>ستون ۲</p></div><div style="flex:1"><p>ستون ۳</p></div></div>' },
+                                { id: 'button', label: 'دکمه', category: 'پایه', content: '<a href="#" style="display:inline-block;padding:12px 28px;background:#d4a017;color:#fff;border-radius:10px;text-decoration:none">دکمه</a>' },
+                                { id: 'divider', label: 'جداکننده', category: 'پایه', content: '<hr>' },
+                                { id: 'video', label: 'ویدیو', category: 'رسانه', content: '<video controls style="width:100%;border-radius:12px"><source src="" type="video/mp4"></video>' },
+                                { id: 'map', label: 'نقشه', category: 'رسانه', content: '<iframe src="https://www.google.com/maps/embed?pb=..." style="width:100%;height:300px;border:0;border-radius:12px" loading="lazy"></iframe>' },
                             ]
                         },
+                        styleManager: {
+                            appendTo: '.gjs-pn-styles',
+                            sectors: [
+                                { name: 'ابعاد', open: false, properties: ['width', 'height', 'max-width', 'padding', 'margin'] },
+                                { name: 'تایپوگرافی', open: false, properties: ['font-family', 'font-size', 'font-weight', 'color', 'line-height', 'text-align'] },
+                                { name: 'پس‌زمینه', open: false, properties: ['background-color', 'background'] },
+                                { name: 'کادر', open: false, properties: ['border', 'border-radius'] },
+                            ]
+                        },
+                        layerManager: { appendTo: '.gjs-pn-layers' },
                     });
+                    // دستور تمام‌صفحه
+                    editor.Commands.add('gjs-fullscreen', {
+                        run: function(ed) { gjsWrap.classList.add('gjs-fullscreen'); ed.refresh(); },
+                        stop: function(ed) { gjsWrap.classList.remove('gjs-fullscreen'); ed.refresh(); },
+                    });
+                    // دستورات دستگاه
+                    ['desktop', 'tablet', 'mobile'].forEach(function(d){
+                        editor.Commands.add('set-device-' + d, { run: function(ed){ ed.setDevice(d === 'desktop' ? 'دسکتاپ' : d === 'tablet' ? 'تبلت' : 'موبایل'); } });
+                    });
+                    // نمایش پنل‌ها
+                    editor.Commands.add('show-blocks', { run: function(ed){ document.getElementById('gjs-blocks').style.display = ''; document.querySelector('.gjs-pn-layers').style.display = 'none'; document.querySelector('.gjs-pn-styles').style.display = 'none'; }, stop: function(){} });
+                    editor.Commands.add('show-layers', { run: function(){ document.getElementById('gjs-blocks').style.display = 'none'; document.querySelector('.gjs-pn-layers').style.display = ''; document.querySelector('.gjs-pn-styles').style.display = 'none'; }, stop: function(){} });
+                    editor.Commands.add('show-styles', { run: function(){ document.getElementById('gjs-blocks').style.display = 'none'; document.querySelector('.gjs-pn-layers').style.display = 'none'; document.querySelector('.gjs-pn-styles').style.display = ''; }, stop: function(){} });
                     // بارگذاری محتوای فعلی
                     editor.setComponents(codeArea.value || '<p>محتوای صفحه...</p>');
                     // تب‌ها
@@ -2636,7 +2690,17 @@ if ($page === 'design') {
                 .editor-tabs{display:flex;gap:8px;margin-bottom:10px}
                 .editor-tabs .btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
                 #gjs-blocks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+                #gjs-wrap.gjs-fullscreen{position:fixed;inset:0;z-index:9999;background:#fff}
+                #gjs-wrap.gjs-fullscreen #gjs{height:100vh!important}
+                .gjs-pn-panel{display:flex;gap:4px;padding:6px;background:#f8fafc;border-bottom:1px solid #e5e7eb}
+                .gjs-pn-btn{padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+                .gjs-pn-btn.gjs-pn-active{background:#2563eb;color:#fff;border-color:#2563eb}
+                .gjs-pn-layers,.gjs-pn-styles{display:none;max-height:400px;overflow:auto;padding:10px;background:#f8fafc}
                 </style>
+                <div class="gjs-pn-panel gjs-pn-basic"></div>
+                <div class="gjs-pn-panel gjs-pn-blocks"></div>
+                <div class="gjs-pn-panel gjs-pn-layers"></div>
+                <div class="gjs-pn-panel gjs-pn-styles"></div>
                 <label>عنوان سئو (SEO) — اگر خالی باشد عنوان صفحه استفاده می‌شود
                     <input type="text" name="seo_title" value="<?= e($editPage['seo_title'] ?? '') ?>">
                 </label>
