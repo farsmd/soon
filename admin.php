@@ -2266,11 +2266,14 @@ if ($page === 'design') {
             <?php endif; ?>
 
             <div class="stat-grid dash-cards">
-                <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat') { continue; } echo $renderStat($wk); ?>
+                <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat' || str_starts_with($wk, 'kpi_')) { continue; } echo $renderStat($wk); ?>
                 <?php if ($wk === 'stat_orders' && $lowStockCount > 0 && admin_can_page('materials')): ?>
                 <a class="stat-card sc-red sc-alert-red" href="admin.php?page=materials"><span><i class="sc-ico">' . $dash_icon('alert') . '</i>مواد رو به اتمام</span><strong><?= (int) $lowStockCount ?> ماده</strong></a>
                 <?php endif; ?>
                 <?php endforeach; ?>
+            </div>
+            <div class="stat-grid dash-kpi">
+                <?php foreach ($dashEnabled as $wk): if (!str_starts_with($wk, 'kpi_')) { continue; } echo $renderStat($wk); endforeach; ?>
             </div>
 
             <?php $hasChart = false; foreach ($dashEnabled as $wk) { if (($dashWidgetDefs[$wk][1] ?? '') === 'chart' && (!isset($dashWidgetPages[$wk]) || admin_can_page($dashWidgetPages[$wk]))) { $hasChart = true; break; } } ?>
@@ -3546,20 +3549,33 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
 .dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
 /* کارت‌های KPI — شیشه‌ای نئونی، کامپکت با آیکون (۹٫۱۶٫۱) */
-.dash-cards .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 14px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25)}
-.dash-cards .stat-card.kpi::before{display:none}
-.dash-cards .stat-card.kpi span{color:rgba(255,255,255,.9);font-size:12px}
-.dash-cards .stat-card.kpi strong{color:#fff;font-size:19px;text-shadow:0 1px 8px rgba(0,0,0,.2)}
-.dash-cards .stat-card.kpi .sc-ico{width:38px;height:38px;font-size:19px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25)}
-.dash-cards .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
-.dash-cards .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
-.dash-cards .stat-card.kpi-orders{background:linear-gradient(135deg,rgba(59,130,246,.85),rgba(37,99,235,.75))}
-.dash-cards .stat-card.kpi-employees{background:linear-gradient(135deg,rgba(139,92,246,.85),rgba(124,58,237,.75))}
-.dash-cards .stat-card.kpi-payroll{background:linear-gradient(135deg,rgba(245,158,11,.85),rgba(217,119,6,.75))}
-.dash-cards .stat-card.kpi-assets{background:linear-gradient(135deg,rgba(20,184,166,.85),rgba(13,148,136,.75))}
+.dash-kpi .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 14px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25)}
+.dash-kpi .stat-card.kpi::before{display:none}
+.dash-kpi .stat-card.kpi span{color:rgba(255,255,255,.9);font-size:12px}
+.dash-kpi .stat-card.kpi strong{color:#fff;font-size:19px;text-shadow:0 1px 8px rgba(0,0,0,.2)}
+.dash-kpi .stat-card.kpi .sc-ico{width:38px;height:38px;font-size:19px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25)}
+.dash-kpi .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
+.dash-kpi .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
+.dash-kpi .stat-card.kpi-orders{background:linear-gradient(135deg,rgba(59,130,246,.85),rgba(37,99,235,.75))}
+.dash-kpi .stat-card.kpi-employees{background:linear-gradient(135deg,rgba(139,92,246,.85),rgba(124,58,237,.75))}
+.dash-kpi .stat-card.kpi-payroll{background:linear-gradient(135deg,rgba(245,158,11,.85),rgba(217,119,6,.75))}
+.dash-kpi .stat-card.kpi-assets{background:linear-gradient(135deg,rgba(20,184,166,.85),rgba(13,148,136,.75))}
 .dash-cards a.stat-card.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(17,24,39,.25),0 0 24px rgba(255,255,255,.15)}
+/* چیدمان کارت‌ها: ۳ در ردیف، آیکون و اطلاعات در یک خط (۹٫۱۶٫۳) */
+.dash-cards{grid-template-columns:repeat(3,1fr)!important;gap:12px}
+.dash-cards .stat-card{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.dash-cards .stat-card .sc-ico{flex-shrink:0}
+.dash-cards .stat-card span{flex:1;font-size:13px}
+.dash-cards .stat-card strong{font-size:20px;white-space:nowrap}
+/* کارت‌های رنگی KPI: ۲ در ردیف، نوشته راست و عدد چپ */
+.dash-kpi{grid-template-columns:repeat(2,1fr)!important;gap:12px;margin-top:12px}
+.dash-kpi .stat-card.kpi{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dash-kpi .stat-card.kpi span{text-align:right;flex:1}
+.dash-kpi .stat-card.kpi strong{text-align:left}
+@media (max-width:640px){.dash-kpi{grid-template-columns:1fr!important}}
 /* موبایل: کارت‌ها تک‌ردیفه و جمع‌وجور (۹٫۱۶٫۱) */
 @media (max-width:640px){
+  .dash-cards{grid-template-columns:1fr!important}
   .topbar{padding:8px 10px}
   .topbar-title{font-size:14px}
   .topbar-actions .quick-add{display:none}
@@ -3569,11 +3585,6 @@ body.nav-open .topbar{z-index:85}
   .sidebar-brand{display:flex!important}
   .brand-logo{width:36px;height:36px}
   .dash-cards{grid-template-columns:1fr!important;gap:10px}
-  .dash-cards .stat-card{padding:12px 14px}
-  .dash-cards .stat-card.kpi{display:flex;align-items:center;gap:12px;padding:10px 14px}
-  .dash-cards .stat-card.kpi .sc-ico{width:34px;height:34px;font-size:17px;flex-shrink:0}
-  .dash-cards .stat-card.kpi > div{flex:1}
-  .dash-cards .stat-card.kpi strong{font-size:17px}
   .dash-charts{grid-template-columns:1fr!important}
 }
 /* کارت‌های هشدار */
