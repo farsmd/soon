@@ -505,7 +505,7 @@ if (!is_logged_in()) {
     }
     ?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-admin-theme="<?= e((string) get_setting('admin_theme', 'light')) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1418,6 +1418,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('container_width', (string) max(880, min(1600, (int) ($_POST['container_width'] ?? 1200))));
                 set_setting('border_radius', (string) max(0, min(32, (int) ($_POST['border_radius'] ?? 12))));
                 set_setting('default_theme', $theme);
+                $adminTheme = (string) ($_POST['admin_theme'] ?? 'light');
+                if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke'], true)) {
+                    $adminTheme = 'light';
+                }
+                set_setting('admin_theme', $adminTheme);
                 set_setting('header_sticky', isset($_POST['header_sticky']) ? '1' : '0');
                 bump_css_updated();
                 flash('ok', 'تنظیمات ظاهری ذخیره شد و بلافاصله روی سایت اعمال می‌شود.');
@@ -1878,6 +1883,10 @@ $legacyCssWarnings = [];
 $cleanupCandidates = [];
 $tplUsedIn = [];
 $visual = validated_visual_settings($settings);
+$adminTheme = (string) get_setting('admin_theme', 'light');
+if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke'], true)) {
+    $adminTheme = 'light';
+}
 if ($page === 'design') {
     $designTab = (string) ($_GET['tab'] ?? 'templates');
     if (!in_array($designTab, ['templates', 'css', 'themes'], true)) {
@@ -1902,7 +1911,7 @@ if ($page === 'design') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-admin-theme="<?= e((string) get_setting('admin_theme', 'light')) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1982,17 +1991,10 @@ if ($page === 'design') {
         <?php endforeach; ?>
 
         <div class="sidebar-version">نسخه برنامه <span class="version-badge" dir="ltr"><?= e(APP_VERSION) ?></span></div>
-        <div class="admin-theme-switch" style="padding:10px 14px;border-top:1px solid #e5e7eb;margin-top:8px">
-            <div class="muted" style="margin-bottom:6px">تم پنل</div>
-            <div style="display:flex;gap:6px">
-                <button type="button" class="btn small" data-admin-theme-btn="default" title="پیش‌فرض">☀️</button>
-                <button type="button" class="btn small" data-admin-theme-btn="glass-white" title="شیشه‌ای سفید">🫧</button>
-                <button type="button" class="btn small" data-admin-theme-btn="glass-smoke" title="شیشه‌ای دودی">🌙</button>
-            </div>
-        </div>
+
     </aside>
 
-    <script>(function(){try{var t=localStorage.getItem('admin-theme')||'default';if(t!=='default'){document.documentElement.setAttribute('data-admin-theme',t);}var btns=document.querySelectorAll('[data-admin-theme-btn]');for(var i=0;i<btns.length;i++){(function(b){b.addEventListener('click',function(){var v=b.getAttribute('data-admin-theme-btn');try{localStorage.setItem('admin-theme',v);}catch(e){}if(v==='default'){document.documentElement.removeAttribute('data-admin-theme');}else{document.documentElement.setAttribute('data-admin-theme',v);}});})(btns[i]);}}catch(e){}})();</script>
+
     <main class="content">
         <?php if ($flash): ?><div class="alert <?= e($flash['type']) ?>"><?= e($flash['message']) ?></div><?php endif; ?>
         <?php if ($error): ?><div class="alert error"><?= e($error) ?></div><?php endif; ?>
@@ -3046,7 +3048,7 @@ if ($page === 'design') {
                     <label>گردی گوشه‌ها (پیکسل، بین ۰ تا ۳۲)
                         <input type="number" name="border_radius" min="0" max="32" step="1" value="<?= (int) $visual['border_radius'] ?>">
                     </label>
-                    <label>تم پیش‌فرض برای بازدیدکننده تازه
+                    <label>تم سایت (فقط ظاهر سایت عمومی، ربطی به پنل مدیریت ندارد)
                         <select name="default_theme">
                             <option value="dark" <?= $visual['default_theme'] === 'dark' ? 'selected' : '' ?>>تیره</option>
                             <option value="light" <?= $visual['default_theme'] === 'light' ? 'selected' : '' ?>>روشن</option>
@@ -3059,6 +3061,14 @@ if ($page === 'design') {
                             <option value="royal" <?= $visual['default_theme'] === 'royal' ? 'selected' : '' ?>>بنفش سلطنتی</option>
                             <option value="mono" <?= $visual['default_theme'] === 'mono' ? 'selected' : '' ?>>مینیمال</option>
                             <option value="system" <?= $visual['default_theme'] === 'system' ? 'selected' : '' ?>>مطابق تنظیم سیستم بازدیدکننده</option>
+                        </select>
+                    </label>
+                    <label>تم پنل مدیریت (کاملاً جدا از تم سایت)
+                        <select name="admin_theme">
+                            <option value="light" <?= ($adminTheme ?? 'light') === 'light' ? 'selected' : '' ?>>روشن (پیش‌فرض)</option>
+                            <option value="architect" <?= ($adminTheme ?? 'light') === 'architect' ? 'selected' : '' ?>>معمارپسند</option>
+                            <option value="glass-white" <?= ($adminTheme ?? 'light') === 'glass-white' ? 'selected' : '' ?>>شیشه‌ای روشن</option>
+                            <option value="glass-smoke" <?= ($adminTheme ?? 'light') === 'glass-smoke' ? 'selected' : '' ?>>شیشه‌ای تیره</option>
                         </select>
                     </label>
                     <label class="check"><input type="checkbox" name="header_sticky" value="1" <?= $visual['header_sticky'] ? 'checked' : '' ?>> هدر چسبان باشد (هنگام اسکرول بالای صفحه بماند)</label>
@@ -4043,7 +4053,7 @@ body.nav-open .topbar{z-index:85}
 
 
 /* ===== تم معمارپسند (۹٫۲۳) — مینیمال و دقیق ===== */
-:root{
+html[data-admin-theme="architect"]{
     --arch-bg:#fafaf8;
     --arch-surface:#ffffff;
     --arch-ink:#1a1a18;
@@ -4052,246 +4062,246 @@ body.nav-open .topbar{z-index:85}
     --arch-brass:#b08d57;
     --arch-brass-light:#d4b896;
 }
-body{background:var(--arch-bg);color:var(--arch-ink);font-family:'Vazirmatn',Tahoma,sans-serif}
+html[data-admin-theme="architect"] body{background:var(--arch-bg);color:var(--arch-ink);font-family:'Vazirmatn',Tahoma,sans-serif}
 /* سایدبار */
-.sidebar{background:#1a1a18!important;border-inline-end:1px solid #2a2a28}
-.sidebar{background:#1e1e1c!important}
-.sidebar .nav-link{color:#e8e8e3!important;border-radius:8px;margin:2px 8px;transition:all .2s;font-size:13.5px}
-.sidebar .nav-link:hover{background:rgba(176,141,87,.2)!important;color:#fff!important}
-.sidebar .nav-link.active{background:linear-gradient(135deg,#b08d57,#d4b896)!important;color:#1a1a18!important;font-weight:700}
-.sidebar .nav-group-title{color:#d4b896!important;font-weight:700;font-size:11px;letter-spacing:1px;opacity:1!important;margin:12px 16px 6px!important}
-.sidebar .nav-link .nav-icon{color:inherit!important;opacity:1}
-.sidebar .nav-link small,.sidebar .nav-link .badge{color:inherit!important}
-.sidebar-brand{border-bottom:1px solid #333330!important}
-.sidebar-brand span,.sidebar-brand a{color:#fff!important}
+html[data-admin-theme="architect"] .sidebar{background:#1a1a18!important;border-inline-end:1px solid #2a2a28}
+html[data-admin-theme="architect"] .sidebar{background:#1e1e1c!important}
+html[data-admin-theme="architect"] .sidebar .nav-link{color:#e8e8e3!important;border-radius:8px;margin:2px 8px;transition:all .2s;font-size:13.5px}
+html[data-admin-theme="architect"] .sidebar .nav-link:hover{background:rgba(176,141,87,.2)!important;color:#fff!important}
+html[data-admin-theme="architect"] .sidebar .nav-link.active{background:linear-gradient(135deg,#b08d57,#d4b896)!important;color:#1a1a18!important;font-weight:700}
+html[data-admin-theme="architect"] .sidebar .nav-group-title{color:#d4b896!important;font-weight:700;font-size:11px;letter-spacing:1px;opacity:1!important;margin:12px 16px 6px!important}
+html[data-admin-theme="architect"] .sidebar .nav-link .nav-icon{color:inherit!important;opacity:1}
+html[data-admin-theme="architect"] .sidebar .nav-link small, html[data-admin-theme="architect"] .sidebar .nav-link .badge{color:inherit!important}
+html[data-admin-theme="architect"] .sidebar-brand{border-bottom:1px solid #333330!important}
+html[data-admin-theme="architect"] .sidebar-brand span, html[data-admin-theme="architect"] .sidebar-brand a{color:#fff!important}
 /* دکمه‌های تم */
-.theme-switcher button{color:#e8e8e3!important;border:1px solid #444440!important;background:rgba(255,255,255,.05)!important}
-.theme-switcher button.active{background:#b08d57!important;color:#1a1a18!important;border-color:#b08d57!important}
+html[data-admin-theme="architect"] .theme-switcher button{color:#e8e8e3!important;border:1px solid #444440!important;background:rgba(255,255,255,.05)!important}
+html[data-admin-theme="architect"] .theme-switcher button.active{background:#b08d57!important;color:#1a1a18!important;border-color:#b08d57!important}
 /* دکمه‌های تاپ‌بار */
-.topbar .btn{color:#1a1a18!important;border-color:#d8d8d3!important;background:#fff!important;font-weight:600}
-.topbar .btn:hover{border-color:#b08d57!important;color:#b08d57!important}
+html[data-admin-theme="architect"] .topbar .btn{color:#1a1a18!important;border-color:#d8d8d3!important;background:#fff!important;font-weight:600}
+html[data-admin-theme="architect"] .topbar .btn:hover{border-color:#b08d57!important;color:#b08d57!important}
 /* کارت‌ها */
-.card{background:var(--arch-surface);border:1px solid var(--arch-line);border-radius:4px;box-shadow:0 1px 3px rgba(26,26,24,.06)}
-.card h1,.card h2,.card h3{font-weight:700;letter-spacing:-.3px}
+html[data-admin-theme="architect"] .card{background:var(--arch-surface);border:1px solid var(--arch-line);border-radius:4px;box-shadow:0 1px 3px rgba(26,26,24,.06)}
+html[data-admin-theme="architect"] .card h1, html[data-admin-theme="architect"] .card h2, html[data-admin-theme="architect"] .card h3{font-weight:700;letter-spacing:-.3px}
 /* دکمه‌ها */
-.btn{border-radius:4px;font-weight:600;letter-spacing:.2px}
-.btn.primary{background:#1a1a18;border-color:#1a1a18}
-.btn.primary:hover{background:#b08d57;border-color:#b08d57}
-.btn.add{background:#b08d57;border-color:#b08d57;color:#fff}
-.btn.add:hover{background:#9a7a4a}
+html[data-admin-theme="architect"] .btn{border-radius:4px;font-weight:600;letter-spacing:.2px}
+html[data-admin-theme="architect"] .btn.primary{background:#1a1a18;border-color:#1a1a18}
+html[data-admin-theme="architect"] .btn.primary:hover{background:#b08d57;border-color:#b08d57}
+html[data-admin-theme="architect"] .btn.add{background:#b08d57;border-color:#b08d57;color:#fff}
+html[data-admin-theme="architect"] .btn.add:hover{background:#9a7a4a}
 /* جدول */
-table{border:1px solid var(--arch-line)}
-table thead{background:#1a1a18;color:#fff}
-table thead th{font-weight:600;font-size:12px;letter-spacing:.5px;padding:12px}
-table tbody td{border-bottom:1px solid var(--arch-line);padding:12px}
-table tbody tr:hover{background:#fafaf8}
+html[data-admin-theme="architect"] table{border:1px solid var(--arch-line)}
+html[data-admin-theme="architect"] table thead{background:#1a1a18;color:#fff}
+html[data-admin-theme="architect"] table thead th{font-weight:600;font-size:12px;letter-spacing:.5px;padding:12px}
+html[data-admin-theme="architect"] table tbody td{border-bottom:1px solid var(--arch-line);padding:12px}
+html[data-admin-theme="architect"] table tbody tr:hover{background:#fafaf8}
 /* تیترها */
-h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:16px}
-h1::after{content:'';display:block;width:48px;height:3px;background:var(--arch-brass);margin-top:8px}
+html[data-admin-theme="architect"] h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:16px}
+html[data-admin-theme="architect"] h1::after{content:'';display:block;width:48px;height:3px;background:var(--arch-brass);margin-top:8px}
 /* اینپوت */
-input,select,textarea{border:1px solid var(--arch-line)!important;border-radius:4px!important}
-input:focus,select:focus,textarea:focus{border-color:var(--arch-brass)!important;box-shadow:0 0 0 3px rgba(176,141,87,.12)!important;outline:none!important}
+html[data-admin-theme="architect"] input, html[data-admin-theme="architect"] select, html[data-admin-theme="architect"] textarea{border:1px solid var(--arch-line)!important;border-radius:4px!important}
+html[data-admin-theme="architect"] input:focus, html[data-admin-theme="architect"] select:focus, html[data-admin-theme="architect"] textarea:focus{border-color:var(--arch-brass)!important;box-shadow:0 0 0 3px rgba(176,141,87,.12)!important;outline:none!important}
 /* تاپ‌بار */
-.topbar{background:#ffffff!important;border-bottom:2px solid #1a1a18!important;box-shadow:0 2px 8px rgba(0,0,0,.08)!important}
-.topbar .topbar-title{color:#1a1a18!important;font-weight:800!important;font-size:16px!important}
-.topbar .menu-toggle{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;border-radius:8px!important;padding:8px 12px!important;font-size:18px!important;font-weight:800!important}
-.topbar .menu-toggle:hover{background:#1a1a18!important;color:#fff!important}
-.topbar .topbar-actions .btn{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;font-weight:700!important}
-.topbar .topbar-actions .btn:hover{background:#b08d57!important;border-color:#b08d57!important;color:#fff!important}
-.topbar .user-menu-btn{color:#1a1a18!important;border:2px solid #1a1a18!important}
-.topbar .date-pill{background:#1a1a18!important;color:#fff!important;font-weight:600!important}
+html[data-admin-theme="architect"] .topbar{background:#ffffff!important;border-bottom:2px solid #1a1a18!important;box-shadow:0 2px 8px rgba(0,0,0,.08)!important}
+html[data-admin-theme="architect"] .topbar .topbar-title{color:#1a1a18!important;font-weight:800!important;font-size:16px!important}
+html[data-admin-theme="architect"] .topbar .menu-toggle{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;border-radius:8px!important;padding:8px 12px!important;font-size:18px!important;font-weight:800!important}
+html[data-admin-theme="architect"] .topbar .menu-toggle:hover{background:#1a1a18!important;color:#fff!important}
+html[data-admin-theme="architect"] .topbar .topbar-actions .btn{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;font-weight:700!important}
+html[data-admin-theme="architect"] .topbar .topbar-actions .btn:hover{background:#b08d57!important;border-color:#b08d57!important;color:#fff!important}
+html[data-admin-theme="architect"] .topbar .user-menu-btn{color:#1a1a18!important;border:2px solid #1a1a18!important}
+html[data-admin-theme="architect"] .topbar .date-pill{background:#1a1a18!important;color:#fff!important;font-weight:600!important}
 
 /* ===== داشبورد پرچم‌دار (۹٫۲۳) ===== */
-.flagship-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);border-radius:24px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden;color:#fff}
-.flagship-hero::before{content:'';position:absolute;top:-50%;right:-10%;width:400px;height:400px;background:radial-gradient(circle,rgba(139,92,246,.3),transparent 70%);pointer-events:none}
-.flagship-hero::after{content:'';position:absolute;bottom:-30%;left:-5%;width:300px;height:300px;background:radial-gradient(circle,rgba(34,211,238,.25),transparent 70%);pointer-events:none}
-.flagship-hero h2{font-size:26px;font-weight:800;margin:0 0 8px;position:relative;z-index:1}
-.flagship-hero p{opacity:.7;margin:0;position:relative;z-index:1}
-.flagship-hero .hero-stats{display:flex;gap:24px;margin-top:20px;position:relative;z-index:1}
-.flagship-hero .hero-stat{text-align:center}
-.flagship-hero .hero-stat strong{display:block;font-size:24px;font-weight:800}
-.flagship-hero .hero-stat span{font-size:12px;opacity:.6}
-.dash-kpi .stat-card.kpi{transition:transform .3s ease,box-shadow .3s ease}
-.dash-kpi .stat-card.kpi:hover{transform:translateY(-4px) scale(1.02)}
-.dash-cards .stat-card{transition:transform .25s ease,box-shadow .25s ease}
-.dash-cards .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.12)}
-@keyframes flagship-pulse{0%,100%{opacity:1}50%{opacity:.7}}
-.flagship-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4ade80}
-.flagship-live::before{content:'';width:8px;height:8px;border-radius:50%;background:#4ade80;animation:flagship-pulse 2s infinite}
+html[data-admin-theme="architect"] .flagship-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);border-radius:24px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden;color:#fff}
+html[data-admin-theme="architect"] .flagship-hero::before{content:'';position:absolute;top:-50%;right:-10%;width:400px;height:400px;background:radial-gradient(circle,rgba(139,92,246,.3),transparent 70%);pointer-events:none}
+html[data-admin-theme="architect"] .flagship-hero::after{content:'';position:absolute;bottom:-30%;left:-5%;width:300px;height:300px;background:radial-gradient(circle,rgba(34,211,238,.25),transparent 70%);pointer-events:none}
+html[data-admin-theme="architect"] .flagship-hero h2{font-size:26px;font-weight:800;margin:0 0 8px;position:relative;z-index:1}
+html[data-admin-theme="architect"] .flagship-hero p{opacity:.7;margin:0;position:relative;z-index:1}
+html[data-admin-theme="architect"] .flagship-hero .hero-stats{display:flex;gap:24px;margin-top:20px;position:relative;z-index:1}
+html[data-admin-theme="architect"] .flagship-hero .hero-stat{text-align:center}
+html[data-admin-theme="architect"] .flagship-hero .hero-stat strong{display:block;font-size:24px;font-weight:800}
+html[data-admin-theme="architect"] .flagship-hero .hero-stat span{font-size:12px;opacity:.6}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi{transition:transform .3s ease,box-shadow .3s ease}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi:hover{transform:translateY(-4px) scale(1.02)}
+html[data-admin-theme="architect"] .dash-cards .stat-card{transition:transform .25s ease,box-shadow .25s ease}
+html[data-admin-theme="architect"] .dash-cards .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.12)}
+html[data-admin-theme="architect"] @keyframes flagship-pulse{0%,100%{opacity:1}50%{opacity:.7}}
+html[data-admin-theme="architect"] .flagship-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4ade80}
+html[data-admin-theme="architect"] .flagship-live::before{content:'';width:8px;height:8px;border-radius:50%;background:#4ade80;animation:flagship-pulse 2s infinite}
 
 /* ===== داشبورد مدرن — کارت‌های آماری ===== */
-.dash-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
-@media(max-width:640px){.dash-cards{grid-template-columns:repeat(2,1fr)!important;gap:10px}.dash-cards .stat-card{padding:14px 12px}.dash-cards .stat-card strong{font-size:22px}.dash-kpi{grid-template-columns:repeat(2,1fr)!important}}
-.dash-cards .stat-card{position:relative;background:rgba(255,255,255,.7);backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border:1px solid rgba(255,255,255,.6);border-radius:20px;padding:16px;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease;box-shadow:0 8px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.8)}
-.dash-cards .stat-card::after{content:'';position:absolute;top:-30px;inset-inline-end:-30px;width:90px;height:90px;border-radius:50%;background:rgba(37,99,235,.06);pointer-events:none}
-.dash-cards .stat-card::before{display:none}
-.dash-cards a.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(17,24,39,.12);border-color:#cbd5e1;text-decoration:none}
-.dash-cards .stat-card span{display:flex;align-items:center;gap:12px;color:#64748b;font-size:13px;font-weight:600;margin-bottom:10px}
-.dash-cards .stat-card strong{display:block;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-.5px}
-.dash-cards .stat-card .sc-sub{display:block;font-size:12px;color:#94a3b8;font-weight:400;margin-top:4px}
+html[data-admin-theme="architect"] .dash-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+html[data-admin-theme="architect"] @media(max-width:640px){.dash-cards{grid-template-columns:repeat(2,1fr)!important;gap:10px}.dash-cards .stat-card{padding:14px 12px}.dash-cards .stat-card strong{font-size:22px}.dash-kpi{grid-template-columns:repeat(2,1fr)!important}}
+html[data-admin-theme="architect"] .dash-cards .stat-card{position:relative;background:rgba(255,255,255,.7);backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border:1px solid rgba(255,255,255,.6);border-radius:20px;padding:16px;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease;box-shadow:0 8px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.8)}
+html[data-admin-theme="architect"] .dash-cards .stat-card::after{content:'';position:absolute;top:-30px;inset-inline-end:-30px;width:90px;height:90px;border-radius:50%;background:rgba(37,99,235,.06);pointer-events:none}
+html[data-admin-theme="architect"] .dash-cards .stat-card::before{display:none}
+html[data-admin-theme="architect"] .dash-cards a.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(17,24,39,.12);border-color:#cbd5e1;text-decoration:none}
+html[data-admin-theme="architect"] .dash-cards .stat-card span{display:flex;align-items:center;gap:12px;color:#64748b;font-size:13px;font-weight:600;margin-bottom:10px}
+html[data-admin-theme="architect"] .dash-cards .stat-card strong{display:block;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-.5px}
+html[data-admin-theme="architect"] .dash-cards .stat-card .sc-sub{display:block;font-size:12px;color:#94a3b8;font-weight:400;margin-top:4px}
 /* آیکون دایره‌ای */
-.dash-cards .stat-card .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:#f1f5f9;flex-shrink:0;color:#475569}.dash-cards .stat-card .sc-ico svg{width:20px;height:20px;display:block}
+html[data-admin-theme="architect"] .dash-cards .stat-card .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:#f1f5f9;flex-shrink:0;color:#475569}.dash-cards .stat-card .sc-ico svg{width:20px;height:20px;display:block}
 /* رنگ‌بندی نوار بالای کارت */
-.dash-cards .stat-card.sc-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
-.dash-cards .stat-card.sc-blue .sc-ico{background:#dbeafe}
-.dash-cards .stat-card.sc-cyan .sc-ico{background:#cffafe;color:#0e7490}
-.stat-card.stat-dual{flex-direction:column;align-items:stretch!important}
-.stat-card.stat-dual .dual-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.stat-card.stat-dual .dual-rows>div{display:flex;align-items:center;justify-content:space-between;background:rgba(14,116,144,.08);border-radius:10px;padding:8px 12px}
-.stat-card.stat-dual .dual-rows small{display:block;font-size:11px;color:#64748b;margin-bottom:2px}
-.stat-card.stat-dual .dual-rows strong{font-size:18px;color:#0e7490}
-.dash-cards .stat-card.sc-green::before{background:linear-gradient(90deg,#10b981,#059669)}
-.dash-cards .stat-card.sc-green .sc-ico{background:#d1fae5}
-.dash-cards .stat-card.sc-amber::before{background:linear-gradient(90deg,#f59e0b,#d97706)}
-.dash-cards .stat-card.sc-amber .sc-ico{background:#fef3c7}
-.dash-cards .stat-card.sc-red::before{background:linear-gradient(90deg,#ef4444,#dc2626)}
-.dash-cards .stat-card.sc-red .sc-ico{background:#fee2e2}
-.dash-cards .stat-card.sc-purple::before{background:linear-gradient(90deg,#8b5cf6,#7c3aed)}
-.dash-cards .stat-card.sc-purple .sc-ico{background:#ede9fe}
-.dash-cards .stat-card.sc-teal::before{background:linear-gradient(90deg,#14b8a6,#0d9488)}
-.dash-cards .stat-card.sc-teal .sc-ico{background:#ccfbf1}
-.dash-cards .stat-card.sc-indigo::before{background:linear-gradient(90deg,#6366f1,#4f46e5)}
-.dash-cards .stat-card.sc-indigo .sc-ico{background:#e0e7ff}
-.dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
-.dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-blue::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-blue .sc-ico{background:#dbeafe}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-cyan .sc-ico{background:#cffafe;color:#0e7490}
+html[data-admin-theme="architect"] .stat-card.stat-dual{flex-direction:column;align-items:stretch!important}
+html[data-admin-theme="architect"] .stat-card.stat-dual .dual-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+html[data-admin-theme="architect"] .stat-card.stat-dual .dual-rows>div{display:flex;align-items:center;justify-content:space-between;background:rgba(14,116,144,.08);border-radius:10px;padding:8px 12px}
+html[data-admin-theme="architect"] .stat-card.stat-dual .dual-rows small{display:block;font-size:11px;color:#64748b;margin-bottom:2px}
+html[data-admin-theme="architect"] .stat-card.stat-dual .dual-rows strong{font-size:18px;color:#0e7490}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-green::before{background:linear-gradient(90deg,#10b981,#059669)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-green .sc-ico{background:#d1fae5}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-amber::before{background:linear-gradient(90deg,#f59e0b,#d97706)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-amber .sc-ico{background:#fef3c7}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-red::before{background:linear-gradient(90deg,#ef4444,#dc2626)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-red .sc-ico{background:#fee2e2}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-purple::before{background:linear-gradient(90deg,#8b5cf6,#7c3aed)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-purple .sc-ico{background:#ede9fe}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-teal::before{background:linear-gradient(90deg,#14b8a6,#0d9488)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-teal .sc-ico{background:#ccfbf1}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-indigo::before{background:linear-gradient(90deg,#6366f1,#4f46e5)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-indigo .sc-ico{background:#e0e7ff}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
 /* کارت‌های KPI — شیشه‌ای نئونی، کامپکت با آیکون (۹٫۱۶٫۱) */
-.dash-kpi .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:16px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25);position:relative;overflow:hidden}
-.dash-kpi .stat-card.kpi::after{content:'';position:absolute;top:-30px;inset-inline-end:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
-.dash-kpi .stat-card.kpi::before{display:none}
-.dash-kpi .stat-card.kpi span{color:rgba(255,255,255,.85);font-size:12px;font-weight:600}
-.dash-kpi .stat-card.kpi strong{color:#fff;font-size:22px;font-weight:800;text-shadow:0 1px 8px rgba(0,0,0,.2);letter-spacing:-.5px}
-.dash-kpi .stat-card.kpi .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:22px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25);border-radius:14px;flex-shrink:0}.dash-kpi .stat-card.kpi .sc-ico svg{width:24px;height:24px;display:block}
-.dash-kpi .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
-.dash-kpi .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
-.dash-kpi .stat-card.kpi-orders{background:linear-gradient(135deg,rgba(59,130,246,.85),rgba(37,99,235,.75))}
-.dash-kpi .stat-card.kpi-employees{background:linear-gradient(135deg,rgba(139,92,246,.85),rgba(124,58,237,.75))}
-.dash-kpi .stat-card.kpi-payroll{background:linear-gradient(135deg,rgba(245,158,11,.85),rgba(217,119,6,.75))}
-.dash-kpi .stat-card.kpi-assets{background:linear-gradient(135deg,rgba(20,184,166,.85),rgba(13,148,136,.75))}
-.dash-cards a.stat-card.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(17,24,39,.25),0 0 24px rgba(255,255,255,.15)}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:16px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25);position:relative;overflow:hidden}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi::after{content:'';position:absolute;top:-30px;inset-inline-end:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi::before{display:none}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi span{color:rgba(255,255,255,.85);font-size:12px;font-weight:600}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi strong{color:#fff;font-size:22px;font-weight:800;text-shadow:0 1px 8px rgba(0,0,0,.2);letter-spacing:-.5px}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:22px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25);border-radius:14px;flex-shrink:0}.dash-kpi .stat-card.kpi .sc-ico svg{width:24px;height:24px;display:block}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi-orders{background:linear-gradient(135deg,rgba(59,130,246,.85),rgba(37,99,235,.75))}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi-employees{background:linear-gradient(135deg,rgba(139,92,246,.85),rgba(124,58,237,.75))}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi-payroll{background:linear-gradient(135deg,rgba(245,158,11,.85),rgba(217,119,6,.75))}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi-assets{background:linear-gradient(135deg,rgba(20,184,166,.85),rgba(13,148,136,.75))}
+html[data-admin-theme="architect"] .dash-cards a.stat-card.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(17,24,39,.25),0 0 24px rgba(255,255,255,.15)}
 /* چیدمان کارت‌ها: ۳ در ردیف، آیکون و اطلاعات در یک خط (۹٫۱۶٫۳) */
-.dash-cards{grid-template-columns:repeat(3,1fr)!important;gap:12px}
-.dash-cards .stat-card{display:flex;align-items:center;gap:10px;padding:12px 14px}
-.dash-cards .stat-card .sc-ico{flex-shrink:0}
-.dash-cards .stat-card span{flex:1;font-size:13px}
-.dash-cards .stat-card strong{font-size:20px;white-space:nowrap}
+html[data-admin-theme="architect"] .dash-cards{grid-template-columns:repeat(3,1fr)!important;gap:12px}
+html[data-admin-theme="architect"] .dash-cards .stat-card{display:flex;align-items:center;gap:10px;padding:12px 14px}
+html[data-admin-theme="architect"] .dash-cards .stat-card .sc-ico{flex-shrink:0}
+html[data-admin-theme="architect"] .dash-cards .stat-card span{flex:1;font-size:13px}
+html[data-admin-theme="architect"] .dash-cards .stat-card strong{font-size:20px;white-space:nowrap}
 /* کارت‌های رنگی KPI: ۲ در ردیف، نوشته راست و عدد چپ */
-.dash-kpi{grid-template-columns:repeat(2,1fr)!important;gap:12px;margin-top:12px}
-.dash-kpi .stat-card.kpi{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.dash-kpi .stat-card.kpi span{display:flex;align-items:center;gap:10px;text-align:right;flex:1;min-width:0}
-.dash-kpi .stat-card.kpi span .sc-ico{flex-shrink:0}
-.dash-kpi .stat-card.kpi strong{text-align:left;white-space:nowrap}
+html[data-admin-theme="architect"] .dash-kpi{grid-template-columns:repeat(2,1fr)!important;gap:12px;margin-top:12px}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi{display:flex;align-items:center;justify-content:space-between;gap:12px}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi span{display:flex;align-items:center;gap:10px;text-align:right;flex:1;min-width:0}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi span .sc-ico{flex-shrink:0}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi strong{text-align:left;white-space:nowrap}
 /* KPI در موبایل هم ۲ ستونه می‌ماند */
 /* موبایل: کارت‌ها تک‌ردیفه و جمع‌وجور (۹٫۱۶٫۱) */
-@media (max-width:640px){
-  .topbar{padding:8px 10px}
-  .topbar-title{font-size:14px}
-  .topbar-actions .quick-add{display:none}
-  .sidebar{position:fixed;inset-inline-start:0;top:54px;bottom:0;z-index:90;transform:translateX(100%);transition:transform .3s;box-shadow:-8px 0 24px rgba(0,0,0,.15)}
-  [dir="rtl"] .sidebar{transform:translateX(100%)}
-  body.nav-open .sidebar{transform:translateX(0)!important}
-  .sidebar-brand{display:flex!important}
-  .brand-logo{width:36px;height:36px}
-  .dash-charts{grid-template-columns:1fr!important}
+html[data-admin-theme="architect"] @media (max-width:640px){
+html[data-admin-theme="architect"] .topbar{padding:8px 10px}
+html[data-admin-theme="architect"] .topbar-title{font-size:14px}
+html[data-admin-theme="architect"] .topbar-actions .quick-add{display:none}
+html[data-admin-theme="architect"] .sidebar{position:fixed;inset-inline-start:0;top:54px;bottom:0;z-index:90;transform:translateX(100%);transition:transform .3s;box-shadow:-8px 0 24px rgba(0,0,0,.15)}
+html[data-admin-theme="architect"] [dir="rtl"] .sidebar{transform:translateX(100%)}
+html[data-admin-theme="architect"] body.nav-open .sidebar{transform:translateX(0)!important}
+html[data-admin-theme="architect"] .sidebar-brand{display:flex!important}
+html[data-admin-theme="architect"] .brand-logo{width:36px;height:36px}
+html[data-admin-theme="architect"] .dash-charts{grid-template-columns:1fr!important}
   /* جلوگیری از اسکرول افقی */
-  body{overflow-x:hidden}
-  .main{overflow-x:hidden}
-  .chartjs-wrap{max-width:100%;overflow:hidden}
-  .dash-kpi .stat-card.kpi{min-width:0}
-  .dash-kpi .stat-card.kpi strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-admin-theme="architect"] body{overflow-x:hidden}
+html[data-admin-theme="architect"] .main{overflow-x:hidden}
+html[data-admin-theme="architect"] .chartjs-wrap{max-width:100%;overflow:hidden}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi{min-width:0}
+html[data-admin-theme="architect"] .dash-kpi .stat-card.kpi strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
 /* کارت‌های هشدار */
-.dash-cards .stat-card.sc-alert-amber{background:#fffbeb;border-color:#fde68a}
-.dash-cards .stat-card.sc-alert-red{background:#fef2f2;border-color:#fecaca}
-.dash-cards .stat-card.sc-alert-blue{background:#eff6ff;border-color:#bfdbfe}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-alert-amber{background:#fffbeb;border-color:#fde68a}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-alert-red{background:#fef2f2;border-color:#fecaca}
+html[data-admin-theme="architect"] .dash-cards .stat-card.sc-alert-blue{background:#eff6ff;border-color:#bfdbfe}
 /* سربرگ داشبورد */
-.dash-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-.dash-head h1{margin:0;font-size:26px;font-weight:800;color:#0f172a}
-.dash-date{color:#334155;font-size:13px;font-weight:600;background:#f1f5f9;padding:8px 14px;border-radius:99px;border:1px solid #e2e8f0;display:inline-flex;align-items:center;gap:8px;position:relative;cursor:help}
-.dash-date .nav-ico{width:18px;height:18px}
-.has-tooltip .tooltip{position:absolute;top:calc(100% + 8px);inset-inline-start:0;min-width:220px;background:#1e293b;color:#f1f5f9;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:400;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1000;text-align:start}
-.has-tooltip:hover .tooltip{opacity:1}
-.has-tooltip .tooltip .muted{color:#94a3b8}
+html[data-admin-theme="architect"] .dash-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+html[data-admin-theme="architect"] .dash-head h1{margin:0;font-size:26px;font-weight:800;color:#0f172a}
+html[data-admin-theme="architect"] .dash-date{color:#334155;font-size:13px;font-weight:600;background:#f1f5f9;padding:8px 14px;border-radius:99px;border:1px solid #e2e8f0;display:inline-flex;align-items:center;gap:8px;position:relative;cursor:help}
+html[data-admin-theme="architect"] .dash-date .nav-ico{width:18px;height:18px}
+html[data-admin-theme="architect"] .has-tooltip .tooltip{position:absolute;top:calc(100% + 8px);inset-inline-start:0;min-width:220px;background:#1e293b;color:#f1f5f9;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:400;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1000;text-align:start}
+html[data-admin-theme="architect"] .has-tooltip:hover .tooltip{opacity:1}
+html[data-admin-theme="architect"] .has-tooltip .tooltip .muted{color:#94a3b8}
 
-.user-menu-wrap{position:relative}
-.user-menu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:220px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.15);padding:6px;z-index:1000}
-.user-menu[hidden]{display:none}
-.user-menu-head{padding:10px 12px;border-bottom:1px solid #f1f5f9;margin-bottom:4px}
-.user-menu-head strong{display:block;font-size:14px}
-.user-menu a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#334155;font-size:14px;text-decoration:none}
-.user-menu a:hover{background:#f8fafc}
-.user-menu a.danger{color:#dc2626}
-.user-menu a.danger:hover{background:#fef2f2}
-.user-menu a .nav-ico{width:18px;height:18px}
+html[data-admin-theme="architect"] .user-menu-wrap{position:relative}
+html[data-admin-theme="architect"] .user-menu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:220px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.15);padding:6px;z-index:1000}
+html[data-admin-theme="architect"] .user-menu[hidden]{display:none}
+html[data-admin-theme="architect"] .user-menu-head{padding:10px 12px;border-bottom:1px solid #f1f5f9;margin-bottom:4px}
+html[data-admin-theme="architect"] .user-menu-head strong{display:block;font-size:14px}
+html[data-admin-theme="architect"] .user-menu a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#334155;font-size:14px;text-decoration:none}
+html[data-admin-theme="architect"] .user-menu a:hover{background:#f8fafc}
+html[data-admin-theme="architect"] .user-menu a.danger{color:#dc2626}
+html[data-admin-theme="architect"] .user-menu a.danger:hover{background:#fef2f2}
+html[data-admin-theme="architect"] .user-menu a .nav-ico{width:18px;height:18px}
 /* کارت‌های نمودار */
-.dash-charts{margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
-.dash-charts .card{border:1px solid #e8ecf1;border-radius:16px;box-shadow:0 2px 12px rgba(17,24,39,.05);margin:0;max-width:none}
-.dash-charts .card h3{font-size:15px;font-weight:700;color:#0f172a;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+html[data-admin-theme="architect"] .dash-charts{margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+html[data-admin-theme="architect"] .dash-charts .card{border:1px solid #e8ecf1;border-radius:16px;box-shadow:0 2px 12px rgba(17,24,39,.05);margin:0;max-width:none}
+html[data-admin-theme="architect"] .dash-charts .card h3{font-size:15px;font-weight:700;color:#0f172a;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
 /* ریسپانسیو */
-@media (max-width:640px){
-.dash-cards{grid-template-columns:repeat(2,1fr);gap:10px}
-.dash-cards .stat-card{padding:14px 12px;border-radius:12px}
-.dash-cards .stat-card strong{font-size:19px}
-.dash-cards .stat-card .sc-ico{width:30px;height:30px;font-size:15px;border-radius:9px}
-.dash-cards .stat-card span{font-size:11px}
-.dash-charts{grid-template-columns:1fr}
-.dash-head h1{font-size:21px}
+html[data-admin-theme="architect"] @media (max-width:640px){
+html[data-admin-theme="architect"] .dash-cards{grid-template-columns:repeat(2,1fr);gap:10px}
+html[data-admin-theme="architect"] .dash-cards .stat-card{padding:14px 12px;border-radius:12px}
+html[data-admin-theme="architect"] .dash-cards .stat-card strong{font-size:19px}
+html[data-admin-theme="architect"] .dash-cards .stat-card .sc-ico{width:30px;height:30px;font-size:15px;border-radius:9px}
+html[data-admin-theme="architect"] .dash-cards .stat-card span{font-size:11px}
+html[data-admin-theme="architect"] .dash-charts{grid-template-columns:1fr}
+html[data-admin-theme="architect"] .dash-head h1{font-size:21px}
 }
-.nav-overlay{display:none}
-@media (min-width:900px){
-.sidebar{position:sticky;top:54px;height:calc(100vh - 54px)}
-body.nav-rail .sidebar{width:78px}
-body.nav-rail .brand-name,body.nav-rail .nav-label,body.nav-rail .nav-group summary,body.nav-rail .sidebar-version{display:none}
-body.nav-rail .sidebar-brand{justify-content:center;padding:14px 6px 10px}
-body.nav-rail .nav-group{padding:8px}
-body.nav-rail .sidebar a{justify-content:center;padding:10px 0}
-body.nav-rail .sidebar a.active::before{inset-inline-start:-8px}
-body.nav-rail .nav-badge{position:absolute;top:1px;inset-inline-end:1px;margin:0;min-width:16px;height:16px;font-size:10px;padding:0 4px}
-body.nav-rail .sidebar a .status-dot{position:absolute;bottom:3px;inset-inline-end:3px;margin:0}
+html[data-admin-theme="architect"] .nav-overlay{display:none}
+html[data-admin-theme="architect"] @media (min-width:900px){
+html[data-admin-theme="architect"] .sidebar{position:sticky;top:54px;height:calc(100vh - 54px)}
+html[data-admin-theme="architect"] body.nav-rail .sidebar{width:78px}
+html[data-admin-theme="architect"] body.nav-rail .brand-name, html[data-admin-theme="architect"] body.nav-rail .nav-label, html[data-admin-theme="architect"] body.nav-rail .nav-group summary, html[data-admin-theme="architect"] body.nav-rail .sidebar-version{display:none}
+html[data-admin-theme="architect"] body.nav-rail .sidebar-brand{justify-content:center;padding:14px 6px 10px}
+html[data-admin-theme="architect"] body.nav-rail .nav-group{padding:8px}
+html[data-admin-theme="architect"] body.nav-rail .sidebar a{justify-content:center;padding:10px 0}
+html[data-admin-theme="architect"] body.nav-rail .sidebar a.active::before{inset-inline-start:-8px}
+html[data-admin-theme="architect"] body.nav-rail .nav-badge{position:absolute;top:1px;inset-inline-end:1px;margin:0;min-width:16px;height:16px;font-size:10px;padding:0 4px}
+html[data-admin-theme="architect"] body.nav-rail .sidebar a .status-dot{position:absolute;bottom:3px;inset-inline-end:3px;margin:0}
 }
-@media (max-width:899px){
-.layout{flex-direction:column}
-.sidebar{position:fixed;top:0;bottom:0;inset-inline-start:0;width:min(300px,86vw);height:auto;z-index:80;align-items:stretch;transform:translateX(110%);transition:transform .25s ease;box-shadow:0 0 44px rgba(17,24,39,.35)}
-body.nav-open .sidebar{transform:none}
-.nav-overlay{display:block;position:fixed;inset:0;z-index:75;background:rgba(17,24,39,.5);opacity:0;pointer-events:none;transition:opacity .25s}
-body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
-.content{padding:14px}
-.topbar-actions .quick-add{display:none}
+html[data-admin-theme="architect"] @media (max-width:899px){
+html[data-admin-theme="architect"] .layout{flex-direction:column}
+html[data-admin-theme="architect"] .sidebar{position:fixed;top:0;bottom:0;inset-inline-start:0;width:min(300px,86vw);height:auto;z-index:80;align-items:stretch;transform:translateX(110%);transition:transform .25s ease;box-shadow:0 0 44px rgba(17,24,39,.35)}
+html[data-admin-theme="architect"] body.nav-open .sidebar{transform:none}
+html[data-admin-theme="architect"] .nav-overlay{display:block;position:fixed;inset:0;z-index:75;background:rgba(17,24,39,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+html[data-admin-theme="architect"] body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
+html[data-admin-theme="architect"] .content{padding:14px}
+html[data-admin-theme="architect"] .topbar-actions .quick-add{display:none}
 }
-@media (max-width:480px){.topbar-title{font-size:14px}.topbar-actions a{padding:6px 8px}}
-@media (prefers-reduced-motion:reduce){.sidebar,.nav-overlay,.nav-group summary::after{transition:none}}
+html[data-admin-theme="architect"] @media (max-width:480px){.topbar-title{font-size:14px}.topbar-actions a{padding:6px 8px}}
+html[data-admin-theme="architect"] @media (prefers-reduced-motion:reduce){.sidebar,.nav-overlay,.nav-group summary::after{transition:none}}
 /* === نمودارهای فانتزی داشبورد (۹٫۱۶) === */
-.fancy-chart{width:100%;height:auto;display:block}
-.chart-line{stroke-dasharray:1000;stroke-dashoffset:1000;animation:drawLine 1.6s ease forwards}
-@keyframes drawLine{to{stroke-dashoffset:0}}
-.chart-xlabel{font-size:11px;fill:#6b7280}
-.chart-legend{display:flex;gap:18px;justify-content:center;margin-top:8px;font-size:13px}
-.chart-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-inline-end:6px;vertical-align:middle}
-.donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center}
-.donut-seg{opacity:0;animation:fadeSeg .5s ease forwards}
-@keyframes fadeSeg{to{opacity:1}}
-.donut-total{font-size:26px;font-weight:800;fill:#111827}
-.donut-label{font-size:13px;fill:#6b7280}
-.donut-legend{display:flex;flex-direction:column;gap:8px;font-size:13px}
-.donut-legend-item{display:flex;align-items:center;gap:8px}
-.donut-dot{width:12px;height:12px;border-radius:50%;display:inline-block}
-.funnel{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0}
-.funnel-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-radius:14px;color:#1f2937;font-size:14px;min-width:120px;transition:transform .2s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.funnel-bar:hover{transform:scale(1.03)}
-.funnel-bar b{font-size:18px}
-.funnel-conv{font-size:11px;color:#9ca3af;margin:2px 0}
-.timeline-chart{display:flex;align-items:flex-end;gap:3px;height:140px;padding:10px 4px 0;direction:ltr}
-.tl-bar{flex:1;min-width:4px;background:linear-gradient(180deg,#c9a227,#e8c66a);border-radius:4px 4px 0 0;transition:all .2s;cursor:pointer}
-.tl-bar:hover{background:linear-gradient(180deg,#a8841c,#c9a227);transform:scaleY(1.05)}
-.card.wide{max-width:100%}
+html[data-admin-theme="architect"] .fancy-chart{width:100%;height:auto;display:block}
+html[data-admin-theme="architect"] .chart-line{stroke-dasharray:1000;stroke-dashoffset:1000;animation:drawLine 1.6s ease forwards}
+html[data-admin-theme="architect"] @keyframes drawLine{to{stroke-dashoffset:0}}
+html[data-admin-theme="architect"] .chart-xlabel{font-size:11px;fill:#6b7280}
+html[data-admin-theme="architect"] .chart-legend{display:flex;gap:18px;justify-content:center;margin-top:8px;font-size:13px}
+html[data-admin-theme="architect"] .chart-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-inline-end:6px;vertical-align:middle}
+html[data-admin-theme="architect"] .donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center}
+html[data-admin-theme="architect"] .donut-seg{opacity:0;animation:fadeSeg .5s ease forwards}
+html[data-admin-theme="architect"] @keyframes fadeSeg{to{opacity:1}}
+html[data-admin-theme="architect"] .donut-total{font-size:26px;font-weight:800;fill:#111827}
+html[data-admin-theme="architect"] .donut-label{font-size:13px;fill:#6b7280}
+html[data-admin-theme="architect"] .donut-legend{display:flex;flex-direction:column;gap:8px;font-size:13px}
+html[data-admin-theme="architect"] .donut-legend-item{display:flex;align-items:center;gap:8px}
+html[data-admin-theme="architect"] .donut-dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+html[data-admin-theme="architect"] .funnel{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0}
+html[data-admin-theme="architect"] .funnel-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-radius:14px;color:#1f2937;font-size:14px;min-width:120px;transition:transform .2s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+html[data-admin-theme="architect"] .funnel-bar:hover{transform:scale(1.03)}
+html[data-admin-theme="architect"] .funnel-bar b{font-size:18px}
+html[data-admin-theme="architect"] .funnel-conv{font-size:11px;color:#9ca3af;margin:2px 0}
+html[data-admin-theme="architect"] .timeline-chart{display:flex;align-items:flex-end;gap:3px;height:140px;padding:10px 4px 0;direction:ltr}
+html[data-admin-theme="architect"] .tl-bar{flex:1;min-width:4px;background:linear-gradient(180deg,#c9a227,#e8c66a);border-radius:4px 4px 0 0;transition:all .2s;cursor:pointer}
+html[data-admin-theme="architect"] .tl-bar:hover{background:linear-gradient(180deg,#a8841c,#c9a227);transform:scaleY(1.05)}
+html[data-admin-theme="architect"] .card.wide{max-width:100%}
 /* نمودارهای نئونی شیشه‌ای (۹٫۱۶٫۱) */
-.neon-chart{background:rgba(255,255,255,.4);backdrop-filter:blur(8px);border-radius:16px;padding:8px}
-.donut-wrap svg{filter:drop-shadow(0 4px 12px rgba(0,0,0,.1))}
-.tl-bar{background:linear-gradient(180deg,#00e5ff,#2979ff);box-shadow:0 0 6px rgba(0,229,255,.4)}
-.tl-bar:hover{background:linear-gradient(180deg,#2979ff,#00e5ff);box-shadow:0 0 12px rgba(0,229,255,.7)}
-.funnel-bar{box-shadow:0 2px 12px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.4)}
+html[data-admin-theme="architect"] .neon-chart{background:rgba(255,255,255,.4);backdrop-filter:blur(8px);border-radius:16px;padding:8px}
+html[data-admin-theme="architect"] .donut-wrap svg{filter:drop-shadow(0 4px 12px rgba(0,0,0,.1))}
+html[data-admin-theme="architect"] .tl-bar{background:linear-gradient(180deg,#00e5ff,#2979ff);box-shadow:0 0 6px rgba(0,229,255,.4)}
+html[data-admin-theme="architect"] .tl-bar:hover{background:linear-gradient(180deg,#2979ff,#00e5ff);box-shadow:0 0 12px rgba(0,229,255,.7)}
+html[data-admin-theme="architect"] .funnel-bar{box-shadow:0 2px 12px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.4)}
 /* Chart.js — تم نئون شیشه‌ای (۹٫۱۸) */
-.chartjs-wrap{position:relative;height:280px;padding:8px}
-.chartjs-wrap canvas{background:rgba(255,255,255,.5);backdrop-filter:blur(8px);border-radius:16px;padding:12px}
+html[data-admin-theme="architect"] .chartjs-wrap{position:relative;height:280px;padding:8px}
+html[data-admin-theme="architect"] .chartjs-wrap canvas{background:rgba(255,255,255,.5);backdrop-filter:blur(8px);border-radius:16px;padding:12px}
 /* === تم‌های شیشه‌ای پنل ادمین (۹٫۱۵٫۴) === */
 html[data-admin-theme="glass-white"] body{background:#f0f4f8;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(34,197,94,.08),transparent)}
 html[data-admin-theme="glass-white"] .card,html[data-admin-theme="glass-white"] .stat-card{background:rgba(255,255,255,.65);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(34,197,94,.18);box-shadow:0 4px 16px rgba(34,197,94,.1);border-radius:18px}
