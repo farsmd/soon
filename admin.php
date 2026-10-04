@@ -4001,9 +4001,10 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card strong{font-size:20px;white-space:nowrap}
 /* کارت‌های رنگی KPI: ۲ در ردیف، نوشته راست و عدد چپ */
 .dash-kpi{grid-template-columns:repeat(2,1fr)!important;gap:12px;margin-top:12px}
-.dash-kpi .stat-card.kpi{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.dash-kpi .stat-card.kpi span{text-align:right;flex:1}
-.dash-kpi .stat-card.kpi strong{text-align:left}
+.dash-kpi .stat-card.kpi{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dash-kpi .stat-card.kpi span{display:flex;align-items:center;gap:10px;text-align:right;flex:1;min-width:0}
+.dash-kpi .stat-card.kpi span .sc-ico{flex-shrink:0}
+.dash-kpi .stat-card.kpi strong{text-align:left;white-space:nowrap}
 /* KPI در موبایل هم ۲ ستونه می‌ماند */
 /* موبایل: کارت‌ها تک‌ردیفه و جمع‌وجور (۹٫۱۶٫۱) */
 @media (max-width:640px){
