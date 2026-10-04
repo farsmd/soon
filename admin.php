@@ -1832,8 +1832,17 @@ if ($page === 'design') {
         <?php endforeach; ?>
 
         <div class="sidebar-version">نسخه برنامه <span class="version-badge" dir="ltr"><?= e(APP_VERSION) ?></span></div>
+        <div class="admin-theme-switch" style="padding:10px 14px;border-top:1px solid #e5e7eb;margin-top:8px">
+            <div class="muted" style="margin-bottom:6px">تم پنل</div>
+            <div style="display:flex;gap:6px">
+                <button type="button" class="btn small" data-admin-theme-btn="default" title="پیش‌فرض">☀️</button>
+                <button type="button" class="btn small" data-admin-theme-btn="glass-white" title="شیشه‌ای سفید">🫧</button>
+                <button type="button" class="btn small" data-admin-theme-btn="glass-smoke" title="شیشه‌ای دودی">🌙</button>
+            </div>
+        </div>
     </aside>
 
+    <script>(function(){try{var t=localStorage.getItem('admin-theme')||'default';if(t!=='default'){document.documentElement.setAttribute('data-admin-theme',t);}var btns=document.querySelectorAll('[data-admin-theme-btn]');for(var i=0;i<btns.length;i++){(function(b){b.addEventListener('click',function(){var v=b.getAttribute('data-admin-theme-btn');try{localStorage.setItem('admin-theme',v);}catch(e){}if(v==='default'){document.documentElement.removeAttribute('data-admin-theme');}else{document.documentElement.setAttribute('data-admin-theme',v);}});})(btns[i]);}}catch(e){}})();</script>
     <main class="content">
         <?php if ($flash): ?><div class="alert <?= e($flash['type']) ?>"><?= e($flash['message']) ?></div><?php endif; ?>
         <?php if ($error): ?><div class="alert error"><?= e($error) ?></div><?php endif; ?>
@@ -3429,5 +3438,31 @@ body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
 }
 @media (max-width:480px){.topbar-title{font-size:14px}.topbar-actions a{padding:6px 8px}}
 @media (prefers-reduced-motion:reduce){.sidebar,.nav-overlay,.nav-group summary::after{transition:none}}
+/* === تم‌های شیشه‌ای پنل ادمین (۹٫۱۵٫۴) === */
+html[data-admin-theme="glass-white"] body{background:#f0f4f8;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(34,197,94,.08),transparent)}
+html[data-admin-theme="glass-white"] .card,html[data-admin-theme="glass-white"] .stat-card{background:rgba(255,255,255,.65);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(34,197,94,.18);box-shadow:0 4px 16px rgba(34,197,94,.1);border-radius:18px}
+html[data-admin-theme="glass-white"] table{background:rgba(255,255,255,.6);backdrop-filter:blur(12px);border:1px solid rgba(34,197,94,.15);border-radius:16px}
+html[data-admin-theme="glass-white"] .sidebar{background:rgba(255,255,255,.6)!important;backdrop-filter:blur(20px) saturate(1.5);border-inline-end:1px solid rgba(34,197,94,.15)!important}
+html[data-admin-theme="glass-white"] .btn{border-radius:12px}
+html[data-admin-theme="glass-smoke"] body{background:#1c1c1e;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(250,204,21,.06),transparent);color:#f5f5f7;-webkit-font-smoothing:antialiased}
+html[data-admin-theme="glass-smoke"] a{color:#facc15}
+html[data-admin-theme="glass-smoke"] .muted{color:#98989f}
+html[data-admin-theme="glass-smoke"] .card,html[data-admin-theme="glass-smoke"] .stat-card{background:rgba(44,44,46,.6);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(255,255,255,.1);box-shadow:0 4px 16px rgba(0,0,0,.25);border-radius:18px;color:#f5f5f7}
+html[data-admin-theme="glass-smoke"] .stat-card span{color:#98989f}html[data-admin-theme="glass-smoke"] .stat-card strong{color:#f5f5f7}
+html[data-admin-theme="glass-smoke"] table{background:rgba(44,44,46,.5);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:16px}
+html[data-admin-theme="glass-smoke"] th,html[data-admin-theme="glass-smoke"] td{border-bottom:1px solid rgba(255,255,255,.06);color:#e5e5ea}
+html[data-admin-theme="glass-smoke"] th{background:rgba(58,58,60,.5);color:#98989f}
+html[data-admin-theme="glass-smoke"] .sidebar{background:rgba(28,28,30,.7)!important;backdrop-filter:blur(20px) saturate(1.5);border-inline-end:1px solid rgba(255,255,255,.08)!important}
+html[data-admin-theme="glass-smoke"] h1,html[data-admin-theme="glass-smoke"] h2,html[data-admin-theme="glass-smoke"] h3{color:#f5f5f7}
+html[data-admin-theme="glass-smoke"] input[type=text],html[data-admin-theme="glass-smoke"] input[type=password],html[data-admin-theme="glass-smoke"] input[type=number],html[data-admin-theme="glass-smoke"] select,html[data-admin-theme="glass-smoke"] textarea{border:1px solid rgba(255,255,255,.15);background:rgba(58,58,60,.6);color:#f5f5f7;border-radius:12px}
+html[data-admin-theme="glass-smoke"] label{color:#e5e5ea}
+html[data-admin-theme="glass-smoke"] .auth-box{background:rgba(44,44,46,.7);backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.12);border-radius:20px}
+html[data-admin-theme="glass-smoke"] .alert.ok{background:rgba(48,209,88,.15);border:1px solid rgba(48,209,88,.3);color:#7df097}
+html[data-admin-theme="glass-smoke"] .alert.error{background:rgba(255,69,58,.15);border:1px solid rgba(255,69,58,.3);color:#ff9d97}
+html[data-admin-theme="glass-smoke"] .btn{background:rgba(72,72,74,.6);border:1px solid rgba(255,255,255,.15);color:#f5f5f7;border-radius:12px}
+html[data-admin-theme="glass-smoke"] .btn.primary{background:#facc15;border-color:#facc15;color:#1c1c1e}
+html[data-admin-theme="glass-smoke"] .btn.add{background:#30d158;border-color:#30d158;color:#fff}
+html[data-admin-theme="glass-smoke"] .btn.edit{background:#facc15;border-color:#facc15;color:#1c1c1e}
+
 CSS;
 }
