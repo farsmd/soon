@@ -188,6 +188,11 @@ function nav_icon(string $name): string
         'image'     => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
         'handshake' => '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>',
         'bell'      => '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+        'calendar'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+        'user'      => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
+        'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+        'lock'      => '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        'chevron'   => '<path d="m6 9 6 6 6-6"/>',
     ];
     return '<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -1833,12 +1838,25 @@ if ($page === 'design') {
         <?php endif; ?>
         <?php if (admin_can_page('products')): ?><a href="admin.php?page=products" class="quick-add">محصول جدید</a><?php endif; ?>
         <?php if (admin_can_page('customers')): ?><a href="admin.php?page=customers" class="quick-add">مشتری جدید</a><?php endif; ?>
-        <a href="index.php" target="_blank" rel="noopener">مشاهده سایت</a>
+        <a href="index.php" target="_blank" rel="noopener" class="icon-btn" title="مشاهده سایت" aria-label="مشاهده سایت"><?= nav_icon('eye') ?></a>
         <?php $topbarMe = current_admin_user(); ?>
-        <?php if ($topbarMe !== null): ?><span class="muted"><?= e((string) ($topbarMe['display_name'] ?? '') !== '' ? (string) $topbarMe['display_name'] : (string) $topbarMe['username']) ?> · <?= e(user_role_title((string) $topbarMe['role_key'])) ?></span><?php endif; ?>
-        <a href="admin.php?logout=1">خروج</a>
+        <?php if ($topbarMe !== null): ?>
+        <div class="user-menu-wrap">
+            <button type="button" class="icon-btn" id="userMenuBtn" aria-label="منوی کاربری" aria-haspopup="true"><?= nav_icon('user') ?></button>
+            <div class="user-menu" id="userMenu" hidden>
+                <div class="user-menu-head">
+                    <strong><?= e((string) ($topbarMe['display_name'] ?? '') !== '' ? (string) $topbarMe['display_name'] : (string) $topbarMe['username']) ?></strong>
+                    <span class="muted"><?= e(user_role_title((string) $topbarMe['role_key'])) ?></span>
+                </div>
+                <a href="admin.php?page=profile"><?= nav_icon('user') ?> مشاهده پروفایل</a>
+                <a href="admin.php?page=profile&tab=password"><?= nav_icon('lock') ?> تغییر رمز</a>
+                <a href="admin.php?logout=1" class="danger"><?= nav_icon('logout') ?> خروج</a>
+            </div>
+        </div>
+        <?php endif; ?>
     </nav>
 </header>
+<script>(function(){var b=document.getElementById('userMenuBtn'),m=document.getElementById('userMenu');if(!b||!m)return;b.addEventListener('click',function(e){e.stopPropagation();m.hidden=!m.hidden;});document.addEventListener('click',function(){m.hidden=true;});m.addEventListener('click',function(e){e.stopPropagation();});})();</script>
 
 <div class="layout">
     <div class="nav-overlay" id="navOverlay"></div>
@@ -2170,34 +2188,40 @@ if ($page === 'design') {
                         foreach ($chartIncome as $r) {
                             $bars[] = ['label' => $r['month'], 'value' => (int) $r['value']];
                         }
-                        return $bars === [] ? '' : '<section class="card"><h3>📈 دریافتی ۶ ماه اخیر (تومان)</h3>' . $renderBarChart($bars) . '</section>';
+                        return $bars === [] ? '' : '<section class="card"><h3>دریافتی ۶ ماه اخیر (تومان)</h3>' . $renderBarChart($bars) . '</section>';
                     case 'chart_orders':
-                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>🧾 سفارش‌ها برحسب وضعیت</h3>' . $renderBarChart($chartOrderStatus) . '</section>';
+                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>سفارش‌ها برحسب وضعیت</h3>' . $renderBarChart($chartOrderStatus) . '</section>';
                     case 'chart_expenses':
-                        return $chartExpenseCat === [] ? '' : '<section class="card"><h3>💸 هزینه‌ها برحسب دسته</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
+                        return $chartExpenseCat === [] ? '' : '<section class="card"><h3>هزینه‌ها برحسب دسته</h3>' . $renderBarChart($chartExpenseCat) . '</section>';
                     case 'chart_production':
-                        return $chartProdStages === [] ? '' : '<section class="card"><h3>🏭 تولید برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
+                        return $chartProdStages === [] ? '' : '<section class="card"><h3>تولید برحسب مرحله</h3>' . $renderBarChart($chartProdStages) . '</section>';
                     case 'chart_donut_orders':
-                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>🍩 توزیع سفارش‌ها</h3>' . $svgDonut($chartOrderStatus) . '</section>';
+                        return $chartOrderStatus === [] ? '' : '<section class="card"><h3>توزیع سفارش‌ها</h3>' . $svgDonut($chartOrderStatus) . '</section>';
                     case 'chart_profit':
-                        return $chartProfit === [] ? '' : '<section class="card wide"><h3>💰 درآمد در برابر هزینه — ۶ ماه اخیر</h3>' . $svgArea($chartProfit) . '</section>';
+                        return $chartProfit === [] ? '' : '<section class="card wide"><h3>درآمد در برابر هزینه — ۶ ماه اخیر</h3>' . $svgArea($chartProfit) . '</section>';
                     case 'chart_funnel':
-                        return '<section class="card"><h3>🔻 قیف سفارشات</h3>' . $svgFunnel($chartFunnel) . '</section>';
+                        return '<section class="card"><h3>قیف سفارشات</h3>' . $svgFunnel($chartFunnel) . '</section>';
                     case 'chart_timeline':
-                        return '<section class="card wide"><h3>📊 تایم‌لاین سفارشات</h3>' . $svgTimeline($chartTimeline) . '</section>';
+                        return '<section class="card wide"><h3>تایم‌لاین سفارشات</h3>' . $svgTimeline($chartTimeline) . '</section>';
                 }
                 return '';
             };
             ?>
             <div class="dash-head">
                 <h1>داشبورد</h1>
-                <span class="dash-date">📅 <?= e(ll_jalali_today()) ?></span>
+                <?php $nowTs = time(); $gregDate = date('Y/m/d', $nowTs); $gregWeekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; $gregW = $gregWeekdays[(int)date('w',$nowTs)]; ?>
+                <span class="dash-date has-tooltip"><?= nav_icon('calendar') ?> <?= e(ll_jalali_today()) ?>
+                    <span class="tooltip">
+                        <strong><?= e(ll_jalali_format(date('Y-m-d H:i:s', $nowTs), false, true)) ?></strong><br>
+                        <span class="muted"><?= e($gregDate) ?> · <?= e($gregW) ?></span>
+                    </span>
+                </span>
             </div>
             <p class="muted">نمای کلی پنل و دسترسی سریع به بخش‌های پرکاربرد. هر کاربر فقط کارت‌ها و نمودارهای مربوط به بخش‌های مجاز خودش را می‌بیند.</p>
 
             <?php if (admin_can_page('settings')): ?>
             <div class="crud-toolbar">
-                <button type="button" class="btn" data-toggle-panel="dash-customize-panel" aria-expanded="false">⚙ شخصی‌سازی داشبورد</button>
+                <button type="button" class="btn" data-toggle-panel="dash-customize-panel" aria-expanded="false">شخصی‌سازی داشبورد</button>
             </div>
             <div class="crud-panel" id="dash-customize-panel" hidden>
                 <section class="card wide">
@@ -3536,6 +3560,14 @@ body.nav-open .topbar{z-index:85}
 .dash-cards a.stat-card.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(17,24,39,.25),0 0 24px rgba(255,255,255,.15)}
 /* موبایل: کارت‌ها تک‌ردیفه و جمع‌وجور (۹٫۱۶٫۱) */
 @media (max-width:640px){
+  .topbar{padding:8px 10px}
+  .topbar-title{font-size:14px}
+  .topbar-actions .quick-add{display:none}
+  .sidebar{position:fixed;inset-inline-start:0;top:54px;bottom:0;z-index:90;transform:translateX(100%);transition:transform .3s;box-shadow:-8px 0 24px rgba(0,0,0,.15)}
+  [dir="rtl"] .sidebar{transform:translateX(100%)}
+  body.nav-open .sidebar{transform:translateX(0)!important}
+  .sidebar-brand{display:flex!important}
+  .brand-logo{width:36px;height:36px}
   .dash-cards{grid-template-columns:1fr!important;gap:10px}
   .dash-cards .stat-card{padding:12px 14px}
   .dash-cards .stat-card.kpi{display:flex;align-items:center;gap:12px;padding:10px 14px}
@@ -3551,7 +3583,22 @@ body.nav-open .topbar{z-index:85}
 /* سربرگ داشبورد */
 .dash-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 .dash-head h1{margin:0;font-size:26px;font-weight:800;color:#0f172a}
-.dash-date{color:#334155;font-size:13px;font-weight:600;background:#f1f5f9;padding:8px 14px;border-radius:99px;border:1px solid #e2e8f0}
+.dash-date{color:#334155;font-size:13px;font-weight:600;background:#f1f5f9;padding:8px 14px;border-radius:99px;border:1px solid #e2e8f0;display:inline-flex;align-items:center;gap:8px;position:relative;cursor:help}
+.dash-date .nav-ico{width:18px;height:18px}
+.has-tooltip .tooltip{position:absolute;top:calc(100% + 8px);inset-inline-start:0;min-width:220px;background:#1e293b;color:#f1f5f9;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:400;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1000;text-align:start}
+.has-tooltip:hover .tooltip{opacity:1}
+.has-tooltip .tooltip .muted{color:#94a3b8}
+
+.user-menu-wrap{position:relative}
+.user-menu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:220px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.15);padding:6px;z-index:1000}
+.user-menu[hidden]{display:none}
+.user-menu-head{padding:10px 12px;border-bottom:1px solid #f1f5f9;margin-bottom:4px}
+.user-menu-head strong{display:block;font-size:14px}
+.user-menu a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#334155;font-size:14px;text-decoration:none}
+.user-menu a:hover{background:#f8fafc}
+.user-menu a.danger{color:#dc2626}
+.user-menu a.danger:hover{background:#fef2f2}
+.user-menu a .nav-ico{width:18px;height:18px}
 /* کارت‌های نمودار */
 .dash-charts{margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
 .dash-charts .card{border:1px solid #e8ecf1;border-radius:16px;box-shadow:0 2px 12px rgba(17,24,39,.05);margin:0;max-width:none}
