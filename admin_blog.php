@@ -128,9 +128,27 @@ function blog_render_admin(array $d): void
             <label>تصویر شاخص (آدرس)
                 <input type="text" name="featured_image" dir="ltr" value="<?= e((string) ($edit['featured_image'] ?? '')) ?>" placeholder="uploads/gallery/...">
             </label>
-            <label>متن مقاله (HTML)
-                <textarea name="content" rows="12" dir="rtl"><?= e((string) ($edit['content'] ?? '')) ?></textarea>
+            <label>متن مقاله
+                <textarea name="content" id="blog-content-editor" rows="12" dir="rtl"><?= e((string) ($edit['content'] ?? '')) ?></textarea>
             </label>
+            <script src="assets/tinymce/tinymce.min.js"></script>
+            <script>
+            (function(){
+                if (typeof tinymce === 'undefined') return;
+                tinymce.init({
+                    selector: '#blog-content-editor',
+                    directionality: 'rtl',
+                    height: 420,
+                    menubar: false,
+                    plugins: 'lists link image table code fullscreen',
+                    toolbar: 'undo redo | blocks | bold italic underline | alignright aligncenter alignleft | bullist numlist | link image table | code fullscreen',
+                    block_formats: 'پاراگراف=p;تیتر ۲=h2;تیتر ۳=h3',
+                    content_style: 'body{font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl;font-size:15px;line-height:2}',
+                    branding: false,
+                    promotion: false,
+                });
+            })();
+            </script>
             <button type="submit" class="btn add">ذخیره</button>
             <?php if ($edit): ?><a class="btn" href="admin.php?page=blog">انصراف</a><?php endif; ?>
         </form>
