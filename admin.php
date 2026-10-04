@@ -2468,6 +2468,11 @@ if ($page === 'design') {
             </div>
             <?php endif; ?>
 
+            <div class="flagship-hero">
+                <span class="flagship-live">زنده</span>
+                <h2>داشبورد لاینرلایت</h2>
+                <p><?= e($shamsiDate ?? '') ?> — نمای کلی کسب‌وکار شما</p>
+            </div>
             <div class="stat-grid dash-cards" id="dash-cards">
                 <?php foreach ($dashEnabled as $wk): if (($dashWidgetDefs[$wk][1] ?? '') !== 'stat' || str_starts_with($wk, 'kpi_')) { continue; } echo $renderStat($wk); ?>
                 <?php if ($wk === 'stat_orders' && $lowStockCount > 0 && admin_can_page('materials')): ?>
@@ -4030,6 +4035,25 @@ body.nav-open .topbar{z-index:85}
 .version-badge{background:#eef2ff;color:#2563eb;border:1px solid #dbeafe;padding:2px 8px;border-radius:99px;font-weight:bold;font-size:12px}
 .sidebar a:focus-visible,.icon-btn:focus-visible,.nav-group summary:focus-visible,.topbar-actions a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 .dash-cards a.stat-card{display:block;color:inherit}
+
+/* ===== داشبورد پرچم‌دار (۹٫۲۳) ===== */
+.flagship-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);border-radius:24px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden;color:#fff}
+.flagship-hero::before{content:'';position:absolute;top:-50%;right:-10%;width:400px;height:400px;background:radial-gradient(circle,rgba(139,92,246,.3),transparent 70%);pointer-events:none}
+.flagship-hero::after{content:'';position:absolute;bottom:-30%;left:-5%;width:300px;height:300px;background:radial-gradient(circle,rgba(34,211,238,.25),transparent 70%);pointer-events:none}
+.flagship-hero h2{font-size:26px;font-weight:800;margin:0 0 8px;position:relative;z-index:1}
+.flagship-hero p{opacity:.7;margin:0;position:relative;z-index:1}
+.flagship-hero .hero-stats{display:flex;gap:24px;margin-top:20px;position:relative;z-index:1}
+.flagship-hero .hero-stat{text-align:center}
+.flagship-hero .hero-stat strong{display:block;font-size:24px;font-weight:800}
+.flagship-hero .hero-stat span{font-size:12px;opacity:.6}
+.dash-kpi .stat-card.kpi{transition:transform .3s ease,box-shadow .3s ease}
+.dash-kpi .stat-card.kpi:hover{transform:translateY(-4px) scale(1.02)}
+.dash-cards .stat-card{transition:transform .25s ease,box-shadow .25s ease}
+.dash-cards .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.12)}
+@keyframes flagship-pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.flagship-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4ade80}
+.flagship-live::before{content:'';width:8px;height:8px;border-radius:50%;background:#4ade80;animation:flagship-pulse 2s infinite}
+
 /* ===== داشبورد مدرن — کارت‌های آماری ===== */
 .dash-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
 @media(max-width:640px){.dash-cards{grid-template-columns:repeat(2,1fr)!important;gap:10px}.dash-cards .stat-card{padding:14px 12px}.dash-cards .stat-card strong{font-size:22px}.dash-kpi{grid-template-columns:repeat(2,1fr)!important}}
