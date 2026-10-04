@@ -4121,12 +4121,12 @@ html[data-admin-theme="architect"] h1::after{content:'';display:block;width:48px
 html[data-admin-theme="architect"] input, html[data-admin-theme="architect"] select, html[data-admin-theme="architect"] textarea{border:1px solid var(--arch-line)!important;border-radius:4px!important}
 html[data-admin-theme="architect"] input:focus, html[data-admin-theme="architect"] select:focus, html[data-admin-theme="architect"] textarea:focus{border-color:var(--arch-brass)!important;box-shadow:0 0 0 3px rgba(176,141,87,.12)!important;outline:none!important}
 /* تاپ‌بار */
-html[data-admin-theme="architect"] .topbar{background:#ffffff!important;border-bottom:2px solid #1a1a18!important;box-shadow:0 2px 8px rgba(0,0,0,.08)!important}
-html[data-admin-theme="architect"] .topbar .topbar-title{color:#1a1a18!important;font-weight:800!important;font-size:16px!important}
-html[data-admin-theme="architect"] .topbar .menu-toggle{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;border-radius:8px!important;padding:8px 12px!important;font-size:18px!important;font-weight:800!important}
-html[data-admin-theme="architect"] .topbar .menu-toggle:hover{background:#1a1a18!important;color:#fff!important}
-html[data-admin-theme="architect"] .topbar .topbar-actions .btn{color:#1a1a18!important;border:2px solid #1a1a18!important;background:#fff!important;font-weight:700!important}
-html[data-admin-theme="architect"] .topbar .topbar-actions .btn:hover{background:#b08d57!important;border-color:#b08d57!important;color:#fff!important}
+html[data-admin-theme="architect"] .topbar{background:#1a1a18!important;border-bottom:2px solid #b08d57!important;box-shadow:0 2px 12px rgba(0,0,0,.3)!important;color:#fff!important}
+html[data-admin-theme="architect"] .topbar .topbar-title{color:#fff!important;font-weight:800!important;font-size:16px!important}
+html[data-admin-theme="architect"] .topbar .menu-toggle{color:#fff!important;border:2px solid #b08d57!important;background:transparent!important;border-radius:8px!important;padding:8px 12px!important;font-size:18px!important;font-weight:800!important}
+html[data-admin-theme="architect"] .topbar .menu-toggle:hover{background:#b08d57!important;border-color:#b08d57!important;color:#1a1a18!important}
+html[data-admin-theme="architect"] .topbar .topbar-actions .btn{color:#fff!important;border:1px solid rgba(176,141,87,.5)!important;background:transparent!important;font-weight:600!important}
+html[data-admin-theme="architect"] .topbar .topbar-actions .btn:hover{background:#b08d57!important;border-color:#b08d57!important;color:#1a1a18!important}
 html[data-admin-theme="architect"] .topbar .user-menu-btn{color:#1a1a18!important;border:2px solid #1a1a18!important}
 html[data-admin-theme="architect"] .topbar .date-pill{background:#1a1a18!important;color:#fff!important;font-weight:600!important}
 
