@@ -2476,20 +2476,34 @@ if ($page === 'design') {
                     // فعال‌سازی درگ
                     Sortable.create(el, {
                         animation: 200,
-                        delay: 300,
+                        delay: 250,
                         delayOnTouchOnly: true,
                         ghostClass: 'dash-drag-ghost',
-                        onEnd: function(){
-                            var order = Array.from(el.children).map(function(c){ return c.dataset.widget || c.textContent.trim().slice(0,30); });
+                        chosenClass: 'dash-drag-chosen',
+                        dragClass: 'dash-drag-active',
+                        preventOnFilter: false,
+                        onStart: function(){ document.body.classList.add('dash-dragging'); },
+                        onEnd: function(evt){
+                            document.body.classList.remove('dash-dragging');
+                            var order = Array.from(el.children).map(function(c, i){ return 'w' + i + ':' + (c.textContent.trim().slice(0,20)); });
                             try { localStorage.setItem('dash-order-' + id, JSON.stringify(order)); } catch(e){}
-                        }
+                        },
+                        onMove: function(){ return true; }
                     });
+                    // جلوگیری از کلیک لینک بعد از درگ
+                    el.addEventListener('click', function(e){
+                        if (document.body.classList.contains('dash-dragging')) { e.preventDefault(); e.stopPropagation(); }
+                    }, true);
                 });
             })();
             </script>
             <style>
             .dash-drag-ghost{opacity:.4;background:#dbeafe!important}
-            #dash-cards .stat-card, #dash-kpi .stat-card{cursor:grab}
+            .dash-drag-chosen{box-shadow:0 8px 24px rgba(37,99,235,.3)!important}
+            .dash-drag-active{opacity:.9}
+            body.dash-dragging #dash-cards .stat-card, body.dash-dragging #dash-kpi .stat-card{pointer-events:none}
+            body.dash-dragging{user-select:none;-webkit-user-select:none}
+            #dash-cards .stat-card, #dash-kpi .stat-card{cursor:grab;touch-action:pan-y}
             #dash-cards .stat-card:active, #dash-kpi .stat-card:active{cursor:grabbing}
             </style>
             <?php if ($lowStockCount > 0 && admin_can_page('materials')): ?>
@@ -4020,7 +4034,7 @@ body.nav-open .topbar{z-index:85}
 .dash-kpi .stat-card.kpi::before{display:none}
 .dash-kpi .stat-card.kpi span{color:rgba(255,255,255,.9);font-size:12px}
 .dash-kpi .stat-card.kpi strong{color:#fff;font-size:19px;text-shadow:0 1px 8px rgba(0,0,0,.2)}
-.dash-kpi .stat-card.kpi .sc-ico{width:38px;height:38px;font-size:19px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25)}
+.dash-kpi .stat-card.kpi .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:22px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25);border-radius:14px;flex-shrink:0}.dash-kpi .stat-card.kpi .sc-ico svg{width:24px;height:24px;display:block}
 .dash-kpi .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
 .dash-kpi .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
 .dash-kpi .stat-card.kpi-orders{background:linear-gradient(135deg,rgba(59,130,246,.85),rgba(37,99,235,.75))}
