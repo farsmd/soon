@@ -42,7 +42,9 @@ if ($slug !== '') {
         ],
     ];
     $title = (string) $post['title'] . ' — ' . $siteTitle;
-    echo skeleton_head($settings, $title, (string) ($post['excerpt'] ?? ''), $seo);
+    $head = skeleton_head($settings, $title, (string) ($post['excerpt'] ?? ''), $seo);
+    $head = str_replace('<head>', '<head>\n<base href="/">', $head);
+    echo $head;
     echo render_db_template('header', $settings) . "\n";
     ?>
     <main id="main">
@@ -51,7 +53,7 @@ if ($slug !== '') {
         <h1><?= e((string) $post['title']) ?></h1>
         <p class="muted"><?= e(blog_fa_date((string) ($post['published_at'] ?? $post['created_at']))) ?></p>
         <?php if (trim((string) $post['featured_image']) !== ''): ?>
-            <img class="blog-featured" src="<?= e((string) $post['featured_image']) ?>" alt="<?= e((string) $post['title']) ?>">
+            <img class="blog-featured" src="/<?= ltrim(e((string) $post['featured_image']), '/') ?>" alt="<?= e((string) $post['title']) ?>">
         <?php endif; ?>
         <div class="blog-content"><?= $post['content'] ?></div>
         <p><a class="btn" href="<?= e(pretty_url('blog.php')) ?>">← همه مقالات</a></p>
@@ -77,7 +79,9 @@ $seo = [
     ],
 ];
 $title = 'وبلاگ — ' . $siteTitle;
-echo skeleton_head($settings, $title, 'مقالات آموزشی لاینرلایت درباره نورپردازی خطی و دکوراتیو.', $seo);
+$head = skeleton_head($settings, $title, 'مقالات آموزشی لاینرلایت درباره نورپردازی خطی و دکوراتیو.', $seo);
+$head = str_replace('<head>', '<head>\n<base href="/">', $head);
+echo $head;
 echo render_db_template('header', $settings) . "\n";
 ?>
 <main id="main">
