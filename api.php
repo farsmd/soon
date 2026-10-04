@@ -26,6 +26,17 @@ function api_fail(string $msg, int $code = 400): void
     api_out(['ok' => false, 'error' => $msg], $code);
 }
 
+// خطایابی: هر استثنای گرفته‌نشده به‌جای ۵۰۰ خالی، JSON خطا برمی‌گرداند
+set_exception_handler(static function (Throwable $e): void {
+    try {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'خطای سرور: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (Throwable $ignored) {
+    }
+    exit;
+});
+
 // ---------- محدودیت نرخ: ۱۲۰ درخواست در دقیقه برای هر توکن ----------
 function api_rate_limit(string $tokenHash): void
 {
@@ -214,7 +225,7 @@ if ($res === 'section') {
 }
 
 // ---------------- تنظیمات محتوایی ----------------
-$API_SETTINGS = ['site_title', 'site_description', 'seo_title', 'seo_description', 'catalog_title', 'catalog_public', 'payment_terms', 'warranty_text', 'qc_text', 'order_line_note', 'orders_public', 'site_css', 'site_url'];
+$API_SETTINGS = ['site_title', 'site_description', 'seo_title', 'seo_description', 'catalog_title', 'catalog_public', 'payment_terms', 'warranty_text', 'qc_text', 'order_line_note', 'orders_public', 'site_css', 'site_url', 'sitemap_enabled'];
 
 if ($res === 'settings') {
     $out = [];
@@ -228,7 +239,7 @@ if ($res === 'settings') {
             $v = api_in($k, null);
             if ($v !== null) {
                 $sv = (string) $v;
-                if (in_array($k, ['order_line_note', 'orders_public', 'catalog_public'], true)) {
+                if (in_array($k, ['order_line_note', 'orders_public', 'catalog_public', 'sitemap_enabled'], true)) {
                     $sv = ($sv === '1' || strtolower($sv) === 'true' || strtolower($sv) === 'on') ? '1' : '0';
                 }
                 $limit = ($k === 'site_css') ? 200000 : 5000;

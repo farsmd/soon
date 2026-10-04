@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.13.5');
+define('APP_VERSION', '9.14.0');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1055,6 +1055,59 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('hr/assets tables migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۴: جدول وبلاگ/مقالات ---
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS blog_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            slug TEXT NOT NULL UNIQUE,
+            excerpt TEXT NOT NULL DEFAULT '',
+            content TEXT NOT NULL DEFAULT '',
+            featured_image TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'draft',
+            published_at TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_blog_slug ON blog_posts (slug)");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_blog_status ON blog_posts (status, published_at)");
+    } catch (Throwable $e) {
+        error_log('blog table migration failed: ' . $e->getMessage());
+    }
+    // --- نسخه ۹٫۱۴: نرخ‌های رسمی حقوق ۱۴۰۵ (مصوب شورای عالی کار، ۲۴ اسفند ۱۴۰۴) ---
+    // همه پارامترها از پنل (حقوق و دستمزد ← پارامترها) قابل تغییرند؛ اگر شورای عالی کار
+    // تا پایان مهر ترمیمی تصویب کند، فقط کافی است اعداد را در پنل عوض کنید.
+    try {
+        $wage1405 = [
+            'wage_min_daily'       => '554185',    // حداقل مزد روزانه (تومان)
+            'wage_min_monthly'     => '16625550',  // حداقل مزد ماهانه ۳۰ روزه (تومان)
+            'wage_bon_kargari'     => '2200000',   // بن کارگری (بدون تغییر نسبت به ۱۴۰۴)
+            'wage_housing'         => '3000000',   // حق مسکن (از ۹۰۰ هزار افزایش یافت)
+            'wage_marriage'        => '500000',    // حق تأهل
+            'wage_child_allowance' => '1662555',   // حق اولاد هر فرزند (۱۰٪ حداقل مزد)
+            'wage_seniority'       => '500000',    // پایه سنوات ماهانه (۱+ سال سابقه)
+            'wage_insurance_worker'=> '7',         // بیمه سهم کارگر (٪)
+            'wage_insurance_employer' => '23',     // بیمه سهم کارفرما (٪)
+            'wage_tax_threshold'   => '24000000',  // سقف معافیت مالیاتی (تأیید نشده برای ۱۴۰۵)
+        ];
+        $wstmt = $pdo->prepare('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+        foreach ($wage1405 as $k => $v) {
+            // فقط اگر مقدار فعلی همان پیش‌فرض قدیمی است یا کلید تازه است، به‌روز کن؛
+            // اگر کاربر خودش در پنل تغییر داده، دست نزن.
+            $cur = $pdo->query("SELECT value FROM settings WHERE key = " . $pdo->quote($k))->fetchColumn();
+            if ($cur === false) {
+                $wstmt->execute([':k' => $k, ':v' => $v]);
+            }
+        }
+        // به‌روزرسانی مقادیر قدیمی ۱۴۰۴ به ۱۴۰۵ فقط اگر کاربر دست‌کاری نکرده باشد
+        $oldDefaults = ['wage_housing' => '900000', 'wage_child_allowance' => '1250000'];
+        $ustmt = $pdo->prepare('UPDATE settings SET value = :v WHERE key = :k AND value = :old');
+        foreach ($oldDefaults as $k => $oldV) {
+            $ustmt->execute([':v' => $wage1405[$k], ':k' => $k, ':old' => $oldV]);
+        }
+    } catch (Throwable $e) {
+        error_log('wage 1405 migration failed: ' . $e->getMessage());
+    }
     // --- نسخه ۹٫۹: تعداد فرزندان پرسنل + پارامترهای حقوق وزارت‌کاری ---
     try {
         $ecols = $pdo->query("PRAGMA table_info(employees)")->fetchAll(PDO::FETCH_COLUMN, 1);
@@ -1104,6 +1157,8 @@ PARTNERHTML;
     } catch (Throwable $e) {
         error_log('gallery tiles migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۱۴: استایل پیگیری سفارش (یک بار) ---
+    try { seed_track_css_v9140_if_needed(); } catch (Throwable $e) {}
     // --- نسخه ۹٫۱۳٫۳: استایل لایت‌باکس گالری (یک بار) ---
     try {
         seed_gallery_lightbox_css_v9133_if_needed();
@@ -4629,6 +4684,40 @@ GLB;
 }
 
 /** مایگریشن نسخه ۹٫۱۳٫۱: پیچیدن محتوای گالری داخل کانتینر کاشی */
+/** مایگریشن نسخه ۹٫۱۴: استایل صفحه پیگیری سفارش */
+function seed_track_css_v9140_if_needed(): void
+{
+    try {
+        if (get_setting('track_css_9140', '0') === '1') { return; }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '.track-page') === false) {
+            $css .= "\n/* پیگیری سفارش (۹٫۱۴) */\n"
+                . ".track-page{max-width:900px;margin:0 auto;padding:24px 16px}\n"
+                . ".track-form .inline-fields{display:flex;gap:12px;flex-wrap:wrap}\n"
+                . ".track-form .inline-fields label{flex:1;min-width:200px}\n"
+                . ".track-meta{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;color:#c8d4f0;font-size:14px}\n"
+                . ".track-timeline{list-style:none;margin:20px 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}\n"
+                . ".track-timeline li{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:13px;color:#9aa7c7}\n"
+                . ".track-timeline li .dot{width:10px;height:10px;border-radius:50%;background:#4a5578}\n"
+                . ".track-timeline li.done{color:#c8d4f0}.track-timeline li.done .dot{background:#22c55e}\n"
+                . ".track-timeline li.current{color:#fff;border-color:#e8c66a;background:rgba(232,198,106,.12)}.track-timeline li.current .dot{background:#e8c66a;box-shadow:0 0 8px #e8c66a}\n";
+            $css .= "\n/* وبلاگ (۹٫۱۴) */\n"
+                . ".blog-list{max-width:1000px;margin:0 auto;padding:24px 16px}\n"
+                . ".blog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:20px}\n"
+                . ".blog-card{display:block;border-radius:14px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);text-decoration:none;color:inherit;transition:transform .2s}\n"
+                . ".blog-card:hover{transform:translateY(-4px)}\n"
+                . ".blog-card img{width:100%;height:180px;object-fit:cover}\n"
+                . ".blog-card-body{padding:16px}.blog-card-body h2{font-size:17px;margin:0 0 8px}.blog-card-body p{font-size:14px;color:#9aa7c7;margin:0 0 8px}\n"
+                . ".blog-post{max-width:800px;margin:0 auto;padding:24px 16px}\n"
+                . ".blog-post h1{margin:12px 0}.blog-featured{width:100%;border-radius:14px;margin:16px 0}\n"
+                . ".blog-content{line-height:2;font-size:16px}.blog-content img{max-width:100%;border-radius:10px}\n"
+                . ".breadcrumbs{font-size:13px;color:#9aa7c7;margin-bottom:8px}.breadcrumbs a{color:#e8c66a}\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('track_css_9140', '1');
+    } catch (Throwable $e) {}
+}
+
 /** مایگریشن نسخه ۹٫۱۳٫۳: استایل لایت‌باکس گالری */
 function seed_gallery_lightbox_css_v9133_if_needed(): void
 {

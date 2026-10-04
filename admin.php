@@ -19,6 +19,7 @@ require_once __DIR__ . '/admin_production.php';
 require_once __DIR__ . '/admin_finance.php';
 // منابع انسانی: پرسنل و حقوق (نسخه ۹٫۷)
 require_once __DIR__ . '/admin_hr.php';
+require_once __DIR__ . '/admin_blog.php';
 // تجهیزات و دارایی‌ها (نسخه ۹٫۷)
 require_once __DIR__ . '/admin_assets.php';
 // گزارش‌های مدیریتی (فاز ۶ / نسخه ۸٫۶): فروش، محصولات، مصرف مواد، مشتریان و تولید
@@ -594,6 +595,7 @@ $pageTitles = [
     'sysinfo'    => 'مشخصات نرم‌افزار',
     'employees'  => 'پرسنل',
     'payroll'    => 'حقوق و دستمزد',
+    'blog'       => 'وبلاگ',
     'employee_profile' => 'پروفایل پرسنل',
     'payslip'    => 'فیش حقوقی',
     'assets'     => 'تجهیزات و دارایی‌ها',
@@ -616,6 +618,7 @@ $navGroups = [
     ]],
     'content' => ['محتوا', [
         ['admin.php?page=pages', 'file', 'صفحه‌ها', 'pages'],
+        ['admin.php?page=blog', 'pen', 'وبلاگ', 'blog'],
         ['admin.php?page=gallery', 'image', 'مدیریت گالری', 'gallery'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=messages', 'mail', 'پیام‌های تماس', 'messages'],
@@ -783,6 +786,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // اکشن‌های منابع انسانی در admin_hr.php پردازش می‌شوند
         if (in_array($action, hr_post_actions(), true)) {
             hr_handle_post($action);
+        }
+        // اکشن‌های وبلاگ در admin_blog.php پردازش می‌شوند
+        if (in_array($action, blog_post_actions(), true)) {
+            blog_handle_post($action);
         }
         // اکشن‌های تجهیزات در admin_assets.php پردازش می‌شوند
         if (in_array($action, assets_post_actions(), true)) {
@@ -1608,6 +1615,16 @@ $financeData = finance_load_data($page);
 // داده‌های منابع انسانی (نسخه ۹٫۷)
 $hrData = hr_load_data();
 extract($hrData);
+// داده‌های وبلاگ (نسخه ۹٫۱۴)
+$blogData = ['blog_posts' => [], 'blog_edit' => null];
+if ($page === 'blog') {
+    $blogData['blog_posts'] = db()->query('SELECT * FROM blog_posts ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+    if (isset($_GET['edit_id']) && (int) $_GET['edit_id'] > 0) {
+        $st = db()->prepare('SELECT * FROM blog_posts WHERE id = :id LIMIT 1');
+        $st->execute([':id' => (int) $_GET['edit_id']]);
+        $blogData['blog_edit'] = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+}
 // داده‌های تجهیزات (نسخه ۹٫۷)
 $assetsData = assets_load_data($page);
 extract($assetsData);
@@ -2723,6 +2740,8 @@ if ($page === 'design') {
             <?php hr_render_employees($hrData); ?>
         <?php elseif ($page === 'payroll'): ?>
             <?php hr_render_payroll($hrData); ?>
+        <?php elseif ($page === 'blog'): ?>
+            <?php blog_render_admin($blogData); ?>
         <?php elseif ($page === 'employee_profile'): ?>
             <?php hr_render_employee_profile($hrData); ?>
         <?php elseif ($page === 'payslip'): ?>

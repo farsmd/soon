@@ -15,7 +15,24 @@ if (!defined('CMS_ADMIN_PANEL')) {
 function hr_post_actions(): array
 {
     return ['add_employee', 'update_employee', 'deactivate_employee', 'activate_employee',
-        'add_salary_payment', 'delete_salary_payment'];
+        'add_salary_payment', 'delete_salary_payment', 'save_wage_params'];
+}
+
+/** کلیدهای پارامتر حقوق وزارت کار (قابل ویرایش از پنل) */
+function hr_wage_param_defs(): array
+{
+    return [
+        'wage_min_daily'        => ['label' => 'حداقل مزد روزانه (تومان)', 'def' => '554185'],
+        'wage_min_monthly'      => ['label' => 'حداقل مزد ماهانه ۳۰ روزه (تومان)', 'def' => '16625550'],
+        'wage_bon_kargari'      => ['label' => 'بن کارگری ماهانه (تومان)', 'def' => '2200000'],
+        'wage_housing'          => ['label' => 'حق مسکن ماهانه (تومان)', 'def' => '3000000'],
+        'wage_marriage'         => ['label' => 'حق تأهل ماهانه (تومان)', 'def' => '500000'],
+        'wage_child_allowance'  => ['label' => 'حق اولاد هر فرزند (تومان)', 'def' => '1662555'],
+        'wage_seniority'        => ['label' => 'پایه سنوات ماهانه (تومان)', 'def' => '500000'],
+        'wage_insurance_worker' => ['label' => 'بیمه سهم کارگر (٪)', 'def' => '7'],
+        'wage_insurance_employer' => ['label' => 'بیمه سهم کارفرما (٪)', 'def' => '23'],
+        'wage_tax_threshold'    => ['label' => 'سقف معافیت مالیاتی ماهانه (تومان)', 'def' => '24000000'],
+    ];
 }
 
 /** برچسب فارسی نوع همکاری */
@@ -81,29 +98,37 @@ function hr_calculate_payslip(array $employee, array $payment): array
     $children  = max(0, (int) ($employee['children_count'] ?? 0));
 
     $bonKargari    = max(0, (int) get_setting('wage_bon_kargari', '2200000'));
-    $housing       = max(0, (int) get_setting('wage_housing', '900000'));
-    $childAllow    = max(0, (int) get_setting('wage_child_allowance', '1250000'));
+    $housing       = max(0, (int) get_setting('wage_housing', '3000000'));
+    $marriage      = max(0, (int) get_setting('wage_marriage', '500000'));
+    $childAllow    = max(0, (int) get_setting('wage_child_allowance', '1662555'));
+    $seniority     = max(0, (int) get_setting('wage_seniority', '500000'));
+    $insWorkerPct  = max(0, (int) get_setting('wage_insurance_worker', '7'));
     $taxThreshold  = max(0, (int) get_setting('wage_tax_threshold', '24000000'));
 
     $childTotal = $children * $childAllow;
+    // پایه سنوات: فقط برای پرسنل با حداقل ۱ سال سابقه
+    $tenure = hr_tenure((string) ($employee['hire_date'] ?? ''));
+    $seniorityAmt = ($tenure !== '—' && $tenure !== 'کمتر از یک ماه' && strpos($tenure, 'سال') !== false) ? $seniority : 0;
 
     $earnings = [
         ['label' => 'حقوق پایه', 'amount' => $base],
         ['label' => 'بن کارگری (کمک‌هزینه اقلام مصرفی)', 'amount' => $bonKargari],
         ['label' => 'حق مسکن', 'amount' => $housing],
+        ['label' => 'حق تأهل', 'amount' => $marriage],
         ['label' => 'حق اولاد (' . $children . ' فرزند)', 'amount' => $childTotal],
+        ['label' => 'پایه سنوات', 'amount' => $seniorityAmt],
         ['label' => 'اضافه‌کاری / پاداش', 'amount' => $bonus],
     ];
-    $totalEarnings = $base + $bonKargari + $housing + $childTotal + $bonus;
+    $totalEarnings = $base + $bonKargari + $housing + $marriage + $childTotal + $seniorityAmt + $bonus;
 
-    // بیمه سهم کارگر: ۷٪ جمع مزایا
-    $insurance = (int) round($totalEarnings * 0.07);
+    // بیمه سهم کارگر: درصد قابل‌تنظیم از جمع مزایا (پیش‌فرض ۷٪)
+    $insurance = (int) round($totalEarnings * $insWorkerPct / 100);
     // مالیات حقوق: ۱۰٪ مازاد بر سقف معافیت
     $taxable = max(0, $totalEarnings - $taxThreshold);
     $tax = (int) round($taxable * 0.10);
 
     $deductions = [
-        ['label' => 'بیمه سهم کارگر (۷٪)', 'amount' => $insurance],
+        ['label' => 'بیمه سهم کارگر (' . $insWorkerPct . '٪)', 'amount' => $insurance],
         ['label' => 'مالیات حقوق', 'amount' => $tax],
         ['label' => 'سایر کسورات', 'amount' => $otherDed],
     ];
@@ -220,6 +245,15 @@ function hr_handle_post(string $action): void
             ]);
             flash('ok', 'فیش حقوقی ' . $employee['full_name'] . ' برای ماه ' . $payMonth . ' ثبت شد (خالص: ' . format_price($net) . ' تومان).');
             redirect_admin('admin.php?page=payroll&pay_month=' . urlencode($payMonth));
+            // no break
+
+        case 'save_wage_params':
+            foreach (hr_wage_param_defs() as $k => $def) {
+                $v = max(0, (int) ($_POST[$k] ?? $def['def']));
+                set_setting($k, (string) $v);
+            }
+            flash('ok', 'پارامترهای حقوق وزارت کار ذخیره شد.');
+            redirect_admin('admin.php?page=payroll&wage=1');
             // no break
 
         case 'delete_salary_payment':
@@ -431,6 +465,26 @@ function hr_render_payroll(array $d): void
                 <div class="stat-card"><span>جمع خالص (نمایش فعلی)</span><strong><?= e(format_price($totalNetAll)) ?> تومان</strong></div>
                 <div class="stat-card"><span>تعداد فیش‌ها</span><strong><?= count($paymentsList) ?></strong></div>
                 <a class="stat-card" href="admin.php?page=employees"><span>پرسنل</span><strong>مدیریت پرسنل</strong></a>
+            </div>
+
+            <div class="crud-toolbar">
+                <button type="button" class="btn" data-toggle-panel="wage-params-panel" aria-expanded="false">⚙ پارامترهای حقوق وزارت کار (۱۴۰۵)</button>
+            </div>
+            <div class="crud-panel" id="wage-params-panel" hidden>
+            <h2>پارامترهای حقوق (مصوب ۱۴۰۵)</h2>
+            <p class="muted">نرخ‌های رسمی شورای عالی کار؛ اگر تا پایان مهر ترمیمی تصویب شد، فقط همین اعداد را عوض کنید — نیازی به تغییر کد نیست.</p>
+            <form method="post" class="card wide">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="save_wage_params">
+                <div class="inline-fields">
+                <?php foreach (hr_wage_param_defs() as $k => $def): ?>
+                    <label><?= e($def['label']) ?>
+                        <input type="number" name="<?= e($k) ?>" min="0" step="1" dir="ltr" value="<?= e((string) get_setting($k, $def['def'])) ?>">
+                    </label>
+                <?php endforeach; ?>
+                </div>
+                <button type="submit" class="btn add">ذخیره پارامترها</button>
+            </form>
             </div>
 
             <?php if ($monthlyTotals !== []): ?>

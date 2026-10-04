@@ -32,6 +32,8 @@
     RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
     RewriteCond %{THE_REQUEST} \s/card\.php[\s?] [NC]
     RewriteRule ^card\.php$ /card [R=301,L,QSA]
+    RewriteCond %{THE_REQUEST} \s/track\.php[\s?]
+    RewriteRule ^track\.php$ /track [R=301,L,QSA]
 
     # بازنویسی داخلی آدرس تمیز به فایل واقعی (POST حفظ می‌شود؛ فایل‌ها و پوشه‌های واقعی دست‌نخورده)
     RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -41,6 +43,9 @@
     RewriteRule ^products/?$ products.php [L,QSA]
     RewriteRule ^order/?$ order.php [L,QSA]
     RewriteRule ^card/?$ card.php [L,QSA]
+    RewriteRule ^track/?$ track.php [L,QSA]
+    RewriteRule ^blog/?$ blog.php [L,QSA]
+    RewriteRule ^blog/([A-Za-z0-9_-]+)/?$ blog.php?slug=$1 [L,QSA]
     RewriteRule ^([A-Za-z0-9_-]+)/?$ page.php?slug=$1 [L,QSA]
 </IfModule>
 
