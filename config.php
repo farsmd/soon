@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.24.1');
+define('APP_VERSION', '9.24.2');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -1533,7 +1533,7 @@ function set_setting(string $key, string $value): void
 /** همه تنظیمات به صورت آرایه انجمنی */
 function all_settings(): array
 {
-    $rows = db()->query('SELECT key, value FROM settings')->fetchAll();
+    $rows = db()->query("SELECT key, value FROM settings WHERE key NOT IN ('site_css','custom_css')")->fetchAll();
     $out = [];
     foreach ($rows as $r) {
         $out[$r['key']] = (string) $r['value'];
@@ -2601,13 +2601,13 @@ function build_site_css(array $settings): string
             . "@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:700;font-display:swap;src:url('assets/fonts/Vazirmatn-Bold.woff2') format('woff2');}"
             . "@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:800;font-display:swap;src:url('assets/fonts/Vazirmatn-ExtraBold.woff2') format('woff2');}";
     }
-    $siteCss = (string) ($settings['site_css'] ?? '');
+    $siteCss = (string) get_setting('site_css', '');
     if (trim($siteCss) === '') {
         $siteCss = default_site_css();
     }
     $parts[] = $siteCss;
     $parts[] = "/* ===== تنظیمات ظاهری (از پنل مدیریت) ===== */\n" . visual_css_vars($settings);
-    $custom = trim((string) ($settings['custom_css'] ?? ''));
+    $custom = trim((string) get_setting('custom_css', ''));
     if ($custom !== '') {
         $parts[] = "/* ===== CSS سفارشی (از پنل مدیریت) ===== */\n" . $custom;
     }
@@ -3067,6 +3067,19 @@ function prune_logs_maybe(): void
  * پاسخ 204 می‌دهد و همان‌جا تمام می‌شود تا رندر صفحه انجام نشود.
  */
 function track_public_request(): void
+{
+    // لاگ بعد از ارسال پاسخ (۹٫۲۴): اول صفحه به کاربر می‌رسد، بعد INSERT انجام می‌شود
+    if (function_exists('fastcgi_finish_request')) {
+        register_shutdown_function(function () {
+            try { fastcgi_finish_request(); } catch (Throwable $e) {}
+            track_public_request_now();
+        });
+        return;
+    }
+    track_public_request_now();
+}
+
+function track_public_request_now(): void
 {
     try {
         if (get_setting('visit_log_enabled', '1') !== '1') { return; }

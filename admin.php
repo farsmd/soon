@@ -3071,7 +3071,7 @@ if ($page === 'design') {
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="save_css">
                     <input type="hidden" name="which" value="site_css">
-                    <textarea name="content" rows="24" dir="ltr" spellcheck="false" class="code-editor" data-mode="css"><?= e($settings['site_css'] ?? '') ?></textarea>
+                    <textarea name="content" rows="24" dir="ltr" spellcheck="false" class="code-editor" data-mode="css"><?= e((string) get_setting('site_css', '')) ?></textarea>
                     <button type="submit" class="btn primary">ذخیره CSS اصلی</button>
                 </form>
                 <form method="post" class="card" onsubmit="return confirm('CSS اصلی به نسخه کارخانه‌ای برگردد؟ نسخه فعلی در تاریخچه می‌ماند.')">
@@ -3102,7 +3102,7 @@ if ($page === 'design') {
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="save_css">
                     <input type="hidden" name="which" value="custom_css">
-                    <textarea name="content" rows="12" dir="ltr" spellcheck="false" class="code-editor" data-mode="css"><?= e($settings['custom_css'] ?? '') ?></textarea>
+                    <textarea name="content" rows="12" dir="ltr" spellcheck="false" class="code-editor" data-mode="css"><?= e((string) get_setting('custom_css', '')) ?></textarea>
                     <button type="submit" class="btn primary">ذخیره CSS سفارشی</button>
                 </form>
                 <form method="post" class="card" onsubmit="return confirm('CSS سفارشی کاملاً خالی شود؟ نسخه فعلی در تاریخچه می‌ماند.')">
