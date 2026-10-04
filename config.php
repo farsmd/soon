@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.14.2');
+define('APP_VERSION', '9.14.3');
 define('DB_FILE', __DIR__ . '/database.sqlite');
 define('UPLOADS_DIR', __DIR__ . '/uploads');
 define('UPLOADS_URL', 'uploads');
@@ -2659,6 +2659,7 @@ function skeleton_head(array $settings, string $title, string $description, arra
         $out .= '<meta name="keywords" content="' . e($keywords) . '">' . "\n";
     }
     $out .= '<meta name="robots" content="index, follow, max-image-preview:large">' . "\n";
+    $out .= '<meta name="google-site-verification" content="mZGtQ4nFfc-3ObotiNUeKpw7Cdu2LoJ3DRKNz3slbtE">' . "\n";
     $out .= '<meta name="theme-color" content="' . e($visual['primary_color']) . '">' . "\n";
     // Canonical
     if ($pageUrl !== '') {
