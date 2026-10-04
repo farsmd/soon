@@ -4023,11 +4023,12 @@ body.nav-open .topbar{z-index:85}
 /* ===== داشبورد مدرن — کارت‌های آماری ===== */
 .dash-cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
 @media(max-width:640px){.dash-cards{grid-template-columns:repeat(2,1fr)!important;gap:10px}.dash-cards .stat-card{padding:14px 12px}.dash-cards .stat-card strong{font-size:22px}.dash-kpi{grid-template-columns:repeat(2,1fr)!important}}
-.dash-cards .stat-card{position:relative;background:#fff;border:1px solid #e8ecf1;border-radius:16px;padding:20px 18px;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
-.dash-cards .stat-card::before{content:"";position:absolute;top:0;inset-inline-start:0;inset-inline-end:0;height:4px;background:linear-gradient(90deg,#e2e8f0,#cbd5e1);border-radius:16px 16px 0 0}
+.dash-cards .stat-card{position:relative;background:rgba(255,255,255,.7);backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border:1px solid rgba(255,255,255,.6);border-radius:20px;padding:16px;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease;box-shadow:0 8px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.8)}
+.dash-cards .stat-card::after{content:'';position:absolute;top:-30px;inset-inline-end:-30px;width:90px;height:90px;border-radius:50%;background:rgba(37,99,235,.06);pointer-events:none}
+.dash-cards .stat-card::before{display:none}
 .dash-cards a.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(17,24,39,.12);border-color:#cbd5e1;text-decoration:none}
 .dash-cards .stat-card span{display:flex;align-items:center;gap:12px;color:#64748b;font-size:13px;font-weight:600;margin-bottom:10px}
-.dash-cards .stat-card strong{display:block;font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.5px}
+.dash-cards .stat-card strong{display:block;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-.5px}
 .dash-cards .stat-card .sc-sub{display:block;font-size:12px;color:#94a3b8;font-weight:400;margin-top:4px}
 /* آیکون دایره‌ای */
 .dash-cards .stat-card .sc-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:#f1f5f9;flex-shrink:0;color:#475569}.dash-cards .stat-card .sc-ico svg{width:20px;height:20px;display:block}
