@@ -4050,10 +4050,21 @@ body.nav-open .topbar{z-index:85}
 body{background:var(--arch-bg);color:var(--arch-ink);font-family:'Vazirmatn',Tahoma,sans-serif}
 /* سایدبار */
 .sidebar{background:#1a1a18!important;border-inline-end:1px solid #2a2a28}
-.sidebar .nav-link{color:#a8a8a3!important;border-radius:8px;margin:2px 8px;transition:all .2s}
-.sidebar .nav-link:hover{background:rgba(176,141,87,.12)!important;color:#fff!important}
+.sidebar{background:#1e1e1c!important}
+.sidebar .nav-link{color:#e8e8e3!important;border-radius:8px;margin:2px 8px;transition:all .2s;font-size:13.5px}
+.sidebar .nav-link:hover{background:rgba(176,141,87,.2)!important;color:#fff!important}
 .sidebar .nav-link.active{background:linear-gradient(135deg,#b08d57,#d4b896)!important;color:#1a1a18!important;font-weight:700}
-.sidebar-brand{border-bottom:1px solid #2a2a28!important}
+.sidebar .nav-group-title{color:#d4b896!important;font-weight:700;font-size:11px;letter-spacing:1px;opacity:1!important;margin:12px 16px 6px!important}
+.sidebar .nav-link .nav-icon{color:inherit!important;opacity:1}
+.sidebar .nav-link small,.sidebar .nav-link .badge{color:inherit!important}
+.sidebar-brand{border-bottom:1px solid #333330!important}
+.sidebar-brand span,.sidebar-brand a{color:#fff!important}
+/* دکمه‌های تم */
+.theme-switcher button{color:#e8e8e3!important;border:1px solid #444440!important;background:rgba(255,255,255,.05)!important}
+.theme-switcher button.active{background:#b08d57!important;color:#1a1a18!important;border-color:#b08d57!important}
+/* دکمه‌های تاپ‌بار */
+.topbar .btn{color:#1a1a18!important;border-color:#d8d8d3!important;background:#fff!important;font-weight:600}
+.topbar .btn:hover{border-color:#b08d57!important;color:#b08d57!important}
 /* کارت‌ها */
 .card{background:var(--arch-surface);border:1px solid var(--arch-line);border-radius:4px;box-shadow:0 1px 3px rgba(26,26,24,.06)}
 .card h1,.card h2,.card h3{font-weight:700;letter-spacing:-.3px}
