@@ -4019,7 +4019,12 @@ table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tpl-preview{height:320px}
 }
 /* منوی کناری */
-.topbar{position:sticky;top:0;z-index:70;display:flex;justify-content:space-between;align-items:center;background:#111827;color:#fff;padding:8px 14px;gap:10px;box-shadow:0 1px 10px rgba(17,24,39,.25)}
+.topbar{position:sticky;top:0;z-index:70;display:flex;justify-content:space-between;align-items:center;background:#ffffff;color:#1a1a18;padding:8px 14px;gap:10px;box-shadow:0 1px 10px rgba(0,0,0,.08);border-bottom:1px solid #e8e8e3}
+.topbar .topbar-title{color:#1a1a18!important;font-weight:800;font-size:16px}
+.topbar .menu-toggle{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:10px;border:2px solid #1a1a18;background:#fff;color:#1a1a18;font-size:20px;cursor:pointer}
+.topbar .menu-toggle:hover{background:#1a1a18;color:#fff}
+.topbar .topbar-actions .btn{border:1px solid #d1d5db;background:#fff;color:#1a1a18;font-weight:600}
+.topbar .topbar-actions .btn:hover{border-color:#b08d57;color:#b08d57}
 body.nav-open .topbar{z-index:85}
 .topbar-start{display:flex;align-items:center;gap:10px;min-width:0}
 .topbar-title{font-size:16px;white-space:nowrap}
