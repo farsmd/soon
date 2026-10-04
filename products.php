@@ -32,7 +32,7 @@ if (!$catalogPublic) {
     $body = '<section class="content-section"><div class="container">'
         . '<h1>این بخش در دسترس نیست</h1>'
         . '<p>کاتالوگ محصولات در حال حاضر نمایش عمومی ندارد. برای دریافت اطلاعات محصولات با ما در تماس باشید.</p>'
-        . '<p><a class="btn" href="index.php">بازگشت به صفحه اصلی</a></p>'
+        . '<p><a class="btn" href="' . e(pretty_url('index.php')) . '">بازگشت به صفحه اصلی</a></p>'
         . '</div></section>';
     echo skeleton_head($settings, $title, $desc);
     echo render_db_template('header', $settings) . "\n";
@@ -53,7 +53,7 @@ if ($productId > 0) {
         $body = '<section class="content-section"><div class="container">'
             . '<h1>محصول پیدا نشد</h1>'
             . '<p>این محصول وجود ندارد یا غیرفعال است.</p>'
-            . '<p><a class="btn" href="products.php">بازگشت به کاتالوگ</a></p>'
+            . '<p><a class="btn" href="' . e(pretty_url('products.php')) . '">بازگشت به کاتالوگ</a></p>'
             . '</div></section>';
         echo skeleton_head($settings, $title, (string) ($settings['site_description'] ?? ''));
         echo render_db_template('header', $settings) . "\n";
@@ -135,11 +135,18 @@ if ($productId > 0) {
             'availability' => 'https://schema.org/InStock',
         ];
     }
+    $canonBase = site_base_url($settings);
     $seoData = [
         'type' => 'product',
         'keywords' => $seoKeywords,
         'image' => $prodImage,
         'jsonld' => $productJsonLd,
+        'url' => $canonBase !== '' ? $canonBase . '/products?id=' . $productId : '',
+        'breadcrumbs' => [
+            ['name' => 'خانه', 'url' => $canonBase . '/'],
+            ['name' => (string) ($settings['catalog_title'] ?? 'محصولات'), 'url' => $canonBase . '/products'],
+            ['name' => (string) ($product['name'] ?? ''), 'url' => $canonBase . '/products?id=' . $productId],
+        ],
     ];
 
     echo skeleton_head($settings, $title, $desc, $seoData);
@@ -177,8 +184,16 @@ $extra = [
 
 $title = $catalogTitle . ($activeCat !== null ? ' — ' . (string) $activeCat['title'] : '') . ' — ' . $siteTitle;
 $desc = (string) ($settings['site_description'] ?? '');
+$canonBase = site_base_url($settings);
+$catalogSeo = [
+    'url' => $canonBase !== '' ? $canonBase . '/products' . ($catId > 0 ? '?cat=' . $catId : '') : '',
+    'breadcrumbs' => [
+        ['name' => 'خانه', 'url' => $canonBase . '/'],
+        ['name' => $catalogTitle, 'url' => $canonBase . '/products'],
+    ],
+];
 
-echo skeleton_head($settings, $title, $desc);
+echo skeleton_head($settings, $title, $desc, $catalogSeo);
 echo render_db_template('header', $settings) . "\n";
 echo '<main id="main">' . "\n";
 echo render_db_template('catalog', $settings, null, null, $extra) . "\n";

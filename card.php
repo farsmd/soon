@@ -36,6 +36,7 @@ if (isset($_GET['vcard'])) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0f1a">
 <title><?= htmlspecialchars(CARD_NAME, ENT_QUOTES, 'UTF-8') ?> | <?= htmlspecialchars(CARD_ORG, ENT_QUOTES, 'UTF-8') ?></title>
+<link rel="canonical" href="<?= htmlspecialchars(CARD_SITE . '/card', ENT_QUOTES, 'UTF-8') ?>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--gold:#c9a227;--gold-l:#e8c547;--bg:#0b0f1a;--card:#121828;--txt:#f1f5f9;--mut:#94a3b8}
@@ -94,7 +95,7 @@ h1{font-size:24px;font-weight:800;margin-bottom:4px}
             <span class="tx"><small>وب‌سایت</small><b dir="ltr"><?= htmlspecialchars(CARD_SITE_S, ENT_QUOTES, 'UTF-8') ?></b></span>
         </a>
     </div>
-    <a class="save" href="card.php?vcard=1">⬇ ذخیره مخاطب</a>
+    <a class="save" href="/card?vcard=1">⬇ ذخیره مخاطب</a>
     <div class="foot"><a href="<?= htmlspecialchars(CARD_SITE, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(CARD_ORG, ENT_QUOTES, 'UTF-8') ?></a> — کارت ویزیت دیجیتال</div>
 </main>
 <div class="qrzoom" id="qrzoom"><img src="qr-card.png" alt="QR بزرگ"><span>برای بستن لمس کنید</span></div>

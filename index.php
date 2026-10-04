@@ -33,6 +33,7 @@ $seoData = [
     'type' => 'website',
     'keywords' => $seoKeywords,
     'image' => 'uploads/gallery/gallery-14.jpg',
+    'url' => site_base_url($settings) . '/',
 ];
 
 echo skeleton_head($settings, $seoTitle, $seoDesc, $seoData);

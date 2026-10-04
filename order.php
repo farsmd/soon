@@ -40,6 +40,7 @@ $submittedOk = !empty($state['submitted']) && !empty($state['ok']);
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ثبت سفارش مستقیم | <?= e($siteName) ?></title>
+<link rel="canonical" href="<?= e(site_base_url() . '/order') ?>">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Vazirmatn', Tahoma, sans-serif; background: #0f0f0f; color: #fff; padding: 20px; line-height: 1.9; }
