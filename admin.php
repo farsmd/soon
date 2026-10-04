@@ -2569,9 +2569,74 @@ if ($page === 'design') {
                 <label>نامک (slug) — فقط حروف انگلیسی، عدد، خط تیره و آندرلاین
                     <span class="file-input">page.php?slug=<input type="text" name="slug" required pattern="[A-Za-z0-9\-_]+" value="<?= e($editPage['slug'] ?? '') ?>" placeholder="about"></span>
                 </label>
-                <label>محتوای صفحه <span class="muted">(HTML ساده مجاز است)</span>
-                    <textarea name="content" rows="10" class="code-editor" data-mode="htmlmixed" dir="ltr"><?= e($editPage['content'] ?? '') ?></textarea>
+                <label>محتوای صفحه
+                    <div class="editor-tabs">
+                        <button type="button" class="btn small active" data-etab="visual">ویرایشگر بصری</button>
+                        <button type="button" class="btn small" data-etab="code">کد HTML</button>
+                    </div>
+                    <div id="gjs-wrap" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                        <div id="gjs" style="height:500px"></div>
+                    </div>
+                    <textarea name="content" id="page-content-code" rows="10" class="code-editor" data-mode="htmlmixed" dir="ltr" style="display:none"><?= e($editPage['content'] ?? '') ?></textarea>
                 </label>
+                <link rel="stylesheet" href="assets/grapes.min.css">
+                <script src="assets/grapes.min.js"></script>
+                <script>
+                (function(){
+                    if (typeof grapesjs === 'undefined') return;
+                    var codeArea = document.getElementById('page-content-code');
+                    var editor = grapesjs.init({
+                        container: '#gjs',
+                        fromElement: false,
+                        height: '500px',
+                        width: 'auto',
+                        storageManager: false,
+                        panels: { defaults: [] },
+                        blockManager: {
+                            appendTo: '#gjs-blocks',
+                            blocks: [
+                                { id: 'text', label: 'متن', content: '<p>متن خود را اینجا بنویسید</p>', category: 'پایه' },
+                                { id: 'heading', label: 'تیتر', content: '<h2>تیتر</h2>', category: 'پایه' },
+                                { id: 'image', label: 'عکس', content: { type: 'image' }, category: 'پایه' },
+                                { id: 'columns', label: 'دو ستون', content: '<div style="display:flex;gap:16px"><div style="flex:1"><p>ستون ۱</p></div><div style="flex:1"><p>ستون ۲</p></div></div>', category: 'چیدمان' },
+                                { id: 'button', label: 'دکمه', content: '<a href="#" style="display:inline-block;padding:12px 28px;background:#d4a017;color:#fff;border-radius:10px;text-decoration:none">دکمه</a>', category: 'پایه' },
+                                { id: 'divider', label: 'جداکننده', content: '<hr>', category: 'پایه' },
+                            ]
+                        },
+                    });
+                    // بارگذاری محتوای فعلی
+                    editor.setComponents(codeArea.value || '<p>محتوای صفحه...</p>');
+                    // تب‌ها
+                    var tabs = document.querySelectorAll('[data-etab]');
+                    var gjsWrap = document.getElementById('gjs-wrap');
+                    tabs.forEach(function(btn){
+                        btn.addEventListener('click', function(){
+                            tabs.forEach(function(b){ b.classList.remove('active'); });
+                            btn.classList.add('active');
+                            if (btn.dataset.etab === 'visual') {
+                                gjsWrap.style.display = '';
+                                codeArea.style.display = 'none';
+                                editor.setComponents(codeArea.value);
+                            } else {
+                                codeArea.value = editor.getHtml();
+                                gjsWrap.style.display = 'none';
+                                codeArea.style.display = '';
+                            }
+                        });
+                    });
+                    // هنگام ارسال فرم، HTML را به textarea برگردان
+                    codeArea.closest('form').addEventListener('submit', function(){
+                        if (gjsWrap.style.display !== 'none') {
+                            codeArea.value = editor.getHtml();
+                        }
+                    });
+                })();
+                </script>
+                <style>
+                .editor-tabs{display:flex;gap:8px;margin-bottom:10px}
+                .editor-tabs .btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+                #gjs-blocks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+                </style>
                 <label>عنوان سئو (SEO) — اگر خالی باشد عنوان صفحه استفاده می‌شود
                     <input type="text" name="seo_title" value="<?= e($editPage['seo_title'] ?? '') ?>">
                 </label>
