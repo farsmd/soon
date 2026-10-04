@@ -1704,7 +1704,7 @@ if ($page === 'dashboard') {
     }
     try {
         $rows = $pdo->query("SELECT c.title AS t, COALESCE(SUM(e.amount), 0) AS s FROM expenses e JOIN expense_categories c ON c.id = e.category_id WHERE e.status = 'approved' GROUP BY c.id ORDER BY s DESC LIMIT 8")->fetchAll();
-        $pastels = ['#f9a8d4', '#93c5fd', '#6ee7b7', '#fcd34d', '#c4b5fd', '#fda4af', '#7dd3fc', '#bef264'];
+        $pastels = ['#ff6b9d', '#4fc3f7', '#69f0ae', '#ffd740', '#b388ff', '#ff8a80', '#40c4ff', '#b2ff59'];
         $ci = 0;
         foreach ($rows as $r) {
             $chartExpenseCat[] = ['label' => (string) $r['t'], 'value' => (int) $r['s'], 'color' => $pastels[$ci % count($pastels)]];
@@ -2118,15 +2118,16 @@ if ($page === 'design') {
                 foreach ($data as $i => $d) {
                     if ($i % 2 === 0) { $labels .= '<text x="' . round($x($i), 1) . '" y="' . ($h - 10) . '" text-anchor="middle" class="chart-xlabel">' . e(substr($d['month'], 5)) . '</text>'; }
                 }
-                return '<svg viewBox="0 0 ' . $w . ' ' . $h . '" class="fancy-chart" role="img">'
-                    . '<defs><linearGradient id="' . $uid . 'g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16a34a" stop-opacity=".35"/><stop offset="1" stop-color="#16a34a" stop-opacity="0"/></linearGradient>'
-                    . '<linearGradient id="' . $uid . 'r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dc2626" stop-opacity=".25"/><stop offset="1" stop-color="#dc2626" stop-opacity="0"/></linearGradient></defs>'
+                return '<svg viewBox="0 0 ' . $w . ' ' . $h . '" class="fancy-chart neon-chart" role="img">'
+                    . '<defs><linearGradient id="' . $uid . 'g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00e676" stop-opacity=".4"/><stop offset="1" stop-color="#00e676" stop-opacity="0"/></linearGradient>'
+                    . '<linearGradient id="' . $uid . 'r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5252" stop-opacity=".3"/><stop offset="1" stop-color="#ff5252" stop-opacity="0"/></linearGradient>'
+                    . '<filter id="' . $uid . 'glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
                     . '<polygon points="' . $revArea . '" fill="url(#' . $uid . 'g)"/>'
                     . '<polygon points="' . $costArea . '" fill="url(#' . $uid . 'r)"/>'
-                    . '<polyline points="' . $revLine . '" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" class="chart-line"/>'
-                    . '<polyline points="' . $costLine . '" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 4" class="chart-line"/>'
+                    . '<polyline points="' . $revLine . '" fill="none" stroke="#00e676" stroke-width="3.5" stroke-linecap="round" class="chart-line" filter="url(#' . $uid . 'glow)"/>'
+                    . '<polyline points="' . $costLine . '" fill="none" stroke="#ff5252" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 4" class="chart-line" filter="url(#' . $uid . 'glow)"/>'
                     . $dots . $labels
-                    . '</svg><div class="chart-legend"><span><i style="background:#16a34a"></i>درآمد</span><span><i style="background:#dc2626"></i>هزینه</span></div>';
+                    . '</svg><div class="chart-legend"><span><i style="background:#00e676;box-shadow:0 0 8px #00e676"></i>درآمد</span><span><i style="background:#ff5252;box-shadow:0 0 8px #ff5252"></i>هزینه</span></div>';
             };
             $svgFunnel = static function (array $stages): string {
                 // قیف پایپ‌لاین سفارش
@@ -3520,19 +3521,29 @@ body.nav-open .topbar{z-index:85}
 .dash-cards .stat-card.sc-indigo .sc-ico{background:#e0e7ff}
 .dash-cards .stat-card.sc-rose::before{background:linear-gradient(90deg,#f43f5e,#e11d48)}
 .dash-cards .stat-card.sc-rose .sc-ico{background:#ffe4e6}
-/* کارت‌های KPI — گرادیان پررنگ با متن سفید */
-.dash-cards .stat-card.kpi .sc-ico{background:rgba(255,255,255,.18);color:#fff}.dash-cards .stat-card.kpi{color:#fff;border:none;padding:22px 18px}
+/* کارت‌های KPI — شیشه‌ای نئونی، کامپکت با آیکون (۹٫۱۶٫۱) */
+.dash-cards .stat-card.kpi{color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 14px;backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.25)}
 .dash-cards .stat-card.kpi::before{display:none}
-.dash-cards .stat-card.kpi span{color:rgba(255,255,255,.85)}
-.dash-cards .stat-card.kpi strong{color:#fff;font-size:24px}
-.dash-cards .stat-card.kpi .sc-ico{background:rgba(255,255,255,.22);backdrop-filter:blur(4px)}
-.dash-cards .stat-card.kpi .sc-sub{color:rgba(255,255,255,.7)}
-.dash-cards .stat-card.kpi-revenue{background:linear-gradient(135deg,#10b981 0%,#059669 60%,#047857 100%)}
-.dash-cards .stat-card.kpi-orders{background:linear-gradient(135deg,#3b82f6 0%,#2563eb 60%,#1d4ed8 100%)}
-.dash-cards .stat-card.kpi-employees{background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 60%,#6d28d9 100%)}
-.dash-cards .stat-card.kpi-payroll{background:linear-gradient(135deg,#f59e0b 0%,#d97706 60%,#b45309 100%)}
-.dash-cards .stat-card.kpi-assets{background:linear-gradient(135deg,#14b8a6 0%,#0d9488 60%,#0f766e 100%)}
-.dash-cards a.stat-card.kpi:hover{box-shadow:0 14px 34px rgba(17,24,39,.22)}
+.dash-cards .stat-card.kpi span{color:rgba(255,255,255,.9);font-size:12px}
+.dash-cards .stat-card.kpi strong{color:#fff;font-size:19px;text-shadow:0 1px 8px rgba(0,0,0,.2)}
+.dash-cards .stat-card.kpi .sc-ico{width:38px;height:38px;font-size:19px;background:rgba(255,255,255,.25);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 0 16px rgba(255,255,255,.25)}
+.dash-cards .stat-card.kpi .sc-sub{color:rgba(255,255,255,.75);font-size:11px}
+.dash-cards .stat-card.kpi-revenue{background:linear-gradient(135deg,rgba(16,185,129,.85),rgba(5,150,105,.75))}
+.dash-cards .stat-card.kpi-orders{background:linear-gradient(135deg,rgba(59,130,246,.85),rgba(37,99,235,.75))}
+.dash-cards .stat-card.kpi-employees{background:linear-gradient(135deg,rgba(139,92,246,.85),rgba(124,58,237,.75))}
+.dash-cards .stat-card.kpi-payroll{background:linear-gradient(135deg,rgba(245,158,11,.85),rgba(217,119,6,.75))}
+.dash-cards .stat-card.kpi-assets{background:linear-gradient(135deg,rgba(20,184,166,.85),rgba(13,148,136,.75))}
+.dash-cards a.stat-card.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(17,24,39,.25),0 0 24px rgba(255,255,255,.15)}
+/* موبایل: کارت‌ها تک‌ردیفه و جمع‌وجور (۹٫۱۶٫۱) */
+@media (max-width:640px){
+  .dash-cards{grid-template-columns:1fr!important;gap:10px}
+  .dash-cards .stat-card{padding:12px 14px}
+  .dash-cards .stat-card.kpi{display:flex;align-items:center;gap:12px;padding:10px 14px}
+  .dash-cards .stat-card.kpi .sc-ico{width:34px;height:34px;font-size:17px;flex-shrink:0}
+  .dash-cards .stat-card.kpi > div{flex:1}
+  .dash-cards .stat-card.kpi strong{font-size:17px}
+  .dash-charts{grid-template-columns:1fr!important}
+}
 /* کارت‌های هشدار */
 .dash-cards .stat-card.sc-alert-amber{background:#fffbeb;border-color:#fde68a}
 .dash-cards .stat-card.sc-alert-red{background:#fef2f2;border-color:#fecaca}
@@ -3602,6 +3613,12 @@ body.nav-open .nav-overlay{opacity:1;pointer-events:auto}
 .tl-bar{flex:1;min-width:4px;background:linear-gradient(180deg,#c9a227,#e8c66a);border-radius:4px 4px 0 0;transition:all .2s;cursor:pointer}
 .tl-bar:hover{background:linear-gradient(180deg,#a8841c,#c9a227);transform:scaleY(1.05)}
 .card.wide{max-width:100%}
+/* نمودارهای نئونی شیشه‌ای (۹٫۱۶٫۱) */
+.neon-chart{background:rgba(255,255,255,.4);backdrop-filter:blur(8px);border-radius:16px;padding:8px}
+.donut-wrap svg{filter:drop-shadow(0 4px 12px rgba(0,0,0,.1))}
+.tl-bar{background:linear-gradient(180deg,#00e5ff,#2979ff);box-shadow:0 0 6px rgba(0,229,255,.4)}
+.tl-bar:hover{background:linear-gradient(180deg,#2979ff,#00e5ff);box-shadow:0 0 12px rgba(0,229,255,.7)}
+.funnel-bar{box-shadow:0 2px 12px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.4)}
 /* === تم‌های شیشه‌ای پنل ادمین (۹٫۱۵٫۴) === */
 html[data-admin-theme="glass-white"] body{background:#f0f4f8;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(34,197,94,.08),transparent)}
 html[data-admin-theme="glass-white"] .card,html[data-admin-theme="glass-white"] .stat-card{background:rgba(255,255,255,.65);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(34,197,94,.18);box-shadow:0 4px 16px rgba(34,197,94,.1);border-radius:18px}
