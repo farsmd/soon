@@ -4043,9 +4043,9 @@ body.nav-open .topbar{z-index:85}
 .topbar-actions .icon-btn{width:38px;height:38px}
 .user-menu-wrap .icon-btn{width:38px;height:38px}
 }
-.topbar-actions a{margin-inline-start:0;color:#e5e7eb;padding:7px 11px;border-radius:8px;background:rgba(255,255,255,.07);white-space:nowrap}
-.topbar-actions a:hover{background:rgba(255,255,255,.16);color:#fff}
-.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 auto;border-radius:8px;border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;cursor:pointer;padding:0}
+.topbar-actions a{margin-inline-start:0;color:#1a1a18;padding:7px 11px;border-radius:8px;background:#f3f4f6;white-space:nowrap;font-weight:600}
+.topbar-actions a:hover{background:#e8e8e3;color:#1a1a18}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 auto;border-radius:8px;border:1px solid #d1d5db;background:#f3f4f6;color:#1a1a18;cursor:pointer;padding:0}
 .icon-btn:hover{background:rgba(255,255,255,.12)}
 .nav-ico{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .layout{display:flex;min-height:calc(100vh - 54px)}
