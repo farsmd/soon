@@ -3,7 +3,7 @@
  * فرم ثبت سفارش مستقیم - بدون نیاز به رفتن از طریق صفحه محصول
  * Direct order form - standalone, submits REAL orders via process_site_order()
  */
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/core/config.php';
 
 // نشست عمومی (برای CSRF) — باید قبل از هر خروجی شروع شود
 cms_session_start();

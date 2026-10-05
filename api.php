@@ -9,7 +9,7 @@
  * پاسخ همیشه JSON است: {ok:true, ...} یا {ok:false, error:"..."}
  */
 
-require __DIR__ . '/config.php';
+require __DIR__ . '/core/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');

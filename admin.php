@@ -4,32 +4,32 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/config.php';
+require __DIR__ . '/core/config.php';
 
 // صفحات و اکشن‌های کاتالوگ فاز ۲ در فایل جدا هستند تا admin.php برای آپدیت گیت‌هاب کوچک بماند
 define('CMS_ADMIN_PANEL', true);
-require_once __DIR__ . '/admin_catalog.php';
+require_once __DIR__ . '/modules/admin/Catalog.php';
 // صفحات و اکشن‌های انبار و مواد اولیه فاز ۲٫۵ (نسخه ۷) هم در فایل جدا هستند
-require_once __DIR__ . '/admin_inventory.php';
+require_once __DIR__ . '/modules/admin/Inventory.php';
 // صفحات و اکشن‌های سفارش‌ها و پیش‌فاکتور (فاز ۳ / نسخه ۸) هم در فایل جدا هستند
-require_once __DIR__ . '/admin_orders.php';
+require_once __DIR__ . '/modules/admin/Orders.php';
 // صفحات و اکشن‌های تولید و برگه کارگاه (فاز ۴ / نسخه ۸٫۳) هم در فایل جدا هستند
-require_once __DIR__ . '/admin_production.php';
+require_once __DIR__ . '/modules/admin/Production.php';
 // صفحات و اکشن‌های مالی: فاکتور، دریافتی، هزینه و صورتحساب (فاز ۵ / نسخه ۸٫۴) هم در فایل جدا هستند
-require_once __DIR__ . '/admin_finance.php';
+require_once __DIR__ . '/modules/admin/Finance.php';
 // منابع انسانی: پرسنل و حقوق (نسخه ۹٫۷)
-require_once __DIR__ . '/admin_hr.php';
-require_once __DIR__ . '/admin_blog.php';
+require_once __DIR__ . '/modules/admin/HR.php';
+require_once __DIR__ . '/modules/admin/Blog.php';
 // تجهیزات و دارایی‌ها (نسخه ۹٫۷)
-require_once __DIR__ . '/admin_assets.php';
+require_once __DIR__ . '/modules/admin/Assets.php';
 // گزارش‌های مدیریتی (فاز ۶ / نسخه ۸٫۶): فروش، محصولات، مصرف مواد، مشتریان و تولید
-require_once __DIR__ . '/admin_reports.php';
+require_once __DIR__ . '/modules/admin/Reports.php';
 // کاربران و نقش‌های پنل (فاز ۰ / نسخه ۸٫۷): ورود چندکاربره و سطح دسترسی صفحه/اکشن
-require_once __DIR__ . '/admin_users.php';
+require_once __DIR__ . '/modules/admin/Users.php';
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
-require_once __DIR__ . '/admin_logs.php';
-require_once __DIR__ . '/admin_notifications.php';
-require_once __DIR__ . '/admin_proposal.php';
+require_once __DIR__ . '/modules/admin/Logs.php';
+require_once __DIR__ . '/modules/admin/Notifications.php';
+require_once __DIR__ . '/modules/admin/Proposal.php';
 
 // ---------- تاریخ شمسی (جلالی) — پیاده‌سازی الگوریتم استاندارد، بدون وابستگی خارجی ----------
 if (!function_exists('ll_gregorian_to_jalali')) {

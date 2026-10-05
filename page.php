@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/config.php';
+require __DIR__ . '/core/config.php';
 
 // لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲)
 cms_session_start();
