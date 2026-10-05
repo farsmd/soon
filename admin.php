@@ -4001,7 +4001,37 @@ if ($page === 'design') {
 window.__toggleAdminNav=function(){var b=document.body,mq=window.matchMedia('(max-width:899px)');if(mq.matches){var op=b.classList.toggle('nav-open');var t=document.getElementById('navToggle');if(t){t.setAttribute('aria-expanded',op?'true':'false')}}else{var r=b.classList.toggle('nav-rail');try{localStorage.setItem('adminNavRail',r?'1':'0')}catch(e){}if(r){var gs=document.querySelectorAll('.nav-group');for(var i=0;i<gs.length;i++){gs[i].open=true}}}};
 (function(){var b=document.body,t=document.getElementById('navToggle'),o=document.getElementById('navOverlay'),mq=window.matchMedia('(max-width:899px)'),gs=[].slice.call(document.querySelectorAll('.nav-group')),st={};
 try{st=JSON.parse(localStorage.getItem('adminNavGroups')||'{}')}catch(e){}
-gs.forEach(function(g){var k=g.getAttribute('data-group');if(g.querySelector('a.active')){g.open=true}else if(k in st){g.open=!!st[k]}g.addEventListener('toggle',function(){st[k]=g.open;try{localStorage.setItem('adminNavGroups',JSON.stringify(st))}catch(e){}})});
+/* آکاردئون انحصاری (۹٫۹۹٫۲۱): فقط گروه صفحه فعال باز است، بقیه بسته */
+gs.forEach(function(g){
+  var hasActive = !!g.querySelector('a.active');
+  g.open = hasActive;
+  g.addEventListener('toggle', function(){
+    if (g.open) {
+      gs.forEach(function(other){ if (other !== g) other.open = false; });
+    }
+    try {
+      var st2 = {};
+      gs.forEach(function(x){ st2[x.getAttribute('data-group')] = x.open; });
+      localStorage.setItem('adminNavGroups', JSON.stringify(st2));
+    } catch(e){}
+  });
+});
+/* حفظ اسکرول سایدبار */
+(function(){
+  var sb = document.querySelector('.sidebar');
+  if (!sb) return;
+  try {
+    var saved = localStorage.getItem('adminSidebarScroll');
+    if (saved !== null) sb.scrollTop = parseInt(saved, 10) || 0;
+  } catch(e){}
+  var t;
+  sb.addEventListener('scroll', function(){
+    clearTimeout(t);
+    t = setTimeout(function(){
+      try { localStorage.setItem('adminSidebarScroll', String(sb.scrollTop)); } catch(e){}
+    }, 150);
+  });
+})();
 function openAll(){gs.forEach(function(g){g.open=true})}
 try{if(localStorage.getItem('adminNavRail')==='1'&&!mq.matches){b.classList.add('nav-rail');openAll()}}catch(e){}
 function closeD(){b.classList.remove('nav-open');if(t){t.setAttribute('aria-expanded','false')}}
