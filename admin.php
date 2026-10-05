@@ -605,6 +605,7 @@ $pageTitles = [
     'tools'      => 'ابزار و بکاپ',
     'database'   => 'اتصال دیتابیس',
     'update'     => 'آپدیت سیستم',
+    'cleaner'    => 'تمیزکننده هاست',
     'sysinfo'    => 'مشخصات نرم‌افزار',
     'employees'  => 'پرسنل',
     'payroll'    => 'حقوق و دستمزد',
@@ -685,6 +686,7 @@ $navGroups = [
     'system' => ['سیستم', [
         ['admin.php?page=sysinfo', 'info', 'مشخصات نرم‌افزار', 'sysinfo'],
         ['admin.php?page=update', 'refresh', 'آپدیت', 'update', ''],
+        ['admin.php?page=cleaner', 'trash', 'تمیزکننده', 'cleaner'],
         ['admin.php?page=database', 'database', 'اتصال دیتابیس', 'database'],
         ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
         ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
@@ -3810,6 +3812,72 @@ if ($page === 'design') {
                 </form>
             </section>
 
+        <?php elseif ($page === 'cleaner'): ?>
+            <h1>تمیزکننده هاست</h1>
+            <p class="muted">حذف فایل‌های منسوخ و موقت از هاست. دیتابیس، آپلودها و بکاپ‌ها دست نمی‌خورند.</p>
+            <?php
+            $cleanerResult = null;
+            if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['run_cleaner'])) {
+                $root = __DIR__;
+                $deleted = [];
+                $errors = [];
+                $oldAdmins = [
+                    'admin_assets.php', 'admin_blocks_ui.php', 'admin_blog.php', 'admin_catalog.php',
+                    'admin_finance.php', 'admin_gallery_ui.php', 'admin_hr.php', 'admin_inventory.php',
+                    'admin_logs.php', 'admin_notifications.php', 'admin_orders.php', 'admin_production.php',
+                    'admin_proposal.php', 'admin_reports.php', 'admin_users.php',
+                ];
+                foreach ($oldAdmins as $fn) {
+                    $p = "$root/$fn";
+                    if (is_file($p)) {
+                        if (@unlink($p)) { $deleted[] = $fn; } else { $errors[] = $fn; }
+                    }
+                }
+                $temps = ['diag_temp.php', 'diag.php', 'revert_9913.php', 'clear_cache.php', 'recover.php', 'cleaner.php'];
+                foreach ($temps as $fn) {
+                    $p = "$root/$fn";
+                    if (is_file($p)) {
+                        if (@unlink($p)) { $deleted[] = $fn; } else { $errors[] = $fn; }
+                    }
+                }
+                $badModules = ['employees', 'payroll', 'update', 'site', 'dashboard', 'pages', 'settings'];
+                foreach ($badModules as $m) {
+                    $dp = "$root/modules/$m";
+                    if (is_dir($dp)) {
+                        $it = new RecursiveIteratorIterator(
+                            new RecursiveDirectoryIterator($dp, RecursiveDirectoryIterator::SKIP_DOTS),
+                            RecursiveIteratorIterator::CHILD_FIRST
+                        );
+                        foreach ($it as $f) {
+                            $f->isDir() ? @rmdir($f->getPathname()) : @unlink($f->getPathname());
+                        }
+                        if (@rmdir($dp)) { $deleted[] = "modules/$m/"; } else { $errors[] = "modules/$m/"; }
+                    }
+                }
+                $cleanerResult = ['deleted' => $deleted, 'errors' => $errors];
+            }
+            ?>
+            <?php if ($cleanerResult !== null): ?>
+                <?php if (!empty($cleanerResult['deleted'])): ?>
+                    <div class="alert ok">حذف شد (<?= count($cleanerResult['deleted']) ?> مورد):<br><?= e(implode(', ', $cleanerResult['deleted'])) ?></div>
+                <?php else: ?>
+                    <div class="alert ok">چیزی برای حذف نبود — هاست تمیز است.</div>
+                <?php endif; ?>
+                <?php if (!empty($cleanerResult['errors'])): ?>
+                    <div class="alert error">خطا در حذف: <?= e(implode(', ', $cleanerResult['errors'])) ?></div>
+                <?php endif; ?>
+            <?php endif; ?>
+            <div class="card">
+                <h3>فایل‌های هدف</h3>
+                <ul>
+                    <li>۱۵ فایل قدیمی <code dir="ltr">admin_*.php</code> در روت</li>
+                    <li>فایل‌های موقت: <code dir="ltr">diag_temp.php</code>، <code dir="ltr">revert_9913.php</code> و...</li>
+                    <li>پوشه‌های ماژول خراب: <code dir="ltr">employees</code>، <code dir="ltr">payroll</code> و...</li>
+                </ul>
+                <form method="post" onsubmit="return confirm('مطمئنی؟ فایل‌های منسوخ حذف می‌شوند.');">
+                    <button type="submit" name="run_cleaner" value="1" class="btn primary">اجرای تمیزکاری</button>
+                </form>
+            </div>
         <?php elseif ($page === 'sitemap'): ?>
             <h1>نقشه سایت (Sitemap)</h1>
             <p class="muted">نقشه سایت XML به موتورهای جستجو کمک می‌کند صفحات شما را پیدا کنند. آدرس: <a href="sitemap.php" target="_blank" dir="ltr"><code>sitemap.php</code></a></p>
