@@ -1,10 +1,10 @@
 {
   "name": "گزارش‌ها",
   "description": "گزارش‌های تحلیلی",
-  "version": "9.99.9",
+  "version": "9.99.10",
   "author": "لاینرلایت",
   "category": "گزارش",
   "icon": "chart",
   "is_core": false,
-  "requires": "9.99.9"
+  "requires": "9.99.10"
 }

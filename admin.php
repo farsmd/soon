@@ -3707,7 +3707,36 @@ if ($page === 'design') {
                         <?php endif; ?>
                     </tbody>
                 </table>
-                <p><a class="btn" href="admin.php?page=update&check=1">بررسی نسخه تازه در گیت‌هاب</a></p>
+                <p>
+                    <a class="btn" href="admin.php?page=update&check=1">بررسی نسخه تازه در گیت‌هاب</a>
+                    <a class="btn" href="admin.php?page=update&check_all=1">بررسی کلی آپدیت (هسته + ماژول‌ها)</a>
+                </p>
+
+                <?php if (isset($_GET['check_all'])):
+                    $modUpdates = modules_check_updates();
+                ?>
+                <section class="card" style="margin-top:16px">
+                    <h2>وضعیت ماژول‌ها</h2>
+                    <?php if (!$modUpdates['ok']): ?>
+                        <div class="alert error"><?= e($modUpdates['error']) ?></div>
+                    <?php elseif (empty($modUpdates['updates'])): ?>
+                        <p><span class="status-pill ok">همه ماژول‌ها به‌روز هستند</span></p>
+                    <?php else: ?>
+                        <p><span class="status-pill warn"><?= count($modUpdates['updates']) ?> ماژول آپدیت دارد</span></p>
+                        <table><thead><tr><th>ماژول</th><th>نسخه فعلی</th><th>نسخه جدید</th><th></th></tr></thead><tbody>
+                        <?php foreach ($modUpdates['updates'] as $uk => $u): ?>
+                            <tr>
+                                <td><?= e($u['name']) ?></td>
+                                <td dir="ltr"><?= e($u['local']) ?></td>
+                                <td dir="ltr"><strong><?= e($u['remote']) ?></strong></td>
+                                <td><a class="btn btn-sm" href="admin.php?page=modules">مدیریت</a></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody></table>
+                        <p class="muted">برای نصب آپدیت هر ماژول به صفحه <a href="admin.php?page=modules">مدیریت ماژول‌ها</a> بروید.</p>
+                    <?php endif; ?>
+                </section>
+                <?php endif; ?>
 
                 <?php if ($updateInfo !== null): ?>
                     <?php if (!empty($updateInfo['error'])): ?>

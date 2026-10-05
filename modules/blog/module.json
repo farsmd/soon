@@ -1,10 +1,10 @@
 {
   "name": "مقالات",
   "description": "مدیریت مقالات و بلاگ",
-  "version": "9.99.9",
+  "version": "9.99.10",
   "author": "لاینرلایت",
   "category": "محتوا",
   "icon": "article",
   "is_core": false,
-  "requires": "9.99.9"
+  "requires": "9.99.10"
 }

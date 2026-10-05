@@ -1,0 +1,167 @@
+{
+  "updated_at": "2026-10-05",
+  "modules": {
+    "blog": {
+      "name": "مقالات",
+      "version": "9.99.10",
+      "description": "مدیریت مقالات و بلاگ",
+      "category": "محتوا",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/blog/module.json"
+    },
+    "categories": {
+      "name": "دسته‌بندی‌ها",
+      "version": "9.99.10",
+      "description": "دسته‌بندی محصولات",
+      "category": "فروش",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/categories/module.json"
+    },
+    "customers": {
+      "name": "مشتری‌ها",
+      "version": "9.99.10",
+      "description": "مدیریت مشتریان و همکاران",
+      "category": "فروش",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/customers/module.json"
+    },
+    "dashboard": {
+      "name": "داشبورد",
+      "version": "9.99.10",
+      "description": "نمای کلی وضعیت کسب‌وکار",
+      "category": "اصلی",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/dashboard/module.json"
+    },
+    "employees": {
+      "name": "پرسنل",
+      "version": "9.99.10",
+      "description": "مدیریت کارکنان",
+      "category": "منابع انسانی",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/employees/module.json"
+    },
+    "finance": {
+      "name": "مالی",
+      "version": "9.99.10",
+      "description": "داشبورد مالی و فاکتورها",
+      "category": "مالی",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/finance/module.json"
+    },
+    "materials": {
+      "name": "مواد اولیه و انبار",
+      "version": "9.99.10",
+      "description": "مدیریت موجودی مواد",
+      "category": "انبار",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/materials/module.json"
+    },
+    "modules": {
+      "name": "مدیریت ماژول‌ها",
+      "version": "9.99.10",
+      "description": "فعال‌سازی و مدیریت ماژول‌ها",
+      "category": "سیستم",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/modules/module.json"
+    },
+    "notifications": {
+      "name": "اعلان‌ها",
+      "version": "9.99.10",
+      "description": "سیستم اعلان‌ها",
+      "category": "سیستم",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/notifications/module.json"
+    },
+    "orders": {
+      "name": "سفارش‌ها",
+      "version": "9.99.10",
+      "description": "ثبت و پیگیری سفارش‌ها",
+      "category": "فروش",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/orders/module.json"
+    },
+    "pages": {
+      "name": "صفحه‌ها",
+      "version": "9.99.10",
+      "description": "مدیریت صفحات سایت",
+      "category": "محتوا",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/pages/module.json"
+    },
+    "payroll": {
+      "name": "حقوق و دستمزد",
+      "version": "9.99.10",
+      "description": "محاسبه حقوق و فیش",
+      "category": "منابع انسانی",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/payroll/module.json"
+    },
+    "production": {
+      "name": "تولید",
+      "version": "9.99.10",
+      "description": "مدیریت فرآیند تولید",
+      "category": "تولید",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/production/module.json"
+    },
+    "products": {
+      "name": "محصولات",
+      "version": "9.99.10",
+      "description": "کاتالوگ محصولات",
+      "category": "فروش",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/products/module.json"
+    },
+    "reports": {
+      "name": "گزارش‌ها",
+      "version": "9.99.10",
+      "description": "گزارش‌های تحلیلی",
+      "category": "گزارش",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/reports/module.json"
+    },
+    "settings": {
+      "name": "تنظیمات",
+      "version": "9.99.10",
+      "description": "تنظیمات سایت و سیستم",
+      "category": "سیستم",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/settings/module.json"
+    },
+    "update": {
+      "name": "آپدیت سیستم",
+      "version": "9.99.10",
+      "description": "به‌روزرسانی یک‌کلیکی",
+      "category": "سیستم",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/update/module.json"
+    },
+    "users": {
+      "name": "کاربران و نقش‌ها",
+      "version": "9.99.10",
+      "description": "مدیریت کاربران پنل",
+      "category": "سیستم",
+      "author": "لاینرلایت",
+      "requires": "9.99.9",
+      "download": "https://github.com/farsmd/soon/raw/main/modules/users/module.json"
+    }
+  }
+}

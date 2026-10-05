@@ -166,7 +166,50 @@ function modules_handle_post(): ?string
             'icon' => trim((string) ($_POST['icon'] ?? '')),
             'sort' => (int) ($_POST['sort'] ?? 999),
         ]);
+        // ذخیره فایل‌های ماژول
+        $modKey = trim((string) ($_POST['mod_key'] ?? ''));
+        if ($modKey !== '' && preg_match('/^[a-z0-9_]+$/', $modKey)) {
+            $modDir = modules_dir() . '/' . $modKey;
+            if (isset($_POST['file_json'])) {
+                $jsonContent = (string) $_POST['file_json'];
+                // اعتبارسنجی JSON
+                if (json_decode($jsonContent) !== null || trim($jsonContent) === '') {
+                    @file_put_contents($modDir . '/module.json', $jsonContent);
+                }
+            }
+            if (isset($_POST['file_php'])) {
+                $phpContent = (string) $_POST['file_php'];
+                // بررسی سینتکس ساده
+                $tmp = tempnam(sys_get_temp_dir(), 'phpchk');
+                @file_put_contents($tmp, $phpContent);
+                $out = []; $ret = 1;
+                if (function_exists('exec')) {
+                    @exec('php -l ' . escapeshellarg($tmp) . ' 2>&1', $out, $ret);
+                } else { $ret = 0; } // اگر exec بسته است، رد شو
+                @unlink($tmp);
+                if ($ret === 0) {
+                    @file_put_contents($modDir . '/' . $modKey . '.php', $phpContent);
+                } else {
+                    return 'خطای سینتکس در فایل PHP: ' . implode(' ', array_slice($out, 0, 3));
+                }
+            }
+        }
         return $ok ? 'ماژول ویرایش شد.' : 'خطا در ویرایش.';
+    }
+    if ($action === 'check_updates') {
+        $result = modules_check_updates();
+        if (!$result['ok']) return $result['error'];
+        $n = count($result['updates']);
+        // ذخیره در سشن برای نمایش
+        $_SESSION['mod_updates'] = $result['updates'];
+        $_SESSION['mod_checked_at'] = time();
+        return $n > 0 ? $n . ' ماژول آپدیت دارد.' : 'همه ماژول‌ها به‌روز هستند.';
+    }
+    if ($action === 'update_single') {
+        $key = trim((string) ($_POST['module_key'] ?? ''));
+        if ($key === '' || !preg_match('/^[a-z0-9_]+$/', $key)) return 'کلید نامعتبر است.';
+        $ok = module_update_from_github($key);
+        return $ok ? 'ماژول به‌روز شد.' : 'خطا در به‌روزرسانی ماژول.';
     }
     if ($action === 'delete') {
         $id = (int) ($_POST['module_id'] ?? 0);
@@ -221,9 +264,30 @@ function modules_render(): void
 
     <div class="card">
         <div class="card-head">
-            <h2>افزودن ماژول جدید</h2>
-            <button type="button" class="btn btn-success" onclick="document.getElementById('addModuleForm').style.display = document.getElementById('addModuleForm').style.display === 'none' ? 'block' : 'none'">+ افزودن</button>
+            <h2>مدیریت ماژول‌ها</h2>
+            <div style="display:flex;gap:8px">
+                <form method="post" style="display:inline">
+                    <input type="hidden" name="mod_action" value="check_updates">
+                    <button type="submit" class="btn">بررسی آپدیت‌ها</button>
+                </form>
+                <button type="button" class="btn btn-success" onclick="document.getElementById('addModuleForm').style.display = document.getElementById('addModuleForm').style.display === 'none' ? 'block' : 'none'">+ افزودن</button>
+            </div>
         </div>
+        <?php $sessUpdates = $_SESSION['mod_updates'] ?? []; if (!empty($sessUpdates)): ?>
+        <div class="alert alert-warning" style="margin:12px">
+            <strong><?= count($sessUpdates) ?> ماژول آپدیت دارد:</strong>
+            <?php foreach ($sessUpdates as $uk => $u): ?>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
+                    <span><?= e($u['name']) ?> <code dir="ltr"><?= e($u['local']) ?> → <?= e($u['remote']) ?></code></span>
+                    <form method="post" style="display:inline">
+                        <input type="hidden" name="mod_action" value="update_single">
+                        <input type="hidden" name="module_key" value="<?= e($uk) ?>">
+                        <button type="submit" class="btn btn-sm btn-success">نصب آپدیت</button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
         <form id="addModuleForm" method="post" style="display:none" class="form-grid">
             <input type="hidden" name="mod_action" value="add">
             <label>کلید (انگلیسی) <input type="text" name="module_key" required pattern="[a-z0-9_]+" dir="ltr"></label>
@@ -236,20 +300,47 @@ function modules_render(): void
         </form>
     </div>
 
-    <?php if ($editModule): ?>
+    <?php if ($editModule):
+        $eKey = (string) $editModule['module_key'];
+        $eDir = modules_dir() . '/' . $eKey;
+        $jsonFile = $eDir . '/module.json';
+        $phpFile = $eDir . '/' . $eKey . '.php';
+        $jsonContent = is_file($jsonFile) ? (string) file_get_contents($jsonFile) : '';
+        $phpContent = is_file($phpFile) ? (string) file_get_contents($phpFile) : '';
+    ?>
     <div class="card" style="margin-top:16px">
-        <form method="post" class="form-grid">
+        <form method="post">
             <input type="hidden" name="mod_action" value="edit">
             <input type="hidden" name="module_id" value="<?= (int) $editModule['id'] ?>">
-            <h3>ویرایش: <?= e($editModule['name']) ?></h3>
-            <label>نام <input type="text" name="name" value="<?= e($editModule['name']) ?>" required></label>
-            <label>توضیحات <input type="text" name="description" value="<?= e($editModule['description']) ?>"></label>
-            <label>نسخه <input type="text" name="version" value="<?= e($editModule['version']) ?>" dir="ltr"></label>
-            <label>دسته‌بندی <input type="text" name="category" value="<?= e($editModule['category']) ?>"></label>
-            <label>آیکون <input type="text" name="icon" value="<?= e($editModule['icon']) ?>" dir="ltr"></label>
-            <label>ترتیب <input type="number" name="sort" value="<?= (int) $editModule['sort_order'] ?>"></label>
-            <div>
-                <button type="submit" class="btn btn-warning">ذخیره</button>
+            <input type="hidden" name="mod_key" value="<?= e($eKey) ?>">
+            <h3>ویرایش: <?= e($editModule['name']) ?> <code dir="ltr"><?= e($eKey) ?></code></h3>
+            <div class="form-grid">
+                <label>نام <input type="text" name="name" value="<?= e($editModule['name']) ?>" required></label>
+                <label>توضیحات <input type="text" name="description" value="<?= e($editModule['description']) ?>"></label>
+                <label>نسخه <input type="text" name="version" value="<?= e($editModule['version']) ?>" dir="ltr"></label>
+                <label>دسته‌بندی <input type="text" name="category" value="<?= e($editModule['category']) ?>"></label>
+                <label>آیکون <input type="text" name="icon" value="<?= e($editModule['icon']) ?>" dir="ltr"></label>
+                <label>ترتیب <input type="number" name="sort" value="<?= (int) $editModule['sort_order'] ?>"></label>
+            </div>
+
+            <?php if ($jsonContent !== '' || $phpContent !== ''): ?>
+            <h4 style="margin-top:20px">فایل‌های ماژول</h4>
+            <div style="margin-bottom:12px">
+                <button type="button" class="btn btn-sm" onclick="document.getElementById('tab-json').style.display='block';document.getElementById('tab-php').style.display='none'">module.json</button>
+                <button type="button" class="btn btn-sm" onclick="document.getElementById('tab-json').style.display='none';document.getElementById('tab-php').style.display='block'"><?= e($eKey) ?>.php</button>
+            </div>
+            <div id="tab-json">
+                <label>module.json</label>
+                <textarea name="file_json" class="code-editor" data-mode="javascript" rows="15" dir="ltr" style="text-align:left"><?= e($jsonContent) ?></textarea>
+            </div>
+            <div id="tab-php" style="display:none">
+                <label><?= e($eKey) ?>.php</label>
+                <textarea name="file_php" class="code-editor" data-mode="php" rows="20" dir="ltr" style="text-align:left"><?= e($phpContent) ?></textarea>
+            </div>
+            <?php endif; ?>
+
+            <div style="margin-top:16px">
+                <button type="submit" class="btn btn-warning">ذخیره همه</button>
                 <a href="admin.php?page=modules" class="btn">انصراف</a>
             </div>
         </form>
