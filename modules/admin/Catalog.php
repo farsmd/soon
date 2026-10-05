@@ -2099,7 +2099,7 @@ function perform_update(array $cfg, bool $backupDb): array
         }
 
         // ج) کپی فایل‌های تازه روی برنامه — بدون حذف هیچ فایل محلی و بدون دست‌زدن به فایل‌های محافظت‌شده
-        $base = __DIR__;
+        $base = defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__, 2);
         $it = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($srcRoot, FilesystemIterator::SKIP_DOTS),
             RecursiveIteratorIterator::SELF_FIRST
