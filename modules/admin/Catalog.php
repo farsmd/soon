@@ -1654,7 +1654,7 @@ function move_row(PDO $pdo, string $table, int $id, string $direction): void
 /** فولدر بکاپ‌های قبل از آپدیت (محافظت‌شده از وب)؛ در صورت نیاز ساخته می‌شود */
 function backups_dir(): string
 {
-    return __DIR__ . '/backups';
+    return (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__, 2)) . '/backups';
 }
 
 /** ساخت فولدر backups با .htaccess محافظ؛ خروجی: مسیر یا null در صورت خطا */

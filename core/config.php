@@ -8,9 +8,11 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.3');
-define('DB_FILE', __DIR__ . '/database.sqlite');
-define('UPLOADS_DIR', __DIR__ . '/uploads');
+define('APP_VERSION', '9.99.4');
+// روت برنامه (یک سطح بالاتر از core/)
+define('APP_ROOT', dirname(__DIR__));
+define('DB_FILE', APP_ROOT . '/database.sqlite');
+define('UPLOADS_DIR', APP_ROOT . '/uploads');
 define('UPLOADS_URL', 'uploads');
 
 // قالب‌ها و CSS کارخانه‌ای در فایل جدا هستند تا هر فایل برای آپدیت گیت‌هاب کوچک بماند
@@ -1499,7 +1501,7 @@ function activate_database_file(string $source): array
         return ['ok' => false, 'error' => 'این فایل همین حالا دیتابیس فعال است.', 'safety_copy' => null];
     }
 
-    $stage = __DIR__ . '/database-switch-' . bin2hex(random_bytes(6)) . '.sqlite';
+    $stage = APP_ROOT . '/database-switch-' . bin2hex(random_bytes(6)) . '.sqlite';
     if (!@copy($source, $stage)) {
         return ['ok' => false, 'error' => 'کپی‌کردن فایل دیتابیس برای بررسی انجام نشد.', 'safety_copy' => null];
     }
@@ -1510,7 +1512,7 @@ function activate_database_file(string $source): array
         return ['ok' => false, 'error' => (string) $validation['error'], 'safety_copy' => null];
     }
 
-    $safety = __DIR__ . '/database-backup-before-switch.sqlite';
+    $safety = APP_ROOT . '/database-backup-before-switch.sqlite';
     if (is_file(DB_FILE) && !@copy(DB_FILE, $safety)) {
         @unlink($stage);
         return ['ok' => false, 'error' => 'ساخت نسخه امن از دیتابیس فعلی انجام نشد؛ تعویض متوقف شد.', 'safety_copy' => null];
@@ -5103,7 +5105,7 @@ function gallery_next_number(PDO $pdo): int
         }
     }
     // همچنین فایل‌های موجود در پوشه را بررسی کن
-    $dir = __DIR__ . '/uploads/gallery';
+    $dir = APP_ROOT . '/uploads/gallery';
     if (is_dir($dir)) {
         foreach (glob($dir . '/gallery-*.*') ?: [] as $file) {
             if (preg_match('#gallery-(\d+)\.#', basename($file), $m)) {
