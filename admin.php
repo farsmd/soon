@@ -4135,6 +4135,16 @@ body.nav-open .topbar{z-index:85}
 .topbar-actions .quick-add{display:none}
 .topbar-actions .icon-btn{width:38px;height:38px}
 .user-menu-wrap .icon-btn{width:38px;height:38px}
+.user-menu-wrap{position:relative}
+.user-menu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:220px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.15);padding:6px;z-index:1000}
+.user-menu[hidden]{display:none}
+.user-menu-head{padding:10px 12px;border-bottom:1px solid #f1f5f9;margin-bottom:4px}
+.user-menu-head strong{display:block;font-size:14px;color:#1a1a18}
+.user-menu-head .muted{font-size:12px;color:#64748b}
+.user-menu a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#334155;font-size:14px;text-decoration:none}
+.user-menu a:hover{background:#f8fafc}
+.user-menu a.danger{color:#dc2626}
+.user-menu a.danger:hover{background:#fef2f2}
 }
 .topbar-actions a{margin-inline-start:0;color:#1a1a18;padding:7px 11px;border-radius:8px;background:#f3f4f6;white-space:nowrap;font-weight:600}
 .topbar-actions a:hover{background:#e8e8e3;color:#1a1a18}
