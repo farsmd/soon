@@ -16,6 +16,9 @@ function templates_handle_post(): ?string
         if ($file === '' || !preg_match('/^[a-z0-9\-]+\.php$/', $file)) {
             return 'نام فایل نامعتبر است.';
         }
+        if ($isPart && !is_dir(templates_dir() . '/parts/')) {
+            @mkdir(templates_dir() . '/parts/', 0755, true);
+        }
         $path = $isPart ? templates_dir() . '/parts/' . $file : templates_dir() . '/' . $file;
         // بررسی سینتکس
         $tmp = tempnam(sys_get_temp_dir(), 'tplchk');
@@ -53,7 +56,7 @@ function templates_handle_post(): ?string
         $file = trim((string) ($_POST['tpl_file'] ?? ''));
         if ($file === '' || !preg_match('/^[a-z0-9\-]+\.php$/', $file)) return 'نامعتبر.';
         // قالب‌های پیش‌فرض حذف نمی‌شوند
-        $protected = ['single.php', 'page.php', 'single-product.php', 'category.php', 'fullwidth.php'];
+        $protected = ['single.php', 'page.php', 'single-product.php', 'category.php', 'fullwidth.php', 'home.php'];
         if (in_array($file, $protected, true)) return 'قالب پیش‌فرض قابل حذف نیست.';
         if (@unlink(templates_dir() . '/' . $file)) {
             return 'قالب حذف شد.';
@@ -69,6 +72,7 @@ function templates_render(): void
 {
     $msg = templates_handle_post();
     $templates = templates_discover();
+    $newPart = isset($_GET['new_part']);
     $editFile = trim((string) ($_GET['edit'] ?? ''));
     $editPart = trim((string) ($_GET['edit_part'] ?? ''));
     $editContent = '';
@@ -88,6 +92,12 @@ function templates_render(): void
             $editContent = (string) file_get_contents($path);
             $editMeta = template_parse_header($path);
         }
+    }
+    if ($newPart) {
+        $editFile = '';
+        $editIsPart = true;
+        $editContent = "<?php\n/*\nTemplate Name: بخش جدید\nTemplate Type: part\nDescription: \nAuthor: لاینرلایت\nVersion: 1.0.0\n*/\n?>\n<!-- کد HTML/PHP بخش را اینجا بنویسید -->\n";
+        $editMeta = ['name' => 'بخش جدید', 'type' => 'part'];
     }
     // گروه‌بندی بر اساس نوع
     $grouped = ['post' => [], 'page' => [], 'product' => [], 'category' => [], 'home' => []];
@@ -151,13 +161,20 @@ function templates_render(): void
         </form>
     </div>
 
-    <?php if ($editFile && $editContent !== ''): ?>
+    <?php if (($editFile && $editContent !== '') || $newPart): ?>
     <div class="card" style="margin-top:16px">
         <h2>ویرایش: <?= e($editMeta['name'] ?? $editFile) ?> <code dir="ltr"><?= e($editFile) ?></code></h2>
         <form method="post">
             <?= csrf_field() ?>
             <input type="hidden" name="tpl_action" value="save">
+            <?php if ($newPart): ?>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>نام فایل (انگلیسی، مثل sidebar)</label>
+                <input type="text" name="tpl_file" class="form-control" dir="ltr" placeholder="sidebar" required pattern="[a-z0-9\-]+">
+            </div>
+            <?php else: ?>
             <input type="hidden" name="tpl_file" value="<?= e($editFile) ?>">
+            <?php endif; ?>
             <?php if ($editIsPart): ?><input type="hidden" name="tpl_is_part" value="1"><?php endif; ?>
             <textarea name="tpl_content" class="code-editor" data-mode="php" rows="25" dir="ltr" style="text-align:left"><?= e($editContent) ?></textarea>
             <div style="margin-top:12px">
@@ -168,8 +185,11 @@ function templates_render(): void
     </div>
     <?php endif; ?>
 
+    <div class="tpl-type-title">بخش‌های مشترک (هدر/فوتر)</div>
+    <div style="margin-bottom:12px;">
+        <a href="admin.php?page=templates&new_part=1" class="btn btn-sm btn-success">افزودن بخش جدید</a>
+    </div>
     <?php if (!empty($parts)): ?>
-        <div class="tpl-type-title">بخش‌های مشترک (هدر/فوتر)</div>
         <div class="tpl-grid">
         <?php foreach ($parts as $file => $t): ?>
             <div class="tpl-card">
