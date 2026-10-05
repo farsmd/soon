@@ -3875,6 +3875,7 @@ if ($page === 'design') {
                     <li>پوشه‌های ماژول خراب: <code dir="ltr">employees</code>، <code dir="ltr">payroll</code> و...</li>
                 </ul>
                 <form method="post" onsubmit="return confirm('مطمئنی؟ فایل‌های منسوخ حذف می‌شوند.');">
+                    <?= csrf_field() ?>
                     <button type="submit" name="run_cleaner" value="1" class="btn primary">اجرای تمیزکاری</button>
                 </form>
             </div>
