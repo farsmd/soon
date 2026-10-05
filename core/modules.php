@@ -108,6 +108,48 @@ function modules_sync(): void
 
 // ---------- چرخه حیات ماژول ----------
 
+/**
+ * لود فایل‌های ادمین ماژول‌های فعال (۹٫۹۹٫۲۳)
+ * در admin.php بعد از تعریف CMS_ADMIN_PANEL صدا زده می‌شود.
+ * فقط ماژول‌های فعال لود می‌شوند — غیرفعال‌سازی واقعاً کار می‌کند.
+ */
+function cms_load_active_module_admins(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    try {
+        foreach (modules_all(true) as $m) {
+            $key = (string) $m['module_key'];
+            if (!preg_match('/^[a-z0-9_]+$/', $key)) continue;
+            $adminFile = modules_dir() . '/' . $key . '/admin.php';
+            if (is_file($adminFile)) {
+                try {
+                    require_once $adminFile;
+                } catch (Throwable $e) { /* ماژول خراب نباید پنل را بخواباند */ }
+            }
+        }
+    } catch (Throwable $e) { /* silent */ }
+}
+
+/** آیا ماژول فعال است؟ (۹٫۹۹٫۲۳) */
+function module_is_active(string $key): bool
+{
+    try {
+        $st = db()->prepare("SELECT is_enabled FROM modules WHERE module_key = ? LIMIT 1");
+        $st->execute([$key]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            // اگر در دیتابیس نیست، پیش‌فرض فعال است (سازگاری)
+            return true;
+        }
+        return (int) ($row['is_enabled'] ?? 1) === 1;
+    } catch (Throwable $e) {
+        return true;
+    }
+}
+
 /** فعال‌سازی ماژول (اجرای هوک activate) */
 function module_activate(string $key): bool
 {

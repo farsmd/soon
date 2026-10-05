@@ -4,31 +4,32 @@
 
 declare(strict_types=1);
 
+// تعریف قبل از core/config.php تا modules_load_active() فایل‌های ادمین را هم لود کند (۹٫۹۹٫۲۳)
+define('CMS_ADMIN_PANEL', true);
 require __DIR__ . '/core/config.php';
 
-// صفحات و اکشن‌های کاتالوگ فاز ۲ در فایل جدا هستند تا admin.php برای آپدیت گیت‌هاب کوچک بماند
-define('CMS_ADMIN_PANEL', true);
-require_once __DIR__ . '/modules/admin/Catalog.php';
+// لود فایل‌های ادمین ماژول‌های فعال — جایگزین require های هاردکد (۹٫۹۹٫۲۳)
+cms_load_active_module_admins();
 // صفحات و اکشن‌های انبار و مواد اولیه فاز ۲٫۵ (نسخه ۷) هم در فایل جدا هستند
-require_once __DIR__ . '/modules/admin/Inventory.php';
+// Inventory.php حذف شد — materials از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // صفحات و اکشن‌های سفارش‌ها و پیش‌فاکتور (فاز ۳ / نسخه ۸) هم در فایل جدا هستند
-require_once __DIR__ . '/modules/admin/Orders.php';
+// Orders.php حذف شد — orders از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // صفحات و اکشن‌های تولید و برگه کارگاه (فاز ۴ / نسخه ۸٫۳) هم در فایل جدا هستند
-require_once __DIR__ . '/modules/admin/Production.php';
+// Production.php حذف شد — production از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // صفحات و اکشن‌های مالی: فاکتور، دریافتی، هزینه و صورتحساب (فاز ۵ / نسخه ۸٫۴) هم در فایل جدا هستند
-require_once __DIR__ . '/modules/admin/Finance.php';
+// Finance.php حذف شد — finance از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // منابع انسانی: پرسنل و حقوق (نسخه ۹٫۷)
 require_once __DIR__ . '/modules/admin/HR.php';
-require_once __DIR__ . '/modules/admin/Blog.php';
+// Blog.php حذف شد — blog از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // تجهیزات و دارایی‌ها (نسخه ۹٫۷)
 require_once __DIR__ . '/modules/admin/Assets.php';
 // گزارش‌های مدیریتی (فاز ۶ / نسخه ۸٫۶): فروش، محصولات، مصرف مواد، مشتریان و تولید
-require_once __DIR__ . '/modules/admin/Reports.php';
+// Reports.php حذف شد — reports از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // کاربران و نقش‌های پنل (فاز ۰ / نسخه ۸٫۷): ورود چندکاربره و سطح دسترسی صفحه/اکشن
-require_once __DIR__ . '/modules/admin/Users.php';
+// Users.php حذف شد — users از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 // صفحه لاگ‌های بازدید و مدیریت (نسخه ۸٫۲)
 require_once __DIR__ . '/modules/admin/Logs.php';
-require_once __DIR__ . '/modules/admin/Notifications.php';
+// Notifications.php حذف شد — notifications از طریق ماژول لود می‌شود (۹٫۹۹٫۲۳)
 require_once __DIR__ . '/modules/admin/Proposal.php';
 require_once __DIR__ . '/modules/admin/Modules.php';
 require_once __DIR__ . '/modules/admin/Templates.php';
@@ -2010,12 +2011,25 @@ if ($page === 'design') {
             <strong class="brand-name"><?= e($settings['site_title'] ?? '') ?></strong>
         </div>
 
+        <?php
+        // نگاشت صفحه به ماژول — آیتم ماژول غیرفعال مخفی می‌شود (۹٫۹۹٫۲۳)
+        $pageToModule = [
+            'blog' => 'blog', 'products' => 'products', 'categories' => 'categories',
+            'customers' => 'customers', 'orders' => 'orders', 'order_new' => 'orders',
+            'production' => 'production', 'finance' => 'finance', 'invoices' => 'finance',
+            'expenses' => 'finance', 'statements' => 'finance', 'reports' => 'reports',
+            'users' => 'users', 'notifications' => 'notifications', 'materials' => 'materials',
+            'material_prices' => 'materials', 'stock' => 'materials', 'remnants' => 'materials',
+        ];
+        ?>
         <?php foreach ($navGroups as $gKey => $gData): ?>
-        <?php $navVisible = 0; foreach ($gData[1] as $navItem) { if (($navItem[3] ?? '') === '' || admin_can_page((string) $navItem[3])) { $navVisible++; } } if ($navVisible === 0) { continue; } ?>
+        <?php $navVisible = 0; foreach ($gData[1] as $navItem) { $pg = (string) ($navItem[3] ?? ''); if ($pg !== '' && isset($pageToModule[$pg]) && function_exists('module_is_active') && !module_is_active($pageToModule[$pg])) { continue; } if ($pg === '' || admin_can_page($pg)) { $navVisible++; } } if ($navVisible === 0) { continue; } ?>
         <details class="nav-group" data-group="<?= $gKey ?>"<?= $activeNavGroup === $gKey ? ' open' : '' ?>>
             <summary><?= e($gData[0]) ?></summary>
             <?php foreach ($gData[1] as $it): ?>
-            <?php if (($it[3] ?? '') !== '' && !admin_can_page((string) $it[3])) { continue; } ?>
+            <?php $itPage = (string) ($it[3] ?? ''); ?>
+            <?php if ($itPage !== '' && isset($pageToModule[$itPage]) && function_exists('module_is_active') && !module_is_active($pageToModule[$itPage])) { continue; } ?>
+            <?php if ($itPage !== '' && !admin_can_page($itPage)) { continue; } ?>
             <a href="<?= e($it[0]) ?>"<?= $it[4] ?? '' ?> class="<?= $page === $it[3] ? 'active' : '' ?>" title="<?= e($it[2]) ?>"><?= nav_icon($it[1]) ?><span class="nav-label"><?= e($it[2]) ?></span><?php if ($it[3] === 'messages' && $messages !== []): ?><span class="nav-badge"><?= count($messages) ?></span><?php endif; ?><?php if ($it[3] === 'materials' && $lowStockCount > 0): ?><span class="nav-badge" title="مواد رو به اتمام"><?= $lowStockCount ?></span><?php endif; ?><?php if ($it[3] === 'production' && (int) ($productionActiveCount ?? 0) > 0): ?><span class="nav-badge" title="برگه‌های تولید در جریان"><?= (int) $productionActiveCount ?></span><?php endif; ?><?php if ($it[3] === 'expenses' && (int) ($finPending['count'] ?? 0) > 0): ?><span class="nav-badge" title="هزینه‌های در انتظار تأیید"><?= (int) $finPending['count'] ?></span><?php endif; ?><?php if ($it[3] === 'database' && $databaseConnected): ?><span class="status-dot" title="دیتابیس متصل است"></span><?php endif; ?></a>
             <?php endforeach; ?>
         </details>
