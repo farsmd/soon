@@ -48,7 +48,7 @@
     },
     "finance": {
       "name": "مالی",
-      "version": "9.99.10",
+      "version": "9.99.20",
       "description": "داشبورد مالی و فاکتورها",
       "category": "مالی",
       "author": "لاینرلایت",
@@ -111,7 +111,7 @@
     },
     "production": {
       "name": "تولید",
-      "version": "9.99.10",
+      "version": "9.99.20",
       "description": "مدیریت فرآیند تولید",
       "category": "تولید",
       "author": "لاینرلایت",
@@ -156,7 +156,7 @@
     },
     "users": {
       "name": "کاربران و نقش‌ها",
-      "version": "9.99.10",
+      "version": "9.99.20",
       "description": "مدیریت کاربران پنل",
       "category": "سیستم",
       "author": "لاینرلایت",

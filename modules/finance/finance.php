@@ -1,13 +1,14 @@
 <?php
-// modules/finance/finance.php — نقطه ورود ماژول مالی
-// این فایل سازگاری با ساختار قدیم را حفظ می‌کند.
-
+// modules/finance/finance.php — نقطه ورود ماژول مالی (ماژول واقعی از ۹٫۹۹٫۲۰)
 declare(strict_types=1);
 
-add_action('module_finance_activate', function() {
-    // هوک فعال‌سازی
-});
+$__finDir = __DIR__;
 
-add_action('module_finance_deactivate', function() {
-    // هوک غیرفعال‌سازی
-});
+require_once $__finDir . '/frontend.php';
+
+if (defined('CMS_ADMIN_PANEL')) {
+    require_once $__finDir . '/admin.php';
+}
+
+add_action('module_finance_activate', function() {});
+add_action('module_finance_deactivate', function() {});
