@@ -1,13 +1,14 @@
 <?php
-// modules/notifications/notifications.php — نقطه ورود ماژول اعلان‌ها
-// این فایل سازگاری با ساختار قدیم را حفظ می‌کند.
-
+// modules/notifications/notifications.php — نقطه ورود ماژول اعلان‌ها (ماژول واقعی از ۹٫۹۹٫۲۲)
 declare(strict_types=1);
 
-add_action('module_notifications_activate', function() {
-    // هوک فعال‌سازی
-});
+$__modDir = __DIR__;
 
-add_action('module_notifications_deactivate', function() {
-    // هوک غیرفعال‌سازی
-});
+require_once $__modDir . '/frontend.php';
+
+if (defined('CMS_ADMIN_PANEL')) {
+    require_once $__modDir . '/admin.php';
+}
+
+add_action('module_notifications_activate', function() {});
+add_action('module_notifications_deactivate', function() {});

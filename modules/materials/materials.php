@@ -1,13 +1,14 @@
 <?php
-// modules/materials/materials.php — نقطه ورود ماژول مواد اولیه و انبار
-// این فایل سازگاری با ساختار قدیم را حفظ می‌کند.
-
+// modules/materials/materials.php — نقطه ورود ماژول مواد اولیه (ماژول واقعی از ۹٫۹۹٫۲۲)
 declare(strict_types=1);
 
-add_action('module_materials_activate', function() {
-    // هوک فعال‌سازی
-});
+$__modDir = __DIR__;
 
-add_action('module_materials_deactivate', function() {
-    // هوک غیرفعال‌سازی
-});
+require_once $__modDir . '/frontend.php';
+
+if (defined('CMS_ADMIN_PANEL')) {
+    require_once $__modDir . '/admin.php';
+}
+
+add_action('module_materials_activate', function() {});
+add_action('module_materials_deactivate', function() {});

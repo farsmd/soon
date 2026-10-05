@@ -57,7 +57,7 @@
     },
     "materials": {
       "name": "مواد اولیه و انبار",
-      "version": "9.99.10",
+      "version": "9.99.22",
       "description": "مدیریت موجودی مواد",
       "category": "انبار",
       "author": "لاینرلایت",
@@ -75,7 +75,7 @@
     },
     "notifications": {
       "name": "اعلان‌ها",
-      "version": "9.99.10",
+      "version": "9.99.22",
       "description": "سیستم اعلان‌ها",
       "category": "سیستم",
       "author": "لاینرلایت",
@@ -129,7 +129,7 @@
     },
     "reports": {
       "name": "گزارش‌ها",
-      "version": "9.99.10",
+      "version": "9.99.22",
       "description": "گزارش‌های تحلیلی",
       "category": "گزارش",
       "author": "لاینرلایت",
