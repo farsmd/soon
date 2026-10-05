@@ -72,7 +72,7 @@ h1{font-size:24px;font-weight:800;margin-bottom:4px}
 </head>
 <body>
 <main class="card">
-    <div class="qrlogo" id="qrthumb"><img src="qr-card.png" alt="QR کارت ویزیت"></div>
+    <div class="qrlogo" id="qrthumb"><img src="assets/icons/qr-card.png" alt="QR کارت ویزیت"></div>
     <h1><?= htmlspecialchars(CARD_NAME, ENT_QUOTES, 'UTF-8') ?></h1>
     <div class="role"><?= htmlspecialchars(CARD_TITLE, ENT_QUOTES, 'UTF-8') ?></div>
     <div class="org"><?= htmlspecialchars(CARD_ORG, ENT_QUOTES, 'UTF-8') ?></div>
@@ -98,7 +98,7 @@ h1{font-size:24px;font-weight:800;margin-bottom:4px}
     <a class="save" href="/card?vcard=1">⬇ ذخیره مخاطب</a>
     <div class="foot"><a href="<?= htmlspecialchars(CARD_SITE, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(CARD_ORG, ENT_QUOTES, 'UTF-8') ?></a> — کارت ویزیت دیجیتال</div>
 </main>
-<div class="qrzoom" id="qrzoom"><img src="qr-card.png" alt="QR بزرگ"><span>برای بستن لمس کنید</span></div>
+<div class="qrzoom" id="qrzoom"><img src="assets/icons/qr-card.png" alt="QR بزرگ"><span>برای بستن لمس کنید</span></div>
 <script>
 (function(){
   var z=document.getElementById('qrzoom'),t=document.getElementById('qrthumb');
