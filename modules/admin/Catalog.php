@@ -1895,7 +1895,8 @@ function update_check(array $cfg): array
                 $result['error'] = 'فایل دانلودشده ZIP معتبر نیست.';
                 return $result;
             }
-            $code = zip_read_entry($zip, 'config.php');
+            $code = zip_read_entry($zip, 'core/config.php');
+            if ($code === null) { $code = zip_read_entry($zip, 'config.php'); }
             $zip->close();
             if ($code === null) {
                 $result['error'] = 'فایل config.php داخل فایل آپدیت پیدا نشد.';
@@ -1917,13 +1918,16 @@ function update_check(array $cfg): array
 
     // حالت مخزن گیت‌هاب: خواندن config.php خام از شاخه
     // کش‌بان: raw.githubusercontent چند دقیقه کش می‌کند؛ پارامتر زمانی آن را دور می‌زند
-    $rawUrl = 'https://raw.githubusercontent.com/' . $cfg['repo'] . '/' . $cfg['branch'] . '/config.php?t=' . time();
-    $res = http_fetch($rawUrl, 15);
-    if (!$res['ok']) {
-        $result['error'] = 'بررسی نسخه تازه انجام نشد (مشکل شبکه یا دسترسی به گیت‌هاب): ' . (string) $res['error'];
-        return $result;
+    // ۹٫۹۹٫۰: اول core/config.php بعد config.php (سازگاری با ساختار قدیم)
+    $latest = null;
+    foreach (['core/config.php', 'config.php'] as $cfgPath) {
+        $rawUrl = 'https://raw.githubusercontent.com/' . $cfg['repo'] . '/' . $cfg['branch'] . '/' . $cfgPath . '?t=' . time();
+        $res = http_fetch($rawUrl, 15);
+        if ($res['ok']) {
+            $latest = parse_app_version((string) $res['body']);
+            if ($latest !== null) { break; }
+        }
     }
-    $latest = parse_app_version((string) $res['body']);
     if ($latest === null) {
         $result['error'] = 'نسخه برنامه در فایل config.php مخزن پیدا نشد.';
         return $result;
@@ -2061,7 +2065,8 @@ function perform_update(array $cfg, bool $backupDb): array
         if ($zip->open($zipPath) !== true) {
             return ['ok' => false, 'error' => 'فایل دانلودشده ZIP معتبر نیست.', 'new_version' => null, 'backup_file' => $backupFile];
         }
-        $configCode = zip_read_entry($zip, 'config.php');
+        $configCode = zip_read_entry($zip, 'core/config.php');
+        if ($configCode === null) { $configCode = zip_read_entry($zip, 'config.php'); }
         if ($configCode === null) {
             $zip->close();
             return ['ok' => false, 'error' => 'فایل config.php داخل فایل آپدیت پیدا نشد؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
@@ -2089,7 +2094,7 @@ function perform_update(array $cfg, bool $backupDb): array
         if (count($entries) === 1 && is_dir($extractDir . '/' . $entries[0])) {
             $srcRoot = $extractDir . '/' . $entries[0];
         }
-        if (!is_file($srcRoot . '/config.php')) {
+        if (!is_file($srcRoot . '/core/config.php') && !is_file($srcRoot . '/config.php')) {
             return ['ok' => false, 'error' => 'ساختار فایل آپدیت درست نیست (config.php پیدا نشد)؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
         }
 
