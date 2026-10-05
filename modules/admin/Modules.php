@@ -267,6 +267,7 @@ function modules_render(): void
             <h2>مدیریت ماژول‌ها</h2>
             <div style="display:flex;gap:8px">
                 <form method="post" style="display:inline">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="mod_action" value="check_updates">
                     <button type="submit" class="btn">بررسی آپدیت‌ها</button>
                 </form>
@@ -280,6 +281,7 @@ function modules_render(): void
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
                     <span><?= e($u['name']) ?> <code dir="ltr"><?= e($u['local']) ?> → <?= e($u['remote']) ?></code></span>
                     <form method="post" style="display:inline">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="mod_action" value="update_single">
                         <input type="hidden" name="module_key" value="<?= e($uk) ?>">
                         <button type="submit" class="btn btn-sm btn-success">نصب آپدیت</button>
@@ -289,6 +291,7 @@ function modules_render(): void
         </div>
         <?php endif; ?>
         <form id="addModuleForm" method="post" style="display:none" class="form-grid">
+            <?= csrf_field() ?>
             <input type="hidden" name="mod_action" value="add">
             <label>کلید (انگلیسی) <input type="text" name="module_key" required pattern="[a-z0-9_]+" dir="ltr"></label>
             <label>نام <input type="text" name="name" required></label>
@@ -310,6 +313,7 @@ function modules_render(): void
     ?>
     <div class="card" style="margin-top:16px">
         <form method="post">
+            <?= csrf_field() ?>
             <input type="hidden" name="mod_action" value="edit">
             <input type="hidden" name="module_id" value="<?= (int) $editModule['id'] ?>">
             <input type="hidden" name="mod_key" value="<?= e($eKey) ?>">
