@@ -4,12 +4,15 @@ declare(strict_types=1);
 if (!defined('CMS_ADMIN_PANEL')) { http_response_code(403); exit; }
 
 
+if (!function_exists('hr_post_actions')) {
 function hr_post_actions(): array
 {
     return ['add_employee', 'update_employee', 'deactivate_employee', 'activate_employee',
         'add_salary_payment', 'delete_salary_payment', 'save_wage_params'];
 }
+}
 
+if (!function_exists('hr_wage_param_defs')) {
 function hr_wage_param_defs(): array
 {
     return [
@@ -25,7 +28,9 @@ function hr_wage_param_defs(): array
         'wage_tax_threshold'    => ['label' => 'سقف معافیت مالیاتی ماهانه (تومان)', 'def' => '24000000'],
     ];
 }
+}
 
+if (!function_exists('hr_employment_type_label')) {
 function hr_employment_type_label(string $type): string
 {
     return [
@@ -35,12 +40,16 @@ function hr_employment_type_label(string $type): string
         'intern'    => 'کارآموز',
     ][$type] ?? $type;
 }
+}
 
+if (!function_exists('hr_status_label')) {
 function hr_status_label(string $status): string
 {
     return $status === 'active' ? 'فعال' : 'غیرفعال';
 }
+}
 
+if (!function_exists('hr_tenure')) {
 function hr_tenure(string $hireDate): string
 {
     $hireDate = trim($hireDate);
@@ -69,7 +78,9 @@ function hr_tenure(string $hireDate): string
     }
     return implode(' و ', $parts);
 }
+}
 
+if (!function_exists('hr_handle_post')) {
 function hr_handle_post(string $action): void
 {
     global $pdo;
@@ -188,7 +199,9 @@ function hr_handle_post(string $action): void
             // no break
     }
 }
+}
 
+if (!function_exists('hr_load_data')) {
 function hr_load_data(): array
 {
     $pdo = db();
@@ -268,7 +281,9 @@ function hr_load_data(): array
     }
     return $data;
 }
+}
 
+if (!function_exists('hr_render_employees')) {
 function hr_render_employees(array $d): void
 {
     extract($d);
@@ -371,7 +386,9 @@ function hr_render_employees(array $d): void
             <?php endif; ?>
     <?php
 }
+}
 
+if (!function_exists('hr_render_employee_profile')) {
 function hr_render_employee_profile(array $d): void
 {
     extract($d);
@@ -450,4 +467,5 @@ function hr_render_employee_profile(array $d): void
             </table>
             <?php endif; ?>
     <?php
+}
 }

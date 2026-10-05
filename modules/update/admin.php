@@ -4,6 +4,7 @@ declare(strict_types=1);
 if (!defined('CMS_ADMIN_PANEL')) { http_response_code(403); exit; }
 
 // تابع بررسی آپدیت (منتقل از Catalog.php)
+if (!function_exists('update_check')) {
 function update_check(array $cfg): array
 {
     $result = [
@@ -101,18 +102,23 @@ function update_check(array $cfg): array
     }
     return $result;
 }
+}
 
 /** هندلر صفحه آپدیت */
+if (!function_exists('update_handle_page')) {
 function update_handle_page(): void
 {
     global $pdo, $page, $updateCfg, $updateInfo;
 
         $updateInfo = update_check($updateCfg);
 }
+}
 
 /** رندر صفحه آپدیت */
+if (!function_exists('update_render_page')) {
 function update_render_page(): void
 {
     global $pdo, $page, $updateCfg, $updateInfo;
     include __DIR__ . '/render.php';
+}
 }

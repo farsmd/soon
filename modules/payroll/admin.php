@@ -283,6 +283,7 @@ function hr_load_data(): array
 }
 }
 
+if (!function_exists('hr_calculate_payslip')) {
 function hr_calculate_payslip(array $employee, array $payment): array
 {
     $base      = max(0, (int) ($payment['base_amount'] ?? 0));
@@ -344,7 +345,9 @@ function hr_calculate_payslip(array $employee, array $payment): array
         ],
     ];
 }
+}
 
+if (!function_exists('hr_render_payroll')) {
 function hr_render_payroll(array $d): void
 {
     extract($d);
@@ -503,7 +506,9 @@ function hr_render_payroll(array $d): void
             <?php endif; ?>
     <?php
 }
+}
 
+if (!function_exists('hr_render_payslip')) {
 function hr_render_payslip(array $d): void
 {
     extract($d);
@@ -594,4 +599,5 @@ function hr_render_payslip(array $d): void
     <script>window.addEventListener('load', function(){ window.print(); });</script>
     <?php endif; ?>
     <?php
+}
 }
