@@ -46,6 +46,7 @@
     RewriteRule ^track/?$ track.php [L,QSA]
     RewriteRule ^blog/?$ blog.php [L,QSA]
     RewriteRule ^blog/([A-Za-z0-9_-]+)/?$ blog.php?slug=$1 [L,QSA]
+    RewriteRule ^sitemap\.xml$ sitemap.php [L]
     RewriteRule ^([A-Za-z0-9_-]+)/?$ page.php?slug=$1 [L,QSA]
 </IfModule>
 
