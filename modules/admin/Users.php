@@ -79,6 +79,7 @@ function admin_page_catalog(): array
         'سیستم' => [
             'sysinfo'  => 'مشخصات نرم‌افزار',
             'update'   => 'آپدیت سیستم',
+            'cleaner'  => 'تمیزکننده هاست',
             'database' => 'اتصال دیتابیس',
             'db_browse' => 'مرورگر دیتابیس',
             'tools'    => 'ابزار و بکاپ',
