@@ -1,3 +1,41 @@
+# ساختار پوشه‌ها (از نسخه ۹٫۹۹٫۱۹)
+
+## فایل‌های روت (نقطه ورود)
+```
+index.php          صفحه اصلی سایت
+admin.php          پنل مدیریت
+api.php            ای‌پی‌آی
+blog.php           بلاگ (/blog)
+card.php           کارت ویزیت دیجیتال (/card)
+order.php          فرم سفارش (/order)
+page.php           صفحه‌ها (/<slug>)
+products.php       محصولات (/products)
+track.php          پیگیری سفارش (/track)
+sitemap.php        نقشه سایت (/sitemap.xml)
+style.php          استایل داینامیک
+setup.php          ویزارد نصب اولیه
+updater.php        آپدیتر اضطراری
+config.php         shim سازگاری (به core/config.php)
+defaults.php       shim سازگاری (به core/defaults.php)
+```
+
+## پوشه‌های اصلی
+```
+core/              هسته سیستم (config، templates، session)
+modules/           ماژول‌ها (هر ماژول در پوشه خودش)
+  modules/admin/   پیاده‌سازی پنل مدیریت (Catalog، Blog، Orders، ...)
+  modules/blog/    ماژول بلاگ
+assets/            فایل‌های استاتیک (CSS، JS، فونت، عکس)
+uploads/           آپلودهای کاربر (هرگز در گیت نیست)
+backups/           بکاپ‌ها (هرگز در گیت نیست)
+```
+
+## نکته معماری
+از نسخه ۹٫۹۹٫۰، کد پنل مدیریت از فایل‌های تکی روت (`admin_*.php`) به `modules/admin/` منتقل شد.
+در ۹٫۹۹٫۱۹ پوسته‌های خالی باقی‌مانده از روت پاک شدند.
+
+---
+
 # مدیریت محتوای ساده PHP + SQLite — نسخه ۹٫۰٫۵
 
 **نسخه ۹٫۰٫۵:**

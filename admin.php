@@ -2836,7 +2836,7 @@ if ($page === 'design') {
             </div>
 
             <?php if ($editPage !== null): ?>
-                <?php include __DIR__ . '/admin_blocks_ui.php'; ?>
+                <?php /* admin_blocks_ui.php به modules/admin/UI/Blocks.php منتقل شد (۹٫۹۹٫۱۹) */ ?>
             <?php endif; ?>
 
             <table>
@@ -2867,7 +2867,7 @@ if ($page === 'design') {
             </table>
 
         <?php elseif ($page === 'gallery'): ?>
-            <?php include __DIR__ . '/admin_gallery_ui.php'; ?>
+            <?php /* admin_gallery_ui.php به modules/admin/UI/Gallery.php منتقل شد (۹٫۹۹٫۱۹) */ ?>
 
         <?php elseif ($page === 'design'): ?>
             <h1>قالب و استایل</h1>
