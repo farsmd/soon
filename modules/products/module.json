@@ -1,10 +1,10 @@
 {
   "name": "محصولات",
-  "description": "کاتالوگ محصولات",
-  "version": "9.99.10",
+  "description": "کاتالوگ محصولات با قیمت‌گذاری متری",
+  "version": "9.99.14",
   "author": "لاینرلایت",
   "category": "فروش",
   "icon": "box",
   "is_core": false,
-  "requires": "9.99.10"
+  "requires": "9.99.14"
 }
