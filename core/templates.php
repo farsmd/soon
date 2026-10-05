@@ -129,3 +129,47 @@ function template_select_html(string $type, ?string $current = null, string $fie
     $html .= '</select>';
     return $html;
 }
+
+/** لود بخشی از قالب (مثل هدر/فوتر) — مثل وردپرس */
+function get_template_part(string $part, array $data = []): void
+{
+    $file = templates_dir() . '/parts/' . $part . '.php';
+    if (!is_file($file)) {
+        // fallback به دیتابیس برای هدر/فوتر
+        if (in_array($part, ['header', 'footer'], true) && function_exists('render_db_template')) {
+            $settings = $data['settings'] ?? (function_exists('all_settings') ? all_settings() : []);
+            echo render_db_template($part, $settings);
+        }
+        return;
+    }
+    extract($data, EXTR_SKIP);
+    include $file;
+}
+
+/** هدر — مثل وردپرس */
+function get_header(array $data = []): void
+{
+    get_template_part('header', $data);
+}
+
+/** فوتر — مثل وردپرس */
+function get_footer(array $data = []): void
+{
+    get_template_part('footer', $data);
+}
+
+/** آیا بخشی سفارشی‌سازی شده؟ (بیش از کامنت هدر دارد) */
+function template_part_is_customized(string $part): bool
+{
+    $file = templates_dir() . '/parts/' . $part . '.php';
+    if (!is_file($file)) return false;
+    $content = (string) file_get_contents($file);
+    // حذف کامنت هدر
+    $content = preg_replace('/\/\*.*?\*\//s', '', $content);
+    $content = trim($content);
+    // اگر فقط کد fallback است، سفارشی نشده
+    if (strpos($content, '__part_customized') !== false && strlen($content) < 500) {
+        return false;
+    }
+    return strlen($content) > 50;
+}

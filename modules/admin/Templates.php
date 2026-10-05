@@ -12,10 +12,11 @@ function templates_handle_post(): ?string
     if ($action === 'save') {
         $file = trim((string) ($_POST['tpl_file'] ?? ''));
         $content = (string) ($_POST['tpl_content'] ?? '');
+        $isPart = ($_POST['tpl_is_part'] ?? '') === '1';
         if ($file === '' || !preg_match('/^[a-z0-9\-]+\.php$/', $file)) {
             return 'نام فایل نامعتبر است.';
         }
-        $path = templates_dir() . '/' . $file;
+        $path = $isPart ? templates_dir() . '/parts/' . $file : templates_dir() . '/' . $file;
         // بررسی سینتکس
         $tmp = tempnam(sys_get_temp_dir(), 'tplchk');
         @file_put_contents($tmp, $content);
@@ -69,9 +70,19 @@ function templates_render(): void
     $msg = templates_handle_post();
     $templates = templates_discover();
     $editFile = trim((string) ($_GET['edit'] ?? ''));
+    $editPart = trim((string) ($_GET['edit_part'] ?? ''));
     $editContent = '';
     $editMeta = null;
-    if ($editFile !== '' && preg_match('/^[a-z0-9\-]+\.php$/', $editFile)) {
+    $editIsPart = false;
+    if ($editPart !== '' && preg_match('/^[a-z0-9\-]+\.php$/', $editPart)) {
+        $path = templates_dir() . '/parts/' . $editPart;
+        if (is_file($path)) {
+            $editContent = (string) file_get_contents($path);
+            $editMeta = template_parse_header($path);
+            $editFile = $editPart;
+            $editIsPart = true;
+        }
+    } elseif ($editFile !== '' && preg_match('/^[a-z0-9\-]+\.php$/', $editFile)) {
         $path = templates_dir() . '/' . $editFile;
         if (is_file($path)) {
             $editContent = (string) file_get_contents($path);
@@ -79,13 +90,27 @@ function templates_render(): void
         }
     }
     // گروه‌بندی بر اساس نوع
-    $grouped = ['post' => [], 'page' => [], 'product' => [], 'category' => []];
+    $grouped = ['post' => [], 'page' => [], 'product' => [], 'category' => [], 'home' => []];
     foreach ($templates as $file => $t) {
         foreach ($t['types'] as $type) {
             if (isset($grouped[$type])) $grouped[$type][$file] = $t;
         }
     }
-    $typeNames = ['post' => 'مقالات', 'page' => 'صفحه‌ها', 'product' => 'محصولات', 'category' => 'دسته‌بندی‌ها'];
+    $typeNames = ['post' => 'مقالات', 'page' => 'صفحه‌ها', 'product' => 'محصولات', 'category' => 'دسته‌بندی‌ها', 'home' => 'صفحه اصلی'];
+    // بخش‌های مشترک (هدر/فوتر)
+    $parts = [];
+    $partsDir = templates_dir() . '/parts';
+    if (is_dir($partsDir)) {
+        foreach (scandir($partsDir) ?: [] as $pf) {
+            if (!str_ends_with($pf, '.php')) continue;
+            $meta = template_parse_header($partsDir . '/' . $pf);
+            if ($meta) {
+                $partKey = basename($pf, '.php');
+                $meta['customized'] = template_part_is_customized($partKey);
+                $parts[$pf] = $meta;
+            }
+        }
+    }
     ?>
     <div class="page-head">
         <h1>مدیریت قالب‌ها</h1>
@@ -133,6 +158,7 @@ function templates_render(): void
             <?= csrf_field() ?>
             <input type="hidden" name="tpl_action" value="save">
             <input type="hidden" name="tpl_file" value="<?= e($editFile) ?>">
+            <?php if ($editIsPart): ?><input type="hidden" name="tpl_is_part" value="1"><?php endif; ?>
             <textarea name="tpl_content" class="code-editor" data-mode="php" rows="25" dir="ltr" style="text-align:left"><?= e($editContent) ?></textarea>
             <div style="margin-top:12px">
                 <button type="submit" class="btn btn-warning">ذخیره قالب</button>
@@ -140,6 +166,23 @@ function templates_render(): void
             </div>
         </form>
     </div>
+    <?php endif; ?>
+
+    <?php if (!empty($parts)): ?>
+        <div class="tpl-type-title">بخش‌های مشترک (هدر/فوتر)</div>
+        <div class="tpl-grid">
+        <?php foreach ($parts as $file => $t): ?>
+            <div class="tpl-card">
+                <h3><?= e($t['name']) ?></h3>
+                <span class="tpl-file">parts/<?= e($file) ?></span>
+                <?php if ($t['description']): ?><p><?= e($t['description']) ?></p><?php endif; ?>
+                <p><?= !empty($t['customized']) ? '<span class="badge badge-success">سفارشی‌شده</span>' : '<span class="badge">پیش‌فرض دیتابیس</span>' ?></p>
+                <div class="actions">
+                    <a href="admin.php?page=templates&edit_part=<?= e($file) ?>" class="btn btn-sm btn-warning">ویرایش</a>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        </div>
     <?php endif; ?>
 
     <?php foreach ($grouped as $type => $tpls): if (empty($tpls)) continue; ?>
