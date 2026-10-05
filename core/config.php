@@ -5137,3 +5137,672 @@ function get_order_form_fields(int $productId): array
 if (PHP_SAPI !== 'cli' || defined('CMS_LOAD_MODULES_CLI')) {
     try { modules_load_active(); } catch (Throwable $e) { /* silent */ }
 }
+
+if (!function_exists('products_get')) {
+function products_get(string $id): ?array
+{
+    try {
+        $st = db()->prepare("SELECT * FROM products WHERE id = ? AND is_active = 1 LIMIT 1");
+        $st->execute([(int) $id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    } catch (Throwable $e) { return null; }
+}
+}
+
+if (!function_exists('products_list')) {
+function products_list(?int $categoryId = null): array
+{
+    try {
+        $sql = "SELECT * FROM products WHERE is_active = 1";
+        $params = [];
+        if ($categoryId !== null && $categoryId > 0) {
+            $sql .= " AND category_id = ?";
+            $params[] = $categoryId;
+        }
+        $sql .= " ORDER BY sort_order ASC, name ASC";
+        $st = db()->prepare($sql);
+        $st->execute($params);
+        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) { return []; }
+}
+}
+
+if (!function_exists('products_display_price')) {
+function products_display_price(array $product, bool $isPartner = false): string
+{
+    $price = $isPartner && !empty($product['partner_price_per_meter'])
+        ? (int) $product['partner_price_per_meter']
+        : (int) ($product['price_per_meter'] ?? 0);
+    if (($product['pricing_model'] ?? 'per_meter') === 'per_watt') {
+        $price = (int) ($product['price_per_watt'] ?? 0);
+        return number_format($price) . ' تومان/وات';
+    }
+    return number_format($price) . ' تومان/متر';
+}
+}
+
+if (!function_exists('product_offered_attributes')) {
+function product_offered_attributes(int $productId): array
+{
+    $values = [];
+    foreach (get_product_attribute_values($productId) as $v) {
+        $values[(int) $v['attribute_id']] = $v;
+    }
+    $out = [];
+    foreach (get_attributes(true) as $attr) {
+        $aid = (int) $attr['id'];
+        if (!isset($values[$aid])) {
+            continue;
+        }
+        $v = $values[$aid];
+        $type = (string) $attr['input_type'];
+        if ($type === 'select') {
+            $options = get_attribute_options($aid);
+            $optIds = array_map(static fn ($o) => (int) $o['id'], $options);
+            $defId = isset($v['option_id']) ? (int) $v['option_id'] : 0;
+            if ($defId <= 0 || !in_array($defId, $optIds, true)) {
+                continue;
+            }
+            $out[] = ['attribute' => $attr, 'options' => $options, 'default_option_id' => $defId, 'num_value' => null, 'text_value' => null];
+        } elseif ($type === 'number') {
+            if ($v['num_value'] === null || $v['num_value'] === '') {
+                continue;
+            }
+            $out[] = ['attribute' => $attr, 'options' => [], 'default_option_id' => null, 'num_value' => (float) $v['num_value'], 'text_value' => null];
+        } else {
+            $tv = trim((string) ($v['text_value'] ?? ''));
+            if ($tv === '') {
+                continue;
+            }
+            $out[] = ['attribute' => $attr, 'options' => [], 'default_option_id' => null, 'num_value' => null, 'text_value' => $tv];
+        }
+    }
+    return $out;
+}
+}
+
+if (!function_exists('product_base_price_per_meter')) {
+function product_base_price_per_meter(array $product, bool $isPartner): float
+{
+    $price = (float) ($product['price_per_meter'] ?? 0);
+    if (!$isPartner) {
+        return $price;
+    }
+    $partner = $product['partner_price_per_meter'] ?? null;
+    if ($partner !== null && $partner !== '' && (float) $partner > 0) {
+        return (float) $partner;
+    }
+    return $price * (1 - partner_discount_percent() / 100);
+}
+}
+
+if (!function_exists('product_unit_price')) {
+function product_unit_price(array $product, array $selectedOptionIds = [], bool $isPartner = false): float
+{
+    $unit = product_base_price_per_meter($product, $isPartner);
+    foreach ($selectedOptionIds as $oid) {
+        $opt = get_attribute_option((int) $oid);
+        if ($opt !== null) {
+            $unit += (float) ($opt['price_delta_per_meter'] ?? 0);
+        }
+    }
+    return $unit;
+}
+}
+
+if (!function_exists('product_bom_lines')) {
+function product_bom_lines(int $productId): array
+{
+    $stmt = db()->prepare(
+        'SELECT pm.*, m.name AS material_name, m.unit AS material_unit, m.last_price AS material_price, m.stock_qty AS material_stock, m.is_active AS material_active
+         FROM product_materials pm
+         JOIN materials m ON m.id = pm.material_id
+         WHERE pm.product_id = :p
+         ORDER BY pm.sort_order ASC, pm.id ASC'
+    );
+    $stmt->execute([':p' => $productId]);
+    return $stmt->fetchAll();
+}
+}
+
+if (!function_exists('product_material_cost')) {
+function product_material_cost(int $productId): array
+{
+    $perMeter = 0.0;
+    $perFixture = 0.0;
+    $lines = [];
+    foreach (product_bom_lines($productId) as $l) {
+        $unitPrice = (int) $l['material_price'];
+        $q = (float) $l['qty'];
+        $lineCost = $q * $unitPrice;
+        if ((string) $l['basis'] === 'per_fixture') {
+            $perFixture += $lineCost;
+        } else {
+            $perMeter += $lineCost;
+        }
+        $lines[] = [
+            'material_id' => (int) $l['material_id'],
+            'name'        => (string) $l['material_name'],
+            'unit'        => (string) $l['material_unit'],
+            'qty'         => $q,
+            'basis'       => (string) $l['basis'],
+            'unit_price'  => $unitPrice,
+            'line_cost'   => $lineCost,
+        ];
+    }
+    // هزینه تولید (نسخه ۹٫۱): دستمزد/سربار به‌ازای هر متر و هر چراغ
+    $prod = get_product($productId);
+    $laborMeter = (float) ($prod['labor_cost_per_meter'] ?? 0);
+    $laborFixture = (float) ($prod['labor_cost_per_fixture'] ?? 0);
+    if ($laborMeter > 0) {
+        $lines[] = [
+            'material_id' => 0,
+            'name'        => 'هزینه تولید (هر متر)',
+            'unit'        => '',
+            'qty'         => 1,
+            'basis'       => 'per_meter',
+            'unit_price'  => (int) round($laborMeter),
+            'line_cost'   => $laborMeter,
+            'is_labor'    => true,
+        ];
+        $perMeter += $laborMeter;
+    }
+    if ($laborFixture > 0) {
+        $lines[] = [
+            'material_id' => 0,
+            'name'        => 'هزینه تولید (هر چراغ)',
+            'unit'        => '',
+            'qty'         => 1,
+            'basis'       => 'per_fixture',
+            'unit_price'  => (int) round($laborFixture),
+            'line_cost'   => $laborFixture,
+            'is_labor'    => true,
+        ];
+        $perFixture += $laborFixture;
+    }
+    return ['per_meter' => (int) round($perMeter), 'per_fixture' => (int) round($perFixture), 'lines' => $lines];
+}
+}
+
+if (!function_exists('product_required_materials')) {
+function product_required_materials(int $productId, float $lengthMeters, int $fixtures = 1): array
+{
+    if (!is_finite($lengthMeters) || $lengthMeters < 0) {
+        $lengthMeters = 0.0;
+    }
+    if ($fixtures < 0) {
+        $fixtures = 0;
+    }
+    $agg = [];
+    foreach (product_bom_lines($productId) as $l) {
+        $mid = (int) $l['material_id'];
+        if (!isset($agg[$mid])) {
+            $agg[$mid] = [
+                'material_id' => $mid,
+                'name'        => (string) $l['material_name'],
+                'unit'        => (string) $l['material_unit'],
+                'needed'      => 0.0,
+                'stock'       => (float) $l['material_stock'],
+            ];
+        }
+        $agg[$mid]['needed'] += ((string) $l['basis'] === 'per_fixture')
+            ? (float) $l['qty'] * $fixtures
+            : (float) $l['qty'] * $lengthMeters;
+    }
+    $out = [];
+    foreach ($agg as $r) {
+        $r['needed']   = round($r['needed'], 6);
+        $r['shortage'] = round(max(0.0, $r['needed'] - $r['stock']), 6);
+        $out[] = $r;
+    }
+    return $out;
+}
+}
+
+if (!function_exists('product_margin')) {
+function product_margin(int $productId): array
+{
+    $product = get_product($productId);
+    $cost = product_material_cost($productId);
+    $retail  = $product !== null ? product_base_price_per_meter($product, false) : 0.0;
+    $partner = $product !== null ? product_base_price_per_meter($product, true) : 0.0;
+    $costPerMeter = (float) $cost['per_meter'];
+    $calc = static function (float $price) use ($costPerMeter): array {
+        $margin = $price - $costPerMeter;
+        return [$margin, $price > 0 ? ($margin / $price) * 100 : 0.0];
+    };
+    [$retailMargin, $retailPct] = $calc($retail);
+    [$partnerMargin, $partnerPct] = $calc($partner);
+    return [
+        'retail_price'          => $retail,
+        'partner_price'         => $partner,
+        'cost_per_meter'        => $cost['per_meter'],
+        'cost_per_fixture'      => $cost['per_fixture'],
+        'retail_margin'         => $retailMargin,
+        'retail_margin_percent' => $retailPct,
+        'partner_margin'        => $partnerMargin,
+        'partner_margin_percent' => $partnerPct,
+    ];
+}
+}
+
+if (!function_exists('products_showcase_html')) {
+function products_showcase_html(): string
+{
+    $products = get_products(true);
+    if ($products === []) {
+        return '';
+    }
+    $out = '<section class="products-showcase" id="products-showcase"><div class="container">';
+    $out .= '<div class="ps-head"><h2>محصولات ما</h2><p>چراغ‌های خطی و نور رشد گیاه — برش دقیق در ابعاد دلخواه شما</p></div>';
+    $out .= '<div class="ps-grid">';
+    foreach ($products as $p) {
+        $name = (string) ($p['name'] ?? '');
+        $img = uploaded_image_url($p['image'] ?? '');
+        $price = product_base_price_per_meter($p, false);
+        $partnerPrice = product_base_price_per_meter($p, true);
+        $out .= '<a class="ps-card rv" href="' . e(pretty_url('products.php#' . (int) $p['id'])) . '">';
+        if ($img !== '') {
+            $out .= '<div class="ps-img"><img loading="lazy" src="' . e($img) . '" alt="' . e($name) . '"></div>';
+        }
+        $out .= '<div class="ps-body"><h3>' . e($name) . '</h3>';
+        if (!empty($p['category_title'])) {
+            $out .= '<span class="ps-cat">' . e((string) $p['category_title']) . '</span>';
+        }
+        $pricingModel = (string) ($p['pricing_model'] ?? 'per_meter');
+        if ($pricingModel === 'per_watt') {
+            $basePrice = (int) ($p['base_price'] ?? 0);
+            $ppw = (int) ($p['price_per_watt'] ?? 0);
+            if ($basePrice > 0) {
+                $out .= '<div class="ps-price">از ' . e(format_price($basePrice)) . ' <small>تومان</small></div>';
+            }
+            if ($ppw > 0) {
+                $out .= '<div class="ps-partner">هر وات ' . e(format_price($ppw)) . ' تومان + قیمت قاب</div>';
+            }
+        } else {
+            if ($price > 0) {
+                $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
+            }
+            if ($partnerPrice > 0 && $partnerPrice != $price) {
+                $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
+            }
+        }
+        $out .= '<span class="btn btn-gold ps-cta">مشاهده و ثبت سفارش ←</span>';
+        $out .= '</div></a>';
+    }
+    $out .= '</div>';
+    $out .= '<div class="ps-more"><a class="btn btn-gold" href="' . e(pretty_url('products.php')) . '">مشاهده همه محصولات</a></div>';
+    $out .= '</div></section>';
+    return $out;
+}
+}
+
+if (!function_exists('product_gallery_html')) {
+function product_gallery_html(int $productId): string
+{
+    $images = get_product_images($productId);
+    if ($images === []) {
+        return '';
+    }
+    $html = '<div class="product-gallery"><h3>گالری تصاویر</h3><div class="pg-public-grid">';
+    foreach ($images as $img) {
+        $url = uploaded_image_url($img['image'] ?? '');
+        if ($url === '') {
+            continue;
+        }
+        $cap = (string) ($img['caption'] ?? '');
+        $html .= '<figure class="pg-public-item"><img loading="lazy" src="' . e($url) . '" alt="' . e($cap) . '">';
+        if ($cap !== '') {
+            $html .= '<figcaption>' . e($cap) . '</figcaption>';
+        }
+        $html .= '</figure>';
+    }
+    $html .= '</div></div>';
+    return $html;
+}
+}
+
+if (!function_exists('product_order_form_config')) {
+function product_order_form_config(array $product): array
+{
+    $defaults = ['show_length' => true, 'show_qty' => true, 'show_wire' => true, 'show_endcap' => true, 'show_options' => true];
+    $raw = (string) ($product['order_form_config'] ?? '');
+    if ($raw === '') {
+        return $defaults;
+    }
+    $cfg = json_decode($raw, true);
+    if (!is_array($cfg)) {
+        return $defaults;
+    }
+    foreach ($defaults as $k => $v) {
+        if (!array_key_exists($k, $cfg)) {
+            $cfg[$k] = $v;
+        } else {
+            $cfg[$k] = (bool) $cfg[$k];
+        }
+    }
+    return $cfg;
+}
+}
+
+if (!function_exists('customers_get')) {
+function customers_get(int $id): ?array
+{
+    try {
+        $st = db()->prepare("SELECT * FROM customers WHERE id = ? LIMIT 1");
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    } catch (Throwable $e) { return null; }
+}
+}
+
+if (!function_exists('customers_list')) {
+function customers_list(): array
+{
+    try {
+        return db()->query("SELECT * FROM customers ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) { return []; }
+}
+}
+
+if (!function_exists('customer_types')) {
+function customer_types(): array
+{
+    return [
+        'partner' => 'همکار',
+        'retail'  => 'مشتری',
+        'company' => 'شرکت',
+    ];
+}
+}
+
+if (!function_exists('customer_type_label')) {
+function customer_type_label(string $key): string
+{
+    $types = customer_types();
+    return $types[$key] ?? $types['retail'];
+}
+}
+
+if (!function_exists('customer_mobile_exists')) {
+function customer_mobile_exists(string $mobile, int $excludeId = 0): bool
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM customers WHERE mobile = :m AND id != :x');
+    $stmt->execute([':m' => $mobile, ':x' => $excludeId]);
+    return (int) $stmt->fetchColumn() > 0;
+}
+}
+
+if (!function_exists('orders_get')) {
+function orders_get(int $id): ?array
+{
+    try {
+        $st = db()->prepare("SELECT * FROM orders WHERE id = ? LIMIT 1");
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    } catch (Throwable $e) { return null; }
+}
+}
+
+if (!function_exists('orders_track')) {
+function orders_track(string $orderNo, string $mobile): ?array
+{
+    try {
+        $st = db()->prepare("SELECT o.* FROM orders o LEFT JOIN customers c ON o.customer_id = c.id WHERE o.id = ? AND c.phone = ? LIMIT 1");
+        $st->execute([$orderNo, $mobile]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    } catch (Throwable $e) { return null; }
+}
+}
+
+if (!function_exists('order_setting')) {
+function order_setting(string $key, $default = '')
+{
+    return get_setting($key, (string) $default);
+}
+}
+
+if (!function_exists('order_statuses')) {
+function order_statuses(bool $onlyActive = true): array
+{
+    $sql = 'SELECT * FROM order_statuses';
+    if ($onlyActive) {
+        $sql .= ' WHERE is_active = 1';
+    }
+    $sql .= ' ORDER BY sort_order ASC, id ASC';
+    return db()->query($sql)->fetchAll();
+}
+}
+
+if (!function_exists('order_status_title')) {
+function order_status_title(string $key): string
+{
+    foreach (order_statuses(false) as $s) {
+        if ((string) $s['status_key'] === $key) {
+            return (string) $s['title'];
+        }
+    }
+    return $key;
+}
+}
+
+if (!function_exists('order_status_color')) {
+function order_status_color(string $key): string
+{
+    foreach (order_statuses(false) as $s) {
+        if ((string) $s['status_key'] === $key) {
+            return (string) ($s['color'] ?? '#6b7280');
+        }
+    }
+    return '#6b7280';
+}
+}
+
+if (!function_exists('order_required_materials')) {
+function order_required_materials(array $orderLines): array
+{
+    $acc = [];
+    foreach ($orderLines as $ln) {
+        $pid = (int) ($ln['product_id'] ?? 0);
+        $qty = max(1, (int) ($ln['qty'] ?? 1));
+        $lengthM = round((float) ($ln['length_cm'] ?? 0), 1) / 100.0;
+        $hasEndcap = !empty($ln['has_endcap']);
+        foreach (product_bom_lines($pid) as $bom) {
+            if (($bom['apply_condition'] ?? 'always') === 'endcap' && !$hasEndcap) {
+                continue;
+            }
+            $mid = (int) $bom['material_id'];
+            $need = $bom['basis'] === 'per_fixture' ? (float) $bom['qty'] * $qty : (float) $bom['qty'] * $lengthM * $qty;
+            if (!isset($acc[$mid])) {
+                $mat = get_material($mid);
+                $acc[$mid] = [
+                    'material_id' => $mid,
+                    'name' => (string) ($mat['name'] ?? ('#' . $mid)),
+                    'unit' => (string) ($mat['unit'] ?? ''),
+                    'needed' => 0.0,
+                    'stock' => (float) ($mat['stock_qty'] ?? 0),
+                ];
+            }
+            $acc[$mid]['needed'] += $need;
+        }
+    }
+    foreach ($acc as &$r) {
+        $r['shortage'] = max(0.0, (float) $r['needed'] - (float) $r['stock']);
+    }
+    unset($r);
+    return array_values($acc);
+}
+}
+
+if (!function_exists('order_custom_fields_html')) {
+function order_custom_fields_html(int $productId, string $namePrefix = 'cf'): array
+{
+    $fields = get_order_form_fields($productId);
+    if ($fields === []) {
+        return ['', []];
+    }
+    $html = '<div class="so-custom-fields"><h4>مشخصات تکمیلی</h4>';
+    $meta = [];
+    foreach ($fields as $f) {
+        $fid = (int) $f['id'];
+        $name = $namePrefix . '[' . $fid . ']';
+        $label = (string) $f['label'];
+        $req = (int) $f['is_required'] === 1;
+        $ph = (string) ($f['placeholder'] ?? '');
+        $help = (string) ($f['help_text'] ?? '');
+        $type = (string) ($f['field_type'] ?? 'text');
+        $meta[$fid] = ['label' => $label, 'type' => $type];
+        $html .= '<div class="so-field"><label>' . e($label) . ($req ? ' *' : '') . '</label>';
+        if ($type === 'select') {
+            $opts = json_decode((string) ($f['options_json'] ?? '[]'), true);
+            if (!is_array($opts)) { $opts = []; }
+            $html .= '<select name="' . e($name) . '"' . ($req ? ' required' : '') . '><option value="">— انتخاب کنید —</option>';
+            foreach ($opts as $op) {
+                $op = trim((string) $op);
+                if ($op === '') { continue; }
+                $html .= '<option value="' . e($op) . '">' . e($op) . '</option>';
+            }
+            $html .= '</select>';
+        } elseif ($type === 'textarea') {
+            $html .= '<textarea name="' . e($name) . '" rows="2"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . '></textarea>';
+        } elseif ($type === 'number') {
+            $html .= '<input type="number" name="' . e($name) . '" step="any"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . '>';
+        } elseif ($type === 'checkbox') {
+            $html .= '<label class="check"><input type="checkbox" name="' . e($name) . '" value="1"> ' . e($ph !== '' ? $ph : 'بله') . '</label>';
+        } else {
+            $html .= '<input type="text" name="' . e($name) . '"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . ' maxlength="255">';
+        }
+        if ($help !== '') {
+            $html .= '<p class="so-help">' . e($help) . '</p>';
+        }
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+    return [$html, $meta];
+}
+}
+
+if (!function_exists('blog_fa_date')) {
+function blog_fa_date(string $dt): string
+{
+    $dt = trim($dt);
+    if ($dt === '') { return ''; }
+    try {
+        if (function_exists('jdate')) { return jdate('Y/m/d', strtotime($dt)); }
+        return (new DateTime($dt))->format('Y/m/d');
+    } catch (Throwable $e) { return $dt; }
+}
+}
+
+if (!function_exists('blog_get_post')) {
+function blog_get_post(string $slug): ?array
+{
+    $st = db()->prepare("SELECT * FROM blog_posts WHERE slug = :s AND status = 'published' LIMIT 1");
+    $st->execute([':s' => $slug]);
+    $post = $st->fetch(PDO::FETCH_ASSOC);
+    return $post ?: null;
+}
+}
+
+if (!function_exists('blog_get_posts')) {
+function blog_get_posts(int $limit = 0): array
+{
+    $sql = "SELECT id, title, slug, excerpt, featured_image, published_at, created_at, template FROM blog_posts " .
+        "WHERE status = 'published' ORDER BY COALESCE(NULLIF(published_at,''), created_at) DESC";
+    if ($limit > 0) { $sql .= " LIMIT " . $limit; }
+    return db()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+}
+
+if (!function_exists('blog_render_single')) {
+function blog_render_single(array $post, array $settings): void
+{
+    $siteTitle = (string) ($settings['site_title'] ?? 'لاینرلایت');
+    $canonBase = site_base_url($settings);
+    $seo = [
+        'url' => $canonBase . '/blog/' . $post['slug'],
+        'description' => (string) ($post['excerpt'] ?? ''),
+        'image' => (string) ($post['featured_image'] ?? ''),
+        'type' => 'article',
+        'breadcrumbs' => [
+            ['name' => 'خانه', 'url' => $canonBase . '/'],
+            ['name' => 'وبلاگ', 'url' => $canonBase . '/blog'],
+            ['name' => (string) $post['title'], 'url' => $canonBase . '/blog/' . $post['slug']],
+        ],
+    ];
+    $title = (string) $post['title'] . ' — ' . $siteTitle;
+    $head = skeleton_head($settings, $title, (string) ($post['excerpt'] ?? ''), $seo);
+    $head = str_replace('<head>', '<head>' . "\n" . '<base href="/">', $head);
+    echo $head;
+    echo render_db_template('header', $settings) . "\n";
+    echo '<main id="main">';
+    template_render('post', [
+        'title' => (string) $post['title'],
+        'content' => (string) ($post['content'] ?? ''),
+        'image' => (string) ($post['featured_image'] ?? ''),
+        'date' => blog_fa_date((string) ($post['published_at'] ?? $post['created_at'])),
+        'excerpt' => (string) ($post['excerpt'] ?? ''),
+    ], (string) ($post['template'] ?? ''), (string) $post['slug']);
+    echo '</main>';
+    echo render_db_template('footer', $settings) . "\n";
+    echo skeleton_foot();
+}
+}
+
+if (!function_exists('blog_render_list')) {
+function blog_render_list(array $settings): void
+{
+    $posts = blog_get_posts();
+    $siteTitle = (string) ($settings['site_title'] ?? 'لاینرلایت');
+    $canonBase = site_base_url($settings);
+    $seo = [
+        'url' => $canonBase . '/blog',
+        'breadcrumbs' => [
+            ['name' => 'خانه', 'url' => $canonBase . '/'],
+            ['name' => 'وبلاگ', 'url' => $canonBase . '/blog'],
+        ],
+    ];
+    $title = 'وبلاگ — ' . $siteTitle;
+    $head = skeleton_head($settings, $title, 'مقالات آموزشی لاینرلایت درباره نورپردازی خطی و دکوراتیو.', $seo);
+    $head = str_replace('<head>', '<head>' . "\n" . '<base href="/">', $head);
+    echo $head;
+    echo render_db_template('header', $settings) . "\n";
+    ?>
+    <main id="main">
+    <div class="page-body blog-list">
+        <h1>وبلاگ</h1>
+        <p class="muted">مقالات آموزشی درباره نورپردازی، چراغ‌های خطی و ایده‌های دکوراتیو.</p>
+        <?php if ($posts === []): ?>
+            <p class="muted">هنوز مقاله‌ای منتشر نشده است.</p>
+        <?php else: ?>
+        <div class="blog-grid">
+            <?php foreach ($posts as $p): ?>
+            <a class="blog-card" href="<?= e($canonBase . '/blog/' . $p['slug']) ?>">
+                <div class="blog-thumb">
+                <?php if (trim((string) $p['featured_image']) !== ''): ?>
+                    <img src="<?= e((string) $p['featured_image']) ?>" alt="<?= e((string) $p['title']) ?>" loading="lazy">
+                <?php endif; ?>
+                </div>
+                <div class="blog-card-body">
+                    <h2><?= e((string) $p['title']) ?></h2>
+                    <?php if (trim((string) $p['excerpt']) !== ''): ?><p><?= e((string) $p['excerpt']) ?></p><?php endif; ?>
+                    <div class="blog-card-meta">
+                        <span><?= e(blog_fa_date((string) ($p['published_at'] ?? $p['created_at']))) ?></span>
+                        <span class="read-more">خواندن ←</span>
+                    </div>
+                </div>
+            </a>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    </main>
+    <?php
+    echo render_db_template('footer', $settings) . "\n";
+    echo skeleton_foot();
+}
+}
