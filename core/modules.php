@@ -225,31 +225,57 @@ function module_update_from_github(string $key): bool
         $modDir = modules_dir() . '/' . $key;
         if (!is_dir($modDir)) return false;
 
-        // دانلود module.json جدید
-        $jsonUrl = 'https://raw.githubusercontent.com/farsmd/soon/main/modules/' . $key . '/module.json?t=' . time();
         $ctx = stream_context_create(['http' => ['timeout' => 20, 'user_agent' => 'LinerlightCMS/1.0']]);
-        $jsonContent = @file_get_contents($jsonUrl, false, $ctx);
+        $base = 'https://raw.githubusercontent.com/farsmd/soon/main/modules/' . $key . '/';
+
+        // دانلود module.json جدید
+        $jsonContent = @file_get_contents($base . 'module.json?t=' . time(), false, $ctx);
         if ($jsonContent === false) return false;
         $manifest = json_decode($jsonContent, true);
         if (!is_array($manifest)) return false;
 
-        // دانلود فایل اصلی ماژول
-        $phpUrl = 'https://raw.githubusercontent.com/farsmd/soon/main/modules/' . $key . '/' . $key . '.php?t=' . time();
-        $phpContent = @file_get_contents($phpUrl, false, $ctx);
-        if ($phpContent === false) return false;
+        // فایل‌های ماژول — چندفایلی (۹٫۹۹٫۱۹)
+        // فایل اصلی اجباری است، بقیه اختیاری (اگر روی گیت‌هاب نباشند رد می‌شوند)
+        $files = [];
+        $mainContent = @file_get_contents($base . $key . '.php?t=' . time(), false, $ctx);
+        if ($mainContent === false) return false;
+        $files[$key . '.php'] = $mainContent;
 
-        // بکاپ فایل‌های فعلی
-        $backupDir = $modDir . '/backup-' . date('Ymd-His');
-        @mkdir($backupDir, 0775, true);
-        foreach (['module.json', $key . '.php'] as $f) {
-            if (is_file($modDir . '/' . $f)) {
-                @copy($modDir . '/' . $f, $backupDir . '/' . $f);
+        foreach (['admin.php', 'frontend.php'] as $extra) {
+            $c = @file_get_contents($base . $extra . '?t=' . time(), false, $ctx);
+            if ($c !== false && strlen($c) > 0) {
+                $files[$extra] = $c;
             }
         }
+        $files['module.json'] = $jsonContent;
 
-        // جایگزینی
-        @file_put_contents($modDir . '/module.json', $jsonContent);
-        @file_put_contents($modDir . '/' . $key . '.php', $phpContent);
+        // بکاپ کامل پوشه ماژول (همه فایل‌ها، نه فقط ۲ تا)
+        $backupDir = $modDir . '/backup-' . date('Ymd-His');
+        @mkdir($backupDir, 0775, true);
+        foreach (scandir($modDir) ?: [] as $f) {
+            if ($f === '.' || $f === '..' || str_starts_with($f, 'backup-')) continue;
+            $srcPath = $modDir . '/' . $f;
+            if (is_file($srcPath)) {
+                @copy($srcPath, $backupDir . '/' . $f);
+            }
+        }
+        // پاک‌سازی بکاپ‌های قدیمی — فقط ۳ تای آخر نگه داشته می‌شود
+        $backups = [];
+        foreach (scandir($modDir) ?: [] as $f) {
+            if (str_starts_with($f, 'backup-') && is_dir($modDir . '/' . $f)) {
+                $backups[] = $f;
+            }
+        }
+        sort($backups);
+        while (count($backups) > 3) {
+            $old = array_shift($backups);
+            module_rrmdir($modDir . '/' . $old);
+        }
+
+        // جایگزینی همه فایل‌های دانلودشده
+        foreach ($files as $f => $content) {
+            @file_put_contents($modDir . '/' . $f, $content);
+        }
 
         // به‌روزرسانی دیتابیس
         modules_sync();
@@ -257,4 +283,17 @@ function module_update_from_github(string $key): bool
         do_action("module_{$key}_updated");
         return true;
     } catch (Throwable $e) { return false; }
+}
+
+/** حذف بازگشتی پوشه */
+function module_rrmdir(string $dir): void
+{
+    if (!is_dir($dir)) return;
+    foreach (scandir($dir) ?: [] as $f) {
+        if ($f === '.' || $f === '..') continue;
+        $p = $dir . '/' . $f;
+        if (is_dir($p)) module_rrmdir($p);
+        else @unlink($p);
+    }
+    @rmdir($dir);
 }
