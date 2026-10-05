@@ -423,6 +423,7 @@ if ($passwordHash === '') {
 <link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
 <script src="assets/chart.min.js"></script>
 <style><?= admin_css() ?></style>
+<?= admin_custom_style_css() ?>
 </head>
 <body>
 <div class="auth-box">
@@ -1403,6 +1404,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect_admin('admin.php?page=design&tab=templates' . ($rk !== '' ? '&edit_tpl=' . urlencode($rk) : ''));
                 // no break
 
+            case 'save_push_subscription':
+                $endpoint = trim((string) ($_POST['endpoint'] ?? ''));
+                $p256dh = trim((string) ($_POST['p256dh'] ?? ''));
+                $auth = trim((string) ($_POST['auth'] ?? ''));
+                if ($endpoint === '' || $p256dh === '' || $auth === '') {
+                    api_out(['ok' => false, 'error' => 'invalid']);
+                }
+                $me = current_admin_user();
+                $uid = (int) ($me['id'] ?? 0);
+                $pdo->prepare("INSERT OR REPLACE INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (:u, :e, :p, :a)")
+                    ->execute([':u' => $uid, ':e' => $endpoint, ':p' => $p256dh, ':a' => $auth]);
+                api_out(['ok' => true]);
+                // no break
+
             case 'save_visual_settings':
                 $font = (string) ($_POST['site_font'] ?? 'system');
                 if (!in_array($font, ['system', 'tahoma', 'vazirmatn'], true)) {
@@ -1424,6 +1439,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 set_setting('admin_theme', $adminTheme);
                 set_setting('header_sticky', isset($_POST['header_sticky']) ? '1' : '0');
+                // تنظیمات جزئی استایل ادمین (۹٫۲۵)
+                set_setting('admin_sidebar_bg', valid_hex_color($_POST['admin_sidebar_bg'] ?? null, ''));
+                set_setting('admin_sidebar_text', valid_hex_color($_POST['admin_sidebar_text'] ?? null, ''));
+                set_setting('admin_header_bg', valid_hex_color($_POST['admin_header_bg'] ?? null, ''));
+                set_setting('admin_accent', valid_hex_color($_POST['admin_accent'] ?? null, ''));
+                set_setting('admin_font_size', (string) max(12, min(18, (int) ($_POST['admin_font_size'] ?? 14))));
+                set_setting('admin_radius', (string) max(0, min(24, (int) ($_POST['admin_radius'] ?? 8))));
+                set_setting('admin_card_padding', (string) max(8, min(32, (int) ($_POST['admin_card_padding'] ?? 16))));
                 bump_css_updated();
                 flash('ok', 'تنظیمات ظاهری ذخیره شد و بلافاصله روی سایت اعمال می‌شود.');
                 redirect_admin('admin.php?page=design&tab=css');
@@ -1935,7 +1958,7 @@ if ($page === 'design') {
 <body>
 <header class="topbar">
     <div class="topbar-start">
-        <button type="button" class="icon-btn menu-toggle" id="navToggle" aria-label="منوی کناری" onclick="if(window.__toggleAdminNav){window.__toggleAdminNav()}"><?= nav_icon('menu') ?></button>
+        <button type="button" class="icon-btn menu-toggle" id="navToggle" aria-label="منوی کناری" onclick="(function(){if(window.__toggleAdminNav){window.__toggleAdminNav()}else{document.body.classList.toggle('nav-open')}})()"><?= nav_icon('menu') ?></button>
         <strong class="topbar-title"><?= e($currentPageTitle) ?></strong>
     </div>
     <nav class="topbar-actions">
@@ -3072,6 +3095,33 @@ if ($page === 'design') {
                         </select>
                     </label>
                     <label class="check"><input type="checkbox" name="header_sticky" value="1" <?= $visual['header_sticky'] ? 'checked' : '' ?>> هدر چسبان باشد (هنگام اسکرول بالای صفحه بماند)</label>
+                    <h3 style="margin-top:20px">سفارشی‌سازی جزئی استایل پنل (۹٫۲۵)</h3>
+                    <p class="muted">خالی بگذارید تا از تم انتخابی استفاده شود.</p>
+                    <div class="inline-fields">
+                        <label>رنگ پس‌زمینه سایدبار
+                            <input type="color" name="admin_sidebar_bg" value="<?= e((string) get_setting('admin_sidebar_bg', '#ffffff')) ?>">
+                        </label>
+                        <label>رنگ متن سایدبار
+                            <input type="color" name="admin_sidebar_text" value="<?= e((string) get_setting('admin_sidebar_text', '#111827')) ?>">
+                        </label>
+                        <label>رنگ پس‌زمینه هدر
+                            <input type="color" name="admin_header_bg" value="<?= e((string) get_setting('admin_header_bg', '#ffffff')) ?>">
+                        </label>
+                        <label>رنگ تأکیدی (دکمه‌ها و لینک‌ها)
+                            <input type="color" name="admin_accent" value="<?= e((string) get_setting('admin_accent', '#2563eb')) ?>">
+                        </label>
+                    </div>
+                    <div class="inline-fields">
+                        <label>اندازه فونت پایه (پیکسل)
+                            <input type="number" name="admin_font_size" min="12" max="18" value="<?= e((string) get_setting('admin_font_size', '14')) ?>">
+                        </label>
+                        <label>گردی گوشه‌ها (پیکسل)
+                            <input type="number" name="admin_radius" min="0" max="24" value="<?= e((string) get_setting('admin_radius', '8')) ?>">
+                        </label>
+                        <label>پدینگ کارت‌ها (پیکسل)
+                            <input type="number" name="admin_card_padding" min="8" max="32" value="<?= e((string) get_setting('admin_card_padding', '16')) ?>">
+                        </label>
+                    </div>
                     <button type="submit" class="btn primary">ذخیره تنظیمات ظاهری</button>
                 </form>
 
@@ -3223,6 +3273,9 @@ if ($page === 'design') {
             <?php orders_render_rules($ordersData); ?>
         <?php elseif ($page === 'order_forms'): ?>
             <h1>فرم‌های سفارش</h1>
+            <div class="crud-toolbar">
+                <a href="#add-order-field-form" class="btn add">+ افزودن فیلد تازه</a>
+            </div>
             <p class="muted">فیلدهای سفارشی فرم ثبت سفارش را اینجا مدیریت کنید. ترتیب اعمال: فیلد خاص محصول ← فیلد دسته‌بندی ← فیلد سراسری. اگر برای محصولی فیلد خاص تعریف شده باشد، فقط همان‌ها نمایش داده می‌شوند.</p>
             <?php
             $typeLabels = ['text' => 'متن', 'number' => 'عدد', 'select' => 'انتخابی', 'textarea' => 'متن بلند', 'checkbox' => 'تیک'];
@@ -3283,7 +3336,7 @@ if ($page === 'design') {
                 </div>
             </form>
             <?php endif; ?>
-            <h2>افزودن فیلد تازه</h2>
+            <h2 id="add-order-field-form">افزودن فیلد تازه</h2>
             <form method="post" class="card wide">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="add_order_form_field">
@@ -3887,6 +3940,23 @@ if ($page === 'design') {
     </main>
 </div>
 <script>
+/* حفظ موقعیت اسکرول سایدبار (۹٫۲۵) */
+(function(){
+    try {
+        var sb = document.querySelector('.sidebar');
+        if (sb) {
+            var saved = localStorage.getItem('adminSidebarScroll');
+            if (saved !== null) { sb.scrollTop = parseInt(saved, 10) || 0; }
+            var t;
+            sb.addEventListener('scroll', function(){
+                clearTimeout(t);
+                t = setTimeout(function(){
+                    try { localStorage.setItem('adminSidebarScroll', String(sb.scrollTop)); } catch(e){}
+                }, 150);
+            });
+        }
+    } catch(e){}
+})();
 window.__toggleAdminNav=function(){var b=document.body,mq=window.matchMedia('(max-width:899px)');if(mq.matches){var op=b.classList.toggle('nav-open');var t=document.getElementById('navToggle');if(t){t.setAttribute('aria-expanded',op?'true':'false')}}else{var r=b.classList.toggle('nav-rail');try{localStorage.setItem('adminNavRail',r?'1':'0')}catch(e){}if(r){var gs=document.querySelectorAll('.nav-group');for(var i=0;i<gs.length;i++){gs[i].open=true}}}};
 (function(){var b=document.body,t=document.getElementById('navToggle'),o=document.getElementById('navOverlay'),mq=window.matchMedia('(max-width:899px)'),gs=[].slice.call(document.querySelectorAll('.nav-group')),st={};
 try{st=JSON.parse(localStorage.getItem('adminNavGroups')||'{}')}catch(e){}
@@ -3958,6 +4028,26 @@ document.querySelectorAll('textarea.code-editor').forEach(function(ta){
 </html>
 <?php
 // استایل داخلی پنل (برای اینکه admin.php مستقل بماند)
+function admin_custom_style_css(): string
+{
+    $css = '';
+    $sbBg = (string) get_setting('admin_sidebar_bg', '');
+    $sbText = (string) get_setting('admin_sidebar_text', '');
+    $hBg = (string) get_setting('admin_header_bg', '');
+    $accent = (string) get_setting('admin_accent', '');
+    $fontSize = (string) get_setting('admin_font_size', '');
+    $radius = (string) get_setting('admin_radius', '');
+    $cardPad = (string) get_setting('admin_card_padding', '');
+    if ($sbBg !== '' && $sbBg !== '#ffffff') { $css .= ".sidebar{background:" . $sbBg . "!important}"; }
+    if ($sbText !== '' && $sbText !== '#111827') { $css .= ".sidebar .nav-link{color:" . $sbText . "!important}.sidebar .nav-group-title{color:" . $sbText . "!important;opacity:.7}"; }
+    if ($hBg !== '' && $hBg !== '#ffffff') { $css .= ".topbar{background:" . $hBg . "!important}"; }
+    if ($accent !== '' && $accent !== '#2563eb') { $css .= "a{color:" . $accent . "}.btn.primary{background:" . $accent . ";border-color:" . $accent . "}"; }
+    if ($fontSize !== '' && $fontSize !== '14') { $css .= "body{font-size:" . (int)$fontSize . "px}"; }
+    if ($radius !== '' && $radius !== '8') { $css .= ".card,.btn,input,select,textarea{border-radius:" . (int)$radius . "px}"; }
+    if ($cardPad !== '' && $cardPad !== '16') { $css .= ".card{padding:" . (int)$cardPad . "px}"; }
+    return $css !== '' ? "<style>" . $css . "</style>" : '';
+}
+
 function admin_css(): string
 {
     return <<<'CSS'

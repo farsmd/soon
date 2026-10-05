@@ -48,6 +48,7 @@ function catalog_handle_post(string $action): void
                 if (customer_mobile_exists($mobile, $action === 'update_customer' ? $cid : 0)) {
                     throw new RuntimeException('این شماره موبایل (' . $mobile . ') قبلاً برای مشتری دیگری ثبت شده است. لطفاً از همان مشتری استفاده کنید یا شماره دیگری وارد کنید.');
                 }
+                $creditLimit = max(0, (int) ($_POST['credit_limit'] ?? 0));
                 $data = [
                     ':full_name' => $fullName,
                     ':company'   => trim((string) ($_POST['company'] ?? '')) ?: null,
@@ -56,14 +57,15 @@ function catalog_handle_post(string $action): void
                     ':city'      => trim((string) ($_POST['city'] ?? '')) ?: null,
                     ':address'   => trim((string) ($_POST['address'] ?? '')) ?: null,
                     ':notes'     => trim((string) ($_POST['notes'] ?? '')) ?: null,
+                    ':credit_limit' => $creditLimit,
                 ];
                 if ($action === 'update_customer' && $cid > 0) {
                     $data[':id'] = $cid;
-                    $pdo->prepare("UPDATE customers SET full_name = :full_name, company = :company, mobile = :mobile, customer_type = :type, city = :city, address = :address, notes = :notes, updated_at = CURRENT_TIMESTAMP WHERE id = :id")->execute($data);
+                    $pdo->prepare("UPDATE customers SET full_name = :full_name, company = :company, mobile = :mobile, customer_type = :type, city = :city, address = :address, notes = :notes, credit_limit = :credit_limit, updated_at = CURRENT_TIMESTAMP WHERE id = :id")->execute($data);
                     flash('ok', 'مشتری به‌روزرسانی شد.');
                     redirect_admin('admin.php?page=customers&view=' . $cid);
                 }
-                $pdo->prepare("INSERT INTO customers (full_name, company, mobile, customer_type, city, address, notes) VALUES (:full_name, :company, :mobile, :type, :city, :address, :notes)")->execute($data);
+                $pdo->prepare("INSERT INTO customers (full_name, company, mobile, customer_type, city, address, notes, credit_limit) VALUES (:full_name, :company, :mobile, :type, :city, :address, :notes, :credit_limit)")->execute($data);
                 flash('ok', 'مشتری جدید ثبت شد.');
                 redirect_admin('admin.php?page=customers');
                 // no break
@@ -536,6 +538,16 @@ if ($page === 'customers') {
             $ost = db()->prepare('SELECT * FROM orders WHERE customer_id = :c ORDER BY id DESC LIMIT 100');
             $ost->execute([':c' => (int) $viewCustomer['id']]);
             $viewCustomerOrders = $ost->fetchAll();
+            // خلاصه مالی مشتری (۹٫۲۵)
+            $cid = (int) $viewCustomer['id'];
+            $viewCustomerTotalOrders = (int) db()->query('SELECT COALESCE(SUM(total),0) FROM orders WHERE customer_id = ' . $cid)->fetchColumn();
+            $viewCustomerTotalPaid = (int) db()->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE customer_id = " . $cid . " AND kind = 'receipt'")->fetchColumn();
+            $viewCustomerBalance = $viewCustomerTotalPaid - $viewCustomerTotalOrders; // مثبت = بستانکار، منفی = بدهکار
+            $viewCustomerCreditLimit = (int) ($viewCustomer['credit_limit'] ?? 0);
+            $viewCustomerCreditRemain = $viewCustomerCreditLimit + $viewCustomerBalance; // اعتبار باقی‌مانده
+            $pst = db()->prepare('SELECT p.*, o.order_no FROM payments p LEFT JOIN orders o ON o.id = p.order_id WHERE p.customer_id = :c ORDER BY p.paid_at DESC LIMIT 50');
+            $pst->execute([':c' => $cid]);
+            $viewCustomerPayments = $pst->fetchAll();
         }
     }
     if (isset($_GET['edit_id'])) {
@@ -617,6 +629,20 @@ if ($page === 'attributes') {
 }
 
 /** رندر صفحه «مشتری‌ها» */
+function payment_method_title(string $key): string
+{
+    static $map = null;
+    if ($map === null) {
+        $map = [];
+        try {
+            foreach (db()->query('SELECT method_key, title FROM payment_methods')->fetchAll() as $r) {
+                $map[(string) $r['method_key']] = (string) $r['title'];
+            }
+        } catch (Throwable $e) {}
+    }
+    return $map[$key] ?? $key;
+}
+
 function catalog_render_customers(array $d): void
 {
     extract($d);
@@ -638,6 +664,36 @@ function catalog_render_customers(array $d): void
                     <p>
                         <a class="btn small edit" href="admin.php?page=customers&edit_id=<?= (int) $viewCustomer['id'] ?>">ویرایش مشتری</a>
                     </p>
+                </section>
+                <section class="card wide">
+                    <h2>وضعیت مالی</h2>
+                    <div class="stat-grid" style="margin-top:0">
+                        <div class="stat-card"><span>جمع سفارش‌ها</span><strong><?= e(format_price($viewCustomerTotalOrders ?? 0)) ?></strong></div>
+                        <div class="stat-card"><span>جمع دریافتی</span><strong><?= e(format_price($viewCustomerTotalPaid ?? 0)) ?></strong></div>
+                        <div class="stat-card"><span>تراز مالی</span><strong style="color:<?= ($viewCustomerBalance ?? 0) >= 0 ? '#16a34a' : '#dc2626' ?>"><?= e(format_price($viewCustomerBalance ?? 0)) ?></strong><span class="muted" style="font-size:11px"><?= ($viewCustomerBalance ?? 0) >= 0 ? 'بستانکار' : 'بدهکار' ?></span></div>
+                        <div class="stat-card"><span>سقف اعتبار</span><strong><?= e(format_price($viewCustomerCreditLimit ?? 0)) ?></strong></div>
+                        <div class="stat-card"><span>اعتبار باقی‌مانده</span><strong><?= e(format_price($viewCustomerCreditRemain ?? 0)) ?></strong></div>
+                    </div>
+                    <h3 style="margin-top:16px">سابقه مالی (<?= count($viewCustomerPayments ?? []) ?>)</h3>
+                    <?php if (empty($viewCustomerPayments)): ?>
+                        <p class="muted">پرداختی ثبت نشده است.</p>
+                    <?php else: ?>
+                    <table>
+                        <thead><tr><th>تاریخ</th><th>مبلغ (تومان)</th><th>روش</th><th>سفارش</th><th>یادداشت</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($viewCustomerPayments as $vp): ?>
+                            <tr>
+                                <td class="muted"><?= e(mb_substr((string) ($vp['paid_at'] ?? ''), 0, 10)) ?></td>
+                                <td><?= e(format_price($vp['amount'] ?? 0)) ?></td>
+                                <td><?= e(payment_method_title((string) ($vp['method_key'] ?? ''))) ?></td>
+                                <td><?= !empty($vp['order_no']) ? '#' . (int) $vp['order_no'] : '—' ?></td>
+                                <td class="muted"><?= e($vp['note'] ?? '—') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <?php endif; ?>
+                </section>
                     <form method="post" class="inline" onsubmit="return confirm('این مشتری حذف شود؟')">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="delete_customer">
@@ -723,6 +779,9 @@ function catalog_render_customers(array $d): void
                     </label>
                     <label>یادداشت
                         <textarea name="notes" rows="2"><?= e($editCustomer['notes'] ?? '') ?></textarea>
+                    </label>
+                    <label>سقف اعتبار (تومان)
+                        <input type="number" name="credit_limit" min="0" step="1000" value="<?= e((string) ($editCustomer['credit_limit'] ?? 0)) ?>">
                     </label>
                     <button type="submit" class="btn <?= $editCustomer !== null ? 'edit' : 'add' ?>"><?= $editCustomer !== null ? 'ذخیره تغییرات' : 'ثبت مشتری' ?></button>
                     <?php if ($editCustomer !== null): ?><a class="btn" href="admin.php?page=customers">انصراف</a><?php endif; ?>

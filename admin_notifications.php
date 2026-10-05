@@ -91,6 +91,30 @@ function notifications_render_page(): void
     ?>
     <h1>اعلان‌ها</h1>
     <div class="card wide" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <button type="button" class="btn" id="enablePushBtn">فعال‌سازی اعلان روی گوشی</button>
+        <script>
+        (function(){
+            var btn = document.getElementById('enablePushBtn');
+            if (!btn || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+                if (btn) btn.style.display = 'none';
+                return;
+            }
+            function urlB64ToU8(s){ var p='='.repeat((4-s.length%4)%4); var b=(s+p).replace(/-/g,'+').replace(/_/g,'/'); var r=window.atob(b); var o=new Uint8Array(r.length); for(var i=0;i<r.length;i++) o[i]=r.charCodeAt(i); return o; }
+            btn.addEventListener('click', function(){
+                Notification.requestPermission().then(function(perm){
+                    if (perm !== 'granted') { alert('اجازه اعلان داده نشد.'); return; }
+                    navigator.serviceWorker.register('admin-push-sw.js').then(function(reg){
+                        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8('<?= e((string) get_setting('vapid_public', '')) ?>') });
+                    }).then(function(sub){
+                        var kj = sub.toJSON();
+                        return fetch('admin.php', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                            body: 'action=save_push_subscription&csrf=<?= e(csrf_token()) ?>&endpoint='+encodeURIComponent(sub.endpoint)+'&p256dh='+encodeURIComponent(kj.keys.p256dh)+'&auth='+encodeURIComponent(kj.keys.auth); });
+                    }).then(function(){ btn.textContent = 'اعلان روی گوشی فعال شد'; btn.disabled = true; })
+                    .catch(function(e){ alert('خطا: ' + e.message); });
+                });
+            });
+        })();
+        </script>
         <p class="muted" style="margin:0"><?= $unread > 0 ? ('<strong>' . $unread . '</strong> اعلان خوانده‌نشده داری.') : 'همهٔ اعلان‌ها خوانده شده‌اند.' ?></p>
         <?php if ($unread > 0): ?>
             <form method="post" style="margin:0">
