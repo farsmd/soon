@@ -37,15 +37,6 @@
       "requires": "9.99.9",
       "download": "https://github.com/farsmd/soon/raw/main/modules/dashboard/module.json"
     },
-    "employees": {
-      "name": "پرسنل",
-      "version": "9.99.26",
-      "description": "مدیریت کارکنان",
-      "category": "منابع انسانی",
-      "author": "لاینرلایت",
-      "requires": "9.99.9",
-      "download": "https://github.com/farsmd/soon/raw/main/modules/employees/module.json"
-    },
     "finance": {
       "name": "مالی",
       "version": "9.99.20",
@@ -100,15 +91,6 @@
       "requires": "9.99.9",
       "download": "https://github.com/farsmd/soon/raw/main/modules/pages/module.json"
     },
-    "payroll": {
-      "name": "حقوق و دستمزد",
-      "version": "9.99.26",
-      "description": "محاسبه حقوق و فیش",
-      "category": "منابع انسانی",
-      "author": "لاینرلایت",
-      "requires": "9.99.9",
-      "download": "https://github.com/farsmd/soon/raw/main/modules/payroll/module.json"
-    },
     "production": {
       "name": "تولید",
       "version": "9.99.20",
@@ -145,15 +127,6 @@
       "requires": "9.99.9",
       "download": "https://github.com/farsmd/soon/raw/main/modules/settings/module.json"
     },
-    "update": {
-      "name": "آپدیت سیستم",
-      "version": "9.99.26",
-      "description": "به‌روزرسانی یک‌کلیکی",
-      "category": "سیستم",
-      "author": "لاینرلایت",
-      "requires": "9.99.9",
-      "download": "https://github.com/farsmd/soon/raw/main/modules/update/module.json"
-    },
     "users": {
       "name": "کاربران و نقش‌ها",
       "version": "9.99.20",
@@ -162,11 +135,6 @@
       "author": "لاینرلایت",
       "requires": "9.99.9",
       "download": "https://github.com/farsmd/soon/raw/main/modules/users/module.json"
-    },
-    "site": {
-      "name": "سایت",
-      "version": "9.99.26",
-      "description": ""
     }
   }
 }
