@@ -187,3 +187,60 @@ function customers_render_admin(array $d): void
 }
 
 /** رندر صفحه «دسته‌بندی‌ها» */
+
+/**
+ * هندلرهای POST مشتری‌ها — منتقل شده از Catalog.php (۹٫۹۹٫۱۸)
+ */
+function customers_handle_post(string $action): void
+{
+    global $pdo;
+    switch ($action) {
+            case 'add_customer':
+            case 'update_customer':
+                $cid = (int) ($_POST['id'] ?? 0);
+                $fullName = trim((string) ($_POST['full_name'] ?? ''));
+                $mobile   = trim((string) ($_POST['mobile'] ?? ''));
+                $ctype    = (string) ($_POST['customer_type'] ?? 'retail');
+                if (!array_key_exists($ctype, customer_types())) {
+                    $ctype = 'retail';
+                }
+                if ($fullName === '') {
+                    throw new RuntimeException('نام مشتری را وارد کنید.');
+                }
+                if ($mobile === '') {
+                    throw new RuntimeException('شماره موبایل مشتری الزامی است.');
+                }
+                if (customer_mobile_exists($mobile, $action === 'update_customer' ? $cid : 0)) {
+                    throw new RuntimeException('این شماره موبایل (' . $mobile . ') قبلاً برای مشتری دیگری ثبت شده است. لطفاً از همان مشتری استفاده کنید یا شماره دیگری وارد کنید.');
+                }
+                $creditLimit = max(0, (int) ($_POST['credit_limit'] ?? 0));
+                $data = [
+                    ':full_name' => $fullName,
+                    ':company'   => trim((string) ($_POST['company'] ?? '')) ?: null,
+                    ':mobile'    => $mobile,
+                    ':type'      => $ctype,
+                    ':city'      => trim((string) ($_POST['city'] ?? '')) ?: null,
+                    ':address'   => trim((string) ($_POST['address'] ?? '')) ?: null,
+                    ':notes'     => trim((string) ($_POST['notes'] ?? '')) ?: null,
+                    ':credit_limit' => $creditLimit,
+                ];
+                if ($action === 'update_customer' && $cid > 0) {
+                    $data[':id'] = $cid;
+                    $pdo->prepare("UPDATE customers SET full_name = :full_name, company = :company, mobile = :mobile, customer_type = :type, city = :city, address = :address, notes = :notes, credit_limit = :credit_limit, updated_at = CURRENT_TIMESTAMP WHERE id = :id")->execute($data);
+                    flash('ok', 'مشتری به‌روزرسانی شد.');
+                    redirect_admin('admin.php?page=customers&view=' . $cid);
+                }
+                $pdo->prepare("INSERT INTO customers (full_name, company, mobile, customer_type, city, address, notes, credit_limit) VALUES (:full_name, :company, :mobile, :type, :city, :address, :notes, :credit_limit)")->execute($data);
+                flash('ok', 'مشتری جدید ثبت شد.');
+                redirect_admin('admin.php?page=customers');
+                // no break
+
+            case 'delete_customer':
+                $cid = (int) ($_POST['id'] ?? 0);
+                $pdo->prepare('DELETE FROM customers WHERE id = :id')->execute([':id' => $cid]);
+                flash('ok', 'مشتری حذف شد.');
+                redirect_admin('admin.php?page=customers');
+                // no break
+    }
+}
+

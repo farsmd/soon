@@ -509,3 +509,271 @@ function products_render_admin(array $d): void
 }
 
 /** رندر صفحه «ویژگی‌های محصول» */
+
+/**
+ * هندلرهای POST محصولات — منتقل شده از Catalog.php (۹٫۹۹٫۱۸)
+ */
+function products_handle_post(string $action): void
+{
+    global $pdo;
+    switch ($action) {
+            case 'add_product':
+            case 'update_product':
+                $pid = (int) ($_POST['id'] ?? 0);
+                $name = trim((string) ($_POST['name'] ?? ''));
+                if ($name === '') {
+                    throw new RuntimeException('نام محصول را وارد کنید.');
+                }
+                $price = max(0, (int) ($_POST['price_per_meter'] ?? 0));
+                $partnerRaw = trim((string) ($_POST['partner_price_per_meter'] ?? ''));
+                $partnerPrice = $partnerRaw === '' ? null : max(0, (int) $partnerRaw);
+                $pricingModel = in_array(($_POST['pricing_model'] ?? ''), ['per_meter', 'per_watt'], true) ? (string) $_POST['pricing_model'] : 'per_meter';
+                $pricePerWatt = max(0, (int) ($_POST['price_per_watt'] ?? 0));
+                $basePrice = max(0, (int) ($_POST['base_price'] ?? 0));
+                // قاب‌ها: آرایه نام/قیمت از فرم
+                $frames = [];
+                $frameNames = (array) ($_POST['frame_name'] ?? []);
+                $framePrices = (array) ($_POST['frame_price'] ?? []);
+                foreach ($frameNames as $i => $fn) {
+                    $fn = trim((string) $fn);
+                    if ($fn === '') { continue; }
+                    $fp = max(0, (int) ($framePrices[$i] ?? 0));
+                    $frames[] = ['name' => $fn, 'price' => $fp];
+                }
+                $framesJson = $frames !== [] ? json_encode($frames, JSON_UNESCAPED_UNICODE) : null;
+                $catId = (int) ($_POST['category_id'] ?? 0);
+                if ($catId <= 0 || get_category($catId) === null) {
+                    $catId = null;
+                }
+                $old = $pid > 0 ? get_product($pid) : null;
+                $image = (string) ($old['image'] ?? '');
+                if (!empty($_POST['remove_image']) && $image !== '') {
+                    $oldPath = UPLOADS_DIR . '/' . basename($image);
+                    if (is_file($oldPath)) { @unlink($oldPath); }
+                    $image = '';
+                }
+                $up = handle_section_image_upload($_FILES['image'] ?? null, $image !== '' ? $image : null);
+                if (!$up['ok']) {
+                    throw new RuntimeException((string) $up['error']);
+                }
+                $image = (string) ($up['filename'] ?? '');
+                $laborMeter = max(0, (int) ($_POST['labor_cost_per_meter'] ?? 0));
+                $laborFixture = max(0, (int) ($_POST['labor_cost_per_fixture'] ?? 0));
+                $ofcCfg = json_encode([
+                    'show_length'  => isset($_POST['ofc_show_length']),
+                    'show_qty'     => isset($_POST['ofc_show_qty']),
+                    'show_wire'    => isset($_POST['ofc_show_wire']),
+                    'show_endcap'  => isset($_POST['ofc_show_endcap']),
+                    'show_options' => isset($_POST['ofc_show_options']),
+                ], JSON_UNESCAPED_UNICODE);
+                $data = [
+                    ':cat'     => $catId,
+                    ':name'    => $name,
+                    ':sku'     => trim((string) ($_POST['sku'] ?? '')) ?: null,
+                    ':desc'    => trim((string) ($_POST['description'] ?? '')) ?: null,
+                    ':image'   => $image ?: null,
+                    ':price'   => $price,
+                    ':pprice'  => $partnerPrice,
+                    ':pmodel'  => $pricingModel,
+                    ':ppw'     => $pricePerWatt,
+                    ':bprice'  => $basePrice,
+                    ':frames'  => $framesJson,
+                    ':labor_m' => $laborMeter,
+                    ':labor_f' => $laborFixture,
+                    ':ofc'      => $ofcCfg,
+                    ':active'  => isset($_POST['is_active']) ? 1 : 0,
+                    ':sort'    => (int) ($_POST['sort_order'] ?? 0),
+                    ':prep'    => max(0, (int) ($_POST['prep_days'] ?? 0)),
+                    ':seo_t'   => trim((string) ($_POST['seo_title'] ?? '')) ?: null,
+                    ':seo_d'   => trim((string) ($_POST['seo_description'] ?? '')) ?: null,
+                    ':seo_k'   => trim((string) ($_POST['seo_keywords'] ?? '')) ?: null,
+                ];
+                if ($action === 'update_product' && $pid > 0) {
+                    $data[':id'] = $pid;
+                    $pdo->prepare('UPDATE products SET category_id = :cat, name = :name, sku = :sku, description = :desc, image = :image, price_per_meter = :price, partner_price_per_meter = :pprice, pricing_model = :pmodel, price_per_watt = :ppw, base_price = :bprice, frame_options_json = :frames, labor_cost_per_meter = :labor_m, labor_cost_per_fixture = :labor_f, order_form_config = :ofc, seo_title = :seo_t, seo_description = :seo_d, seo_keywords = :seo_k, is_active = :active, sort_order = :sort, prep_days = :prep, updated_at = CURRENT_TIMESTAMP WHERE id = :id')->execute($data);
+                    flash('ok', 'محصول به‌روزرسانی شد.');
+                } else {
+                    $pdo->prepare('INSERT INTO products (category_id, name, sku, description, image, price_per_meter, partner_price_per_meter, pricing_model, price_per_watt, base_price, frame_options_json, labor_cost_per_meter, labor_cost_per_fixture, order_form_config, seo_title, seo_description, seo_keywords, is_active, sort_order, prep_days) VALUES (:cat, :name, :sku, :desc, :image, :price, :pprice, :pmodel, :ppw, :bprice, :frames, :labor_m, :labor_f, :ofc, :seo_t, :seo_d, :seo_k, :active, :sort, :prep)')->execute($data);
+                    $pid = (int) $pdo->lastInsertId();
+                    flash('ok', 'محصول جدید ثبت شد.');
+                }
+                // مقادیر ویژگی‌های محصول
+                $delVals = $pdo->prepare('DELETE FROM product_attribute_values WHERE product_id = :p AND attribute_id = :a');
+                $insVal  = $pdo->prepare('INSERT INTO product_attribute_values (product_id, attribute_id, option_id, num_value, text_value) VALUES (:p, :a, :o, :n, :t)');
+                foreach (get_attributes(false) as $attr) {
+                    $aid = (int) $attr['id'];
+                    if (($attr['input_type'] ?? 'select') === 'select') {
+                        $selId = (int) ($_POST['attr_' . $aid] ?? 0);
+                        $valid = false;
+                        if ($selId > 0) {
+                            foreach (get_attribute_options($aid) as $opt) {
+                                if ((int) $opt['id'] === $selId) { $valid = true; break; }
+                            }
+                        }
+                        $delVals->execute([':p' => $pid, ':a' => $aid]);
+                        if ($valid) {
+                            $insVal->execute([':p' => $pid, ':a' => $aid, ':o' => $selId, ':n' => null, ':t' => null]);
+                        }
+                    } elseif ($attr['input_type'] === 'number') {
+                        $raw = trim((string) ($_POST['attr_' . $aid] ?? ''));
+                        $delVals->execute([':p' => $pid, ':a' => $aid]);
+                        if ($raw !== '' && is_numeric($raw)) {
+                            $insVal->execute([':p' => $pid, ':a' => $aid, ':o' => null, ':n' => (float) $raw, ':t' => null]);
+                        }
+                    } else {
+                        $raw = trim((string) ($_POST['attr_' . $aid] ?? ''));
+                        $delVals->execute([':p' => $pid, ':a' => $aid]);
+                        if ($raw !== '') {
+                            $insVal->execute([':p' => $pid, ':a' => $aid, ':o' => null, ':n' => null, ':t' => $raw]);
+                        }
+                    }
+                }
+                // فرمول ساخت (BOM) — مواد مصرفی محصول (فاز ۲٫۵): ردیف‌های معتبر جایگزین قبلی‌ها می‌شوند؛ ترکیب تکراری (ماده+مبنای مصرف) با هم جمع می‌شود
+                $pdo->prepare('DELETE FROM product_materials WHERE product_id = :p')->execute([':p' => $pid]);
+                $bomMids  = $_POST['bom_material_id'] ?? [];
+                $bomQtys  = $_POST['bom_qty'] ?? [];
+                $bomBases = $_POST['bom_basis'] ?? [];
+                $bomConds = $_POST['bom_cond'] ?? [];
+                if (is_array($bomMids)) {
+                    $acc = [];
+                    $orderKeys = [];
+                    foreach ($bomMids as $bi => $midRaw) {
+                        $mid = (int) $midRaw;
+                        $qty = (float) ($bomQtys[$bi] ?? 0);
+                        $basis = (string) ($bomBases[$bi] ?? 'per_meter');
+                        $cond = (string) ($bomConds[$bi] ?? 'always');
+                        if ($mid <= 0 || $qty <= 0 || !in_array($basis, ['per_meter', 'per_fixture'], true) || get_material($mid) === null) {
+                            continue;
+                        }
+                        // شرط «فقط وقتی درپوش دارد» فقط برای مصرف به‌ازای هر چراغ معنا دارد
+                        if ($basis !== 'per_fixture' || $cond !== 'endcap') {
+                            $cond = 'always';
+                        }
+                        $key = $mid . '|' . $basis . '|' . $cond;
+                        if (!isset($acc[$key])) {
+                            $acc[$key] = ['mid' => $mid, 'qty' => 0.0, 'basis' => $basis, 'cond' => $cond];
+                            $orderKeys[] = $key;
+                        }
+                        $acc[$key]['qty'] += $qty;
+                    }
+                    $insBom = $pdo->prepare('INSERT INTO product_materials (product_id, material_id, qty, basis, apply_condition, sort_order) VALUES (:p, :m, :q, :b, :c, :s)');
+                    $bso = 0;
+                    foreach ($orderKeys as $key) {
+                        $bso += 10;
+                        $insBom->execute([':p' => $pid, ':m' => $acc[$key]['mid'], ':q' => round($acc[$key]['qty'], 6), ':b' => $acc[$key]['basis'], ':c' => $acc[$key]['cond'], ':s' => $bso]);
+                    }
+                }
+                // افزودن فیلد سفارشی فرم سفارش (نسخه ۹٫۱)
+                if (!empty($_POST['add_order_field']) && $pid > 0) {
+                    $flabel = trim((string) ($_POST['new_field_label'] ?? ''));
+                    $ftype = (string) ($_POST['new_field_type'] ?? 'text');
+                    if (!in_array($ftype, ['text', 'number', 'select', 'textarea', 'checkbox'], true)) {
+                        $ftype = 'text';
+                    }
+                    if ($flabel !== '') {
+                        $fopts = trim((string) ($_POST['new_field_options'] ?? ''));
+                        $optsArr = [];
+                        if ($fopts !== '') {
+                            foreach (explode('|', $fopts) as $op) {
+                                $op = trim($op);
+                                if ($op !== '') { $optsArr[] = $op; }
+                            }
+                        }
+                        $maxSort = (int) $pdo->query("SELECT COALESCE(MAX(sort_order), 0) FROM order_form_fields WHERE owner_type = 'product' AND owner_id = " . $pid)->fetchColumn();
+                        $pdo->prepare("INSERT INTO order_form_fields (owner_type, owner_id, field_type, label, options_json, is_required, sort_order) VALUES ('product', :p, :t, :l, :o, :r, :s)")
+                            ->execute([':p' => $pid, ':t' => $ftype, ':l' => $flabel, ':o' => $optsArr !== [] ? json_encode($optsArr, JSON_UNESCAPED_UNICODE) : null, ':r' => !empty($_POST['new_field_required']) ? 1 : 0, ':s' => $maxSort + 10]);
+                        flash('ok', 'فیلد سفارشی اضافه شد.');
+                    } else {
+                        flash('error', 'برچسب فیلد را وارد کنید.');
+                    }
+                    redirect_admin('admin.php?page=products&edit_id=' . $pid);
+                }
+                // افزودن عکس به گالری محصول (نسخه ۹٫۱)
+                if (!empty($_POST['add_gallery_image']) && $pid > 0 && !empty($_FILES['gallery_image']['tmp_name'])) {
+                    $gup = handle_section_image_upload($_FILES['gallery_image'] ?? null, null);
+                    if ($gup['ok'] && !empty($gup['filename'])) {
+                        $maxSort = (int) $pdo->query('SELECT COALESCE(MAX(sort_order), 0) FROM product_images WHERE product_id = ' . $pid)->fetchColumn();
+                        $pdo->prepare('INSERT INTO product_images (product_id, image, caption, sort_order) VALUES (:p, :i, :c, :s)')
+                            ->execute([':p' => $pid, ':i' => $gup['filename'], ':c' => trim((string) ($_POST['gallery_caption'] ?? '')), ':s' => $maxSort + 10]);
+                        flash('ok', 'عکس به گالری محصول اضافه شد.');
+                    } else {
+                        flash('error', (string) ($gup['error'] ?? 'خطا در آپلود عکس.'));
+                    }
+                    redirect_admin('admin.php?page=products&edit_id=' . $pid . '#gallery');
+                }
+                redirect_admin('admin.php?page=products');
+                // no break
+
+            case 'delete_product_image':
+                $giid = (int) ($_POST['id'] ?? 0);
+                $gpid = (int) ($_POST['product_id'] ?? 0);
+                $grow = $pdo->query('SELECT * FROM product_images WHERE id = ' . $giid)->fetch(PDO::FETCH_ASSOC);
+                if ($grow) {
+                    @unlink(UPLOADS_DIR . '/' . basename((string) $grow['image']));
+                    $pdo->prepare('DELETE FROM product_images WHERE id = :id')->execute([':id' => $giid]);
+                    flash('ok', 'عکس از گالری حذف شد.');
+                }
+                redirect_admin('admin.php?page=products&edit_id=' . $gpid . '#gallery');
+                // no break
+
+            case 'move_product_image':
+                $giid = (int) ($_POST['id'] ?? 0);
+                $gpid = (int) ($_POST['product_id'] ?? 0);
+                $gdir = (int) ($_POST['dir'] ?? 0);
+                $cur = $pdo->query('SELECT * FROM product_images WHERE id = ' . $giid)->fetch(PDO::FETCH_ASSOC);
+                if ($cur) {
+                    $op = $gdir < 0 ? '<' : '>';
+                    $ord = $gdir < 0 ? 'DESC' : 'ASC';
+                    $nbr = $pdo->query('SELECT * FROM product_images WHERE product_id = ' . (int) $cur['product_id'] . ' AND sort_order ' . $op . ' ' . (int) $cur['sort_order'] . ' ORDER BY sort_order ' . $ord . ' LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+                    if ($nbr) {
+                        $pdo->prepare('UPDATE product_images SET sort_order = :s WHERE id = :id')->execute([':s' => $nbr['sort_order'], ':id' => $cur['id']]);
+                        $pdo->prepare('UPDATE product_images SET sort_order = :s WHERE id = :id')->execute([':s' => $cur['sort_order'], ':id' => $nbr['id']]);
+                    }
+                }
+                redirect_admin('admin.php?page=products&edit_id=' . $gpid . '#gallery');
+                // no break
+
+            case 'quick_price_product':
+                $qpid = (int) ($_POST['id'] ?? 0);
+                $qprice = max(0, (int) ($_POST['price_per_meter'] ?? 0));
+                $qpartnerRaw = trim((string) ($_POST['partner_price_per_meter'] ?? ''));
+                $qpartner = $qpartnerRaw === '' ? null : max(0, (int) $qpartnerRaw);
+                $pdo->prepare('UPDATE products SET price_per_meter = :p, partner_price_per_meter = :pp, updated_at = CURRENT_TIMESTAMP WHERE id = :id')
+                    ->execute([':p' => $qprice, ':pp' => $qpartner, ':id' => $qpid]);
+                flash('ok', 'قیمت محصول به‌روز شد.');
+                redirect_admin('admin.php?page=products');
+                // no break
+
+            case 'delete_order_field':
+                $ffid = (int) ($_POST['id'] ?? 0);
+                $fpid = (int) ($_POST['product_id'] ?? 0);
+                $pdo->prepare('DELETE FROM order_form_fields WHERE id = :id')->execute([':id' => $ffid]);
+                flash('ok', 'فیلد سفارشی حذف شد.');
+                redirect_admin('admin.php?page=products&edit_id=' . $fpid);
+                // no break
+
+            case 'delete_product':
+                $pid = (int) ($_POST['id'] ?? 0);
+                $prod = get_product($pid);
+                $pdo->prepare('DELETE FROM product_attribute_values WHERE product_id = :p')->execute([':p' => $pid]);
+                $pdo->prepare('DELETE FROM product_materials WHERE product_id = :p')->execute([':p' => $pid]);
+                $pdo->prepare('DELETE FROM order_form_fields WHERE owner_type = :t AND owner_id = :p')->execute([':t' => 'product', ':p' => $pid]);
+                foreach ($pdo->query('SELECT image FROM product_images WHERE product_id = ' . $pid)->fetchAll(PDO::FETCH_COLUMN) as $gimg) {
+                    @unlink(UPLOADS_DIR . '/' . basename((string) $gimg));
+                }
+                $pdo->prepare('DELETE FROM product_images WHERE product_id = :p')->execute([':p' => $pid]);
+                $pdo->prepare('DELETE FROM products WHERE id = :id')->execute([':id' => $pid]);
+                if ($prod !== null && !empty($prod['image'])) {
+                    @unlink(UPLOADS_DIR . '/' . basename((string) $prod['image']));
+                }
+                flash('ok', 'محصول حذف شد.');
+                redirect_admin('admin.php?page=products');
+                // no break
+
+            case 'move_product':
+                move_row($pdo, 'products', (int) ($_POST['id'] ?? 0), (string) ($_POST['direction'] ?? 'up'));
+                redirect_admin('admin.php?page=products');
+                // no break
+    }
+}
+

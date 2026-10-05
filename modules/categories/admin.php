@@ -114,3 +114,97 @@ function categories_render_admin(array $d): void
 }
 
 /** رندر صفحه «محصولات» */
+
+/**
+ * هندلرهای POST دسته‌بندی‌ها — منتقل شده از Catalog.php (۹٫۹۹٫۱۸)
+ */
+function categories_handle_post(string $action): void
+{
+    global $pdo;
+    switch ($action) {
+            case 'add_category':
+            case 'update_category':
+                $catId = (int) ($_POST['id'] ?? 0);
+                $title = trim((string) ($_POST['title'] ?? ''));
+                if ($title === '') {
+                    throw new RuntimeException('عنوان دسته را وارد کنید.');
+                }
+                $slug = trim((string) ($_POST['slug'] ?? ''));
+                if ($slug === '') {
+                    // نامک خودکار یکتا برای دسته‌های فارسی
+                    $base = 'cat';
+                    $n = 0;
+                    do {
+                        $try = $n === 0 ? $base . '-' . $catId : $base . '-' . $catId . '-' . $n;
+                        if ($catId === 0) {
+                            $try = $base . '-' . bin2hex(random_bytes(3)) . ($n === 0 ? '' : '-' . $n);
+                        }
+                        $n++;
+                    } while (category_slug_exists($try, $catId));
+                    $slug = $try;
+                }
+                if (category_slug_exists($slug, $catId)) {
+                    throw new RuntimeException('این نامک (slug) قبلاً برای دسته دیگری ثبت شده است.');
+                }
+                $parentId = (int) ($_POST['parent_id'] ?? 0);
+                if ($parentId <= 0 || $parentId === $catId || get_category($parentId) === null) {
+                    $parentId = null;
+                }
+                $old = $catId > 0 ? get_category($catId) : null;
+                $image = (string) ($old['image'] ?? '');
+                if (!empty($_POST['remove_image']) && $image !== '') {
+                    $oldPath = UPLOADS_DIR . '/' . basename($image);
+                    if (is_file($oldPath)) { @unlink($oldPath); }
+                    $image = '';
+                }
+                $up = handle_section_image_upload($_FILES['image'] ?? null, $image !== '' ? $image : null);
+                if (!$up['ok']) {
+                    throw new RuntimeException((string) $up['error']);
+                }
+                $image = (string) ($up['filename'] ?? '');
+                $data = [
+                    ':title' => $title,
+                    ':slug'  => $slug,
+                    ':parent' => $parentId,
+                    ':desc'  => trim((string) ($_POST['description'] ?? '')) ?: null,
+                    ':image' => $image ?: null,
+                    ':sort'  => (int) ($_POST['sort_order'] ?? 0),
+                    ':active' => isset($_POST['is_active']) ? 1 : 0,
+                ];
+                if ($action === 'update_category' && $catId > 0) {
+                    $data[':id'] = $catId;
+                    $pdo->prepare('UPDATE product_categories SET title = :title, slug = :slug, parent_id = :parent, description = :desc, image = :image, sort_order = :sort, is_active = :active WHERE id = :id')->execute($data);
+                    flash('ok', 'دسته‌بندی به‌روزرسانی شد.');
+                } else {
+                    $pdo->prepare('INSERT INTO product_categories (title, slug, parent_id, description, image, sort_order, is_active) VALUES (:title, :slug, :parent, :desc, :image, :sort, :active)')->execute($data);
+                    flash('ok', 'دسته‌بندی جدید ساخته شد.');
+                }
+                redirect_admin('admin.php?page=categories');
+                // no break
+
+            case 'delete_category':
+                $catId = (int) ($_POST['id'] ?? 0);
+                $subCount = (int) $pdo->query('SELECT COUNT(*) FROM product_categories WHERE parent_id = ' . $catId)->fetchColumn();
+                $prodCount = (int) $pdo->query('SELECT COUNT(*) FROM products WHERE category_id = ' . $catId)->fetchColumn();
+                if ($subCount > 0 || $prodCount > 0) {
+                    $parts = [];
+                    if ($prodCount > 0) { $parts[] = $prodCount . ' محصول'; }
+                    if ($subCount > 0) { $parts[] = $subCount . ' زیردسته'; }
+                    throw new RuntimeException('این دسته قابل حذف نیست چون ' . implode(' و ', $parts) . ' دارد. اول آن‌ها را جابه‌جا یا حذف کنید.');
+                }
+                $cat = get_category($catId);
+                $pdo->prepare('DELETE FROM product_categories WHERE id = :id')->execute([':id' => $catId]);
+                if ($cat !== null && !empty($cat['image'])) {
+                    @unlink(UPLOADS_DIR . '/' . basename((string) $cat['image']));
+                }
+                flash('ok', 'دسته‌بندی حذف شد.');
+                redirect_admin('admin.php?page=categories');
+                // no break
+
+            case 'move_category':
+                move_row($pdo, 'product_categories', (int) ($_POST['id'] ?? 0), (string) ($_POST['direction'] ?? 'up'));
+                redirect_admin('admin.php?page=categories');
+                // no break
+    }
+}
+
