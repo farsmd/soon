@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.7');
+define('APP_VERSION', '9.99.8');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -503,6 +503,23 @@ function init_db(PDO $pdo): void
             id         TEXT PRIMARY KEY,
             data       TEXT NOT NULL DEFAULT '',
             expires_at INTEGER NOT NULL DEFAULT 0
+        )
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS modules (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            module_key  TEXT NOT NULL UNIQUE,
+            name        TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            version     TEXT NOT NULL DEFAULT '1.0.0',
+            enabled     INTEGER NOT NULL DEFAULT 1,
+            is_core     INTEGER NOT NULL DEFAULT 0,
+            category    TEXT NOT NULL DEFAULT '',
+            icon        TEXT NOT NULL DEFAULT '',
+            file_path   TEXT NOT NULL DEFAULT '',
+            sort_order  INTEGER NOT NULL DEFAULT 0,
+            created_at  INTEGER NOT NULL DEFAULT 0,
+            updated_at  INTEGER NOT NULL DEFAULT 0
         )
     ");
     $pdo->exec("

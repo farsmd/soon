@@ -83,6 +83,7 @@ function admin_page_catalog(): array
             'tools'    => 'ابزار و بکاپ',
             'api'      => 'دسترسی API',
             'users'    => 'کاربران و نقش‌ها',
+            'modules'  => 'مدیریت ماژول‌ها',
             'logs'     => 'لاگ‌ها',
         ],
     ];
@@ -230,6 +231,10 @@ function admin_can_page(string $page): bool
 {
     $u = current_admin_user();
     if ($u === null) {
+        return false;
+    }
+    // ماژول غیرفعال: دسترسی بسته است (به‌جز خود صفحه مدیریت ماژول‌ها)
+    if ($page !== 'modules' && function_exists('module_is_enabled') && !module_is_enabled($page)) {
         return false;
     }
     // پروپوزال سرمایه‌گذاری: فقط مدیر کل

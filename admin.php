@@ -30,6 +30,9 @@ require_once __DIR__ . '/modules/admin/Users.php';
 require_once __DIR__ . '/modules/admin/Logs.php';
 require_once __DIR__ . '/modules/admin/Notifications.php';
 require_once __DIR__ . '/modules/admin/Proposal.php';
+require_once __DIR__ . '/modules/admin/Modules.php';
+// seed ماژول‌های پیش‌فرض (فقط بار اول)
+if (function_exists('modules_seed')) { modules_seed(); }
 
 // ---------- تاریخ شمسی (جلالی) — پیاده‌سازی الگوریتم استاندارد، بدون وابستگی خارجی ----------
 if (!function_exists('ll_gregorian_to_jalali')) {
@@ -171,6 +174,7 @@ function nav_icon(string $name): string
         'mail'      => '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
         'droplet'   => '<path d="M12 2.7 17.66 8.36a8 8 0 1 1-11.31 0z"/>',
         'users'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
+        'modules'   => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
         'folder'    => '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
         'bag'       => '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
         'list'      => '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
@@ -682,6 +686,7 @@ $navGroups = [
         ['admin.php?page=tools', 'archive', 'ابزار و بکاپ', 'tools'],
         ['admin.php?page=api', 'key', 'دسترسی API', 'api'],
         ['admin.php?page=users', 'users', 'کاربران و نقش‌ها', 'users'],
+        ['admin.php?page=modules', 'modules', 'مدیریت ماژول‌ها', 'modules'],
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
         ['admin.php?page=notifications', 'bell', 'اعلان‌ها', 'notifications'],
         ['admin.php?page=proposal', 'chart', 'پروپوزال سرمایه‌گذاری', 'proposal'],
@@ -3422,6 +3427,8 @@ if ($page === 'design') {
             <?php assets_render_maintenance($assetsData); ?>
         <?php elseif ($page === 'users'): ?>
             <?php users_render($usersData); ?>
+        <?php elseif ($page === 'modules'): ?>
+            <?php modules_render(); ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
