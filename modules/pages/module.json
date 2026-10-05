@@ -1,0 +1,10 @@
+{
+  "name": "صفحه‌ها",
+  "description": "مدیریت صفحات سایت",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "محتوا",
+  "icon": "file",
+  "is_core": true,
+  "requires": "9.99.9"
+}

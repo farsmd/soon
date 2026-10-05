@@ -1,0 +1,10 @@
+{
+  "name": "اعلان‌ها",
+  "description": "سیستم اعلان‌ها",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "سیستم",
+  "icon": "bell",
+  "is_core": false,
+  "requires": "9.99.9"
+}

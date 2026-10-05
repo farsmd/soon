@@ -1,0 +1,10 @@
+{
+  "name": "آپدیت سیستم",
+  "description": "به‌روزرسانی یک‌کلیکی",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "سیستم",
+  "icon": "refresh",
+  "is_core": true,
+  "requires": "9.99.9"
+}

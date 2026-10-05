@@ -1,0 +1,10 @@
+{
+  "name": "مدیریت ماژول‌ها",
+  "description": "فعال‌سازی و مدیریت ماژول‌ها",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "سیستم",
+  "icon": "puzzle",
+  "is_core": true,
+  "requires": "9.99.9"
+}

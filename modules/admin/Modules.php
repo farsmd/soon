@@ -131,10 +131,12 @@ function modules_handle_post(): ?string
     if ($action === 'toggle') {
         $key = trim((string) ($_POST['module_key'] ?? ''));
         $enable = ($_POST['enable'] ?? '') === '1';
-        if ($key !== '' && module_set_enabled($key, $enable)) {
-            return $enable ? 'ماژول فعال شد.' : 'ماژول غیرفعال شد.';
+        if ($key === '') return 'کلید نامعتبر است.';
+        if ($enable) {
+            return module_activate($key) ? 'ماژول فعال شد.' : 'فعال‌سازی انجام نشد.';
+        } else {
+            return module_deactivate($key) ? 'ماژول غیرفعال شد.' : 'غیرفعال‌سازی انجام نشد (ماژول هسته؟).';
         }
-        return 'تغییر وضعیت انجام نشد.';
     }
     if ($action === 'add') {
         $key = trim((string) ($_POST['module_key'] ?? ''));
@@ -174,30 +176,54 @@ function modules_handle_post(): ?string
     return null;
 }
 
-/** رندر صفحه مدیریت ماژول‌ها */
+/** رندر صفحه مدیریت ماژول‌ها (سبک وردپرس) */
 function modules_render(): void
 {
     modules_seed();
+    modules_sync(); // همگام‌سازی نسخه‌ها از مانیفست
     $msg = modules_handle_post();
     $modules = modules_all();
+    $discovered = modules_discover();
     $editId = (int) ($_GET['edit'] ?? 0);
     $editModule = null;
     if ($editId > 0) {
         foreach ($modules as $m) { if ((int) $m['id'] === $editId) { $editModule = $m; break; } }
     }
+    // گروه‌بندی بر اساس دسته
+    $grouped = [];
+    foreach ($modules as $m) {
+        $cat = $m['category'] ?: 'سایر';
+        $grouped[$cat][] = $m;
+    }
     ?>
     <div class="page-head">
         <h1>مدیریت ماژول‌ها</h1>
-        <p class="muted">ماژول‌ها را فعال/غیرفعال کنید، ویرایش کنید یا ماژول جدید بسازید.</p>
+        <p class="muted">ماژول‌ها را فعال/غیرفعال کنید، ویرایش کنید یا ماژول جدید بسازید. نسخه هر ماژول با آپدیت سیستم به‌روز می‌شود.</p>
     </div>
     <?php if ($msg): ?><div class="alert alert-info"><?= e($msg) ?></div><?php endif; ?>
 
+    <style>
+    .mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:16px}
+    .mod-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;position:relative;transition:box-shadow .2s}
+    .mod-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+    .mod-card.disabled{opacity:.65;background:#f8fafc}
+    .mod-card-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+    .mod-icon{width:44px;height:44px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+    .mod-card h3{margin:0;font-size:15px}
+    .mod-card .mod-key{font-size:11px;color:#94a3b8;direction:ltr;display:inline-block}
+    .mod-desc{font-size:13px;color:#64748b;margin:8px 0;line-height:1.7}
+    .mod-meta{display:flex;gap:8px;align-items:center;font-size:12px;color:#64748b;margin-bottom:12px;flex-wrap:wrap}
+    .mod-ver{background:#f1f5f9;padding:2px 8px;border-radius:6px;direction:ltr}
+    .mod-update{color:#d97706;font-weight:700}
+    .mod-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .mod-cat-title{font-size:16px;font-weight:700;margin:24px 0 4px;color:#334155;border-bottom:2px solid #e2e8f0;padding-bottom:8px}
+    </style>
+
     <div class="card">
         <div class="card-head">
-            <h2>فهرست ماژول‌ها (<?= count($modules) ?>)</h2>
-            <button type="button" class="btn btn-success" onclick="document.getElementById('addModuleForm').style.display = document.getElementById('addModuleForm').style.display === 'none' ? 'block' : 'none'">+ افزودن ماژول</button>
+            <h2>افزودن ماژول جدید</h2>
+            <button type="button" class="btn btn-success" onclick="document.getElementById('addModuleForm').style.display = document.getElementById('addModuleForm').style.display === 'none' ? 'block' : 'none'">+ افزودن</button>
         </div>
-
         <form id="addModuleForm" method="post" style="display:none" class="form-grid">
             <input type="hidden" name="mod_action" value="add">
             <label>کلید (انگلیسی) <input type="text" name="module_key" required pattern="[a-z0-9_]+" dir="ltr"></label>
@@ -208,9 +234,11 @@ function modules_render(): void
             <label>ترتیب <input type="number" name="sort" value="999"></label>
             <div><button type="submit" class="btn btn-success">ثبت ماژول</button></div>
         </form>
+    </div>
 
-        <?php if ($editModule): ?>
-        <form method="post" class="form-grid" style="background:#f8fafc;padding:16px;border-radius:8px;margin-bottom:16px">
+    <?php if ($editModule): ?>
+    <div class="card" style="margin-top:16px">
+        <form method="post" class="form-grid">
             <input type="hidden" name="mod_action" value="edit">
             <input type="hidden" name="module_id" value="<?= (int) $editModule['id'] ?>">
             <h3>ویرایش: <?= e($editModule['name']) ?></h3>
@@ -225,45 +253,58 @@ function modules_render(): void
                 <a href="admin.php?page=modules" class="btn">انصراف</a>
             </div>
         </form>
-        <?php endif; ?>
-
-        <div class="table-wrap"><table class="table">
-            <thead><tr><th>نام</th><th>کلید</th><th>دسته</th><th>نسخه</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-            <tbody>
-            <?php foreach ($modules as $m): ?>
-                <tr>
-                    <td><strong><?= e($m['name']) ?></strong><br><small class="muted"><?= e($m['description']) ?></small></td>
-                    <td dir="ltr"><code><?= e($m['module_key']) ?></code><?= (int) $m['is_core'] ? ' <span class="badge">هسته</span>' : '' ?></td>
-                    <td><?= e($m['category']) ?></td>
-                    <td dir="ltr"><?= e($m['version']) ?></td>
-                    <td>
-                        <?php if ((int) $m['is_core']): ?>
-                            <span class="badge badge-success">فعال</span>
-                        <?php else: ?>
-                            <form method="post" style="display:inline">
-                                <input type="hidden" name="mod_action" value="toggle">
-                                <input type="hidden" name="module_key" value="<?= e($m['module_key']) ?>">
-                                <input type="hidden" name="enable" value="<?= (int) $m['enabled'] ? '0' : '1' ?>">
-                                <button type="submit" class="btn btn-sm <?= (int) $m['enabled'] ? 'btn-success' : 'btn-secondary' ?>">
-                                    <?= (int) $m['enabled'] ? 'فعال' : 'غیرفعال' ?>
-                                </button>
-                            </form>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <a href="admin.php?page=modules&edit=<?= (int) $m['id'] ?>" class="btn btn-sm btn-warning">ویرایش</a>
-                        <?php if (!(int) $m['is_core']): ?>
-                        <form method="post" style="display:inline" onsubmit="return confirm('حذف شود؟')">
-                            <input type="hidden" name="mod_action" value="delete">
-                            <input type="hidden" name="module_id" value="<?= (int) $m['id'] ?>">
-                            <button type="submit" class="btn btn-sm btn-danger">حذف</button>
-                        </form>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table></div>
     </div>
+    <?php endif; ?>
+
+    <?php foreach ($grouped as $cat => $catModules): ?>
+        <div class="mod-cat-title"><?= e($cat) ?> (<?= count($catModules) ?>)</div>
+        <div class="mod-grid">
+        <?php foreach ($catModules as $m):
+            $key = (string) $m['module_key'];
+            $manifest = $discovered[$key] ?? null;
+            $manifestVer = $manifest['version'] ?? null;
+            $hasUpdate = $manifestVer && version_compare($manifestVer, (string) $m['version'], '>');
+            $isEnabled = (int) $m['enabled'] === 1;
+            $isCore = (int) $m['is_core'] === 1;
+        ?>
+            <div class="mod-card <?= $isEnabled ? '' : 'disabled' ?>">
+                <div class="mod-card-head">
+                    <div class="mod-icon">🧩</div>
+                    <div>
+                        <h3><?= e($m['name']) ?></h3>
+                        <span class="mod-key"><?= e($key) ?></span>
+                        <?php if ($isCore): ?><span class="badge">هسته</span><?php endif; ?>
+                    </div>
+                </div>
+                <?php if ($m['description']): ?><div class="mod-desc"><?= e($m['description']) ?></div><?php endif; ?>
+                <div class="mod-meta">
+                    <span class="mod-ver">v<?= e($m['version']) ?></span>
+                    <?php if ($hasUpdate): ?><span class="mod-update">نسخه <?= e($manifestVer) ?> موجود!</span><?php endif; ?>
+                    <?php if (!$isEnabled): ?><span class="badge badge-secondary">غیرفعال</span><?php endif; ?>
+                </div>
+                <div class="mod-actions">
+                    <?php if (!$isCore): ?>
+                    <form method="post" style="display:inline">
+                        <input type="hidden" name="mod_action" value="toggle">
+                        <input type="hidden" name="module_key" value="<?= e($key) ?>">
+                        <input type="hidden" name="enable" value="<?= $isEnabled ? '0' : '1' ?>">
+                        <button type="submit" class="btn btn-sm <?= $isEnabled ? 'btn-secondary' : 'btn-success' ?>">
+                            <?= $isEnabled ? 'غیرفعال کردن' : 'فعال کردن' ?>
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                    <a href="admin.php?page=modules&edit=<?= (int) $m['id'] ?>" class="btn btn-sm btn-warning">ویرایش</a>
+                    <?php if (!$isCore): ?>
+                    <form method="post" style="display:inline" onsubmit="return confirm('حذف شود؟')">
+                        <input type="hidden" name="mod_action" value="delete">
+                        <input type="hidden" name="module_id" value="<?= (int) $m['id'] ?>">
+                        <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        </div>
+    <?php endforeach; ?>
     <?php
 }

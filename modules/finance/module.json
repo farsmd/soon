@@ -1,0 +1,10 @@
+{
+  "name": "مالی",
+  "description": "داشبورد مالی و فاکتورها",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "مالی",
+  "icon": "wallet",
+  "is_core": false,
+  "requires": "9.99.9"
+}

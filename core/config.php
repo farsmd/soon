@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.8');
+define('APP_VERSION', '9.99.9');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -2899,6 +2899,7 @@ function session_lifetime_seconds(): int
 
 // نگهدارندهٔ نشست دیتابیسی و شروع نشست (نسخه ۸٫۲٫۲: نشست خودترمیم با کوکی امضاشده) در session_handler.php است.
 require_once __DIR__ . '/session_handler.php';
+require_once __DIR__ . '/modules.php';
 
 /** آی‌پی واقعی بازدیدکننده (با احترام به هدر پراکسی هاست‌های اشتراکی). */
 function client_ip(): string

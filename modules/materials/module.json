@@ -1,0 +1,10 @@
+{
+  "name": "مواد اولیه و انبار",
+  "description": "مدیریت موجودی مواد",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "انبار",
+  "icon": "warehouse",
+  "is_core": false,
+  "requires": "9.99.9"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "سفارش‌ها",
+  "description": "ثبت و پیگیری سفارش‌ها",
+  "version": "9.99.9",
+  "author": "لاینرلایت",
+  "category": "فروش",
+  "icon": "cart",
+  "is_core": false,
+  "requires": "9.99.9"
+}
