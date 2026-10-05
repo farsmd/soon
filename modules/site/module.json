@@ -1,10 +1,10 @@
 {
-  "name": "آپدیت سیستم",
-  "description": "آپدیت یک‌کلیکی از گیت‌هاب",
+  "name": "سایت",
+  "description": "توابع پایه و هسته سایت",
   "version": "9.99.26",
   "author": "لاینرلایت",
   "category": "سیستم",
-  "icon": "update",
+  "icon": "globe",
   "is_core": true,
   "requires": "9.99.26"
 }

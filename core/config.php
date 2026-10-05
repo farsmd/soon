@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.25');
+define('APP_VERSION', '9.99.26');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -1635,32 +1635,6 @@ function get_page_by_slug(string $slug, bool $onlyActive = false): ?array
 /**
  * آدرس پایه سایت (برای canonical و JSON-LD) — نسخه ۹٫۱۳
  */
-function site_base_url(?array $settings = null): string
-{
-    static $base = null;
-    $useCache = $settings === null;
-    if ($useCache && $base !== null) {
-        return $base;
-    }
-    if ($settings === null) {
-        try {
-            $settings = all_settings();
-        } catch (Throwable $ignored) {
-            $settings = [];
-        }
-    }
-    $out = rtrim((string) ($settings['site_url'] ?? ''), '/');
-    if ($out === '') {
-        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
-        $out = $host !== '' ? $proto . '://' . $host : '';
-    }
-    if ($useCache) {
-        $base = $out;
-    }
-    return $out;
-}
-
 /**
  * تبدیل آدرس‌های داخلی قدیمی به نسخه تمیز و سئودوست (نسخه ۹٫۱۳):
  * products.php → /products ، page.php?slug=X → /X ، order.php → /order ، card.php → /card ، index.php → /
@@ -2676,11 +2650,6 @@ function build_site_css(array $settings): string
 }
 
 /** نسخه کش CSS برای پارامتر ?v= در لینک استایل و ETag */
-function site_css_version(array $settings): string
-{
-    return substr(sha1(build_site_css($settings) . '|' . (string) ($settings['css_updated_at'] ?? '')), 0, 10);
-}
-
 // ---------- اسکلت صفحه (تنها بخش فایلیِ ظاهر سایت) ----------
 
 /** سربرگ سند: doctype، head با سئو، لینک style.php و اسکریپت بدون فلشِ تم + بازشدن body و لینک پرش */

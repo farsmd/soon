@@ -39,7 +39,7 @@
     },
     "employees": {
       "name": "پرسنل",
-      "version": "9.99.10",
+      "version": "9.99.26",
       "description": "مدیریت کارکنان",
       "category": "منابع انسانی",
       "author": "لاینرلایت",
@@ -102,7 +102,7 @@
     },
     "payroll": {
       "name": "حقوق و دستمزد",
-      "version": "9.99.10",
+      "version": "9.99.26",
       "description": "محاسبه حقوق و فیش",
       "category": "منابع انسانی",
       "author": "لاینرلایت",
@@ -147,7 +147,7 @@
     },
     "update": {
       "name": "آپدیت سیستم",
-      "version": "9.99.10",
+      "version": "9.99.26",
       "description": "به‌روزرسانی یک‌کلیکی",
       "category": "سیستم",
       "author": "لاینرلایت",
@@ -162,6 +162,11 @@
       "author": "لاینرلایت",
       "requires": "9.99.9",
       "download": "https://github.com/farsmd/soon/raw/main/modules/users/module.json"
+    },
+    "site": {
+      "name": "سایت",
+      "version": "9.99.26",
+      "description": ""
     }
   }
 }
