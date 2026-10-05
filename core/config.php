@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.23');
+define('APP_VERSION', '9.99.24');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -3309,21 +3309,6 @@ function seed_catalog_if_needed(PDO $pdo): void
 // ---------- مشتری‌ها ----------
 
 /** انواع مشتری: کلید ذخیره‌شده => برچسب فارسی */
-function customer_types(): array
-{
-    return [
-        'partner' => 'همکار',
-        'retail'  => 'مشتری',
-        'company' => 'شرکت',
-    ];
-}
-
-function customer_type_label(string $key): string
-{
-    $types = customer_types();
-    return $types[$key] ?? $types['retail'];
-}
-
 /** فهرست مشتری‌ها با جستجو (نام/شرکت/موبایل) و فیلتر نوع */
 function get_customers(string $search = '', string $type = ''): array
 {
@@ -3352,13 +3337,6 @@ function get_customer(int $id): ?array
 }
 
 /** مشتری دیگری با همین موبایل هست؟ (برای هشدار تکراری؛ $excludeId رکورد در حال ویرایش) */
-function customer_mobile_exists(string $mobile, int $excludeId = 0): bool
-{
-    $stmt = db()->prepare('SELECT COUNT(*) FROM customers WHERE mobile = :m AND id != :x');
-    $stmt->execute([':m' => $mobile, ':x' => $excludeId]);
-    return (int) $stmt->fetchColumn() > 0;
-}
-
 // ---------- دسته‌بندی و محصول ----------
 
 /** همه دسته‌ها به ترتیب (والدها و زیردسته‌ها با هم، بر اساس ترتیب و شناسه) */
@@ -3496,44 +3474,6 @@ function get_product_attribute_values(int $productId): array
  * [ ['attribute'=>row, 'options'=>[optionRow...], 'default_option_id'=>?int, 'num_value'=>?float, 'text_value'=>?string], ... ]
  * فقط ویژگی‌های فعال؛ برای select فقط وقتی ردیف مقدار با option_id معتبر دارد، ارائه‌شده حساب می‌شود.
  */
-function product_offered_attributes(int $productId): array
-{
-    $values = [];
-    foreach (get_product_attribute_values($productId) as $v) {
-        $values[(int) $v['attribute_id']] = $v;
-    }
-    $out = [];
-    foreach (get_attributes(true) as $attr) {
-        $aid = (int) $attr['id'];
-        if (!isset($values[$aid])) {
-            continue;
-        }
-        $v = $values[$aid];
-        $type = (string) $attr['input_type'];
-        if ($type === 'select') {
-            $options = get_attribute_options($aid);
-            $optIds = array_map(static fn ($o) => (int) $o['id'], $options);
-            $defId = isset($v['option_id']) ? (int) $v['option_id'] : 0;
-            if ($defId <= 0 || !in_array($defId, $optIds, true)) {
-                continue;
-            }
-            $out[] = ['attribute' => $attr, 'options' => $options, 'default_option_id' => $defId, 'num_value' => null, 'text_value' => null];
-        } elseif ($type === 'number') {
-            if ($v['num_value'] === null || $v['num_value'] === '') {
-                continue;
-            }
-            $out[] = ['attribute' => $attr, 'options' => [], 'default_option_id' => null, 'num_value' => (float) $v['num_value'], 'text_value' => null];
-        } else {
-            $tv = trim((string) ($v['text_value'] ?? ''));
-            if ($tv === '') {
-                continue;
-            }
-            $out[] = ['attribute' => $attr, 'options' => [], 'default_option_id' => null, 'num_value' => null, 'text_value' => $tv];
-        }
-    }
-    return $out;
-}
-
 // ---------- موتور قیمت (متری + آپشن + همکار) ----------
 
 /** قالب‌بندی مبلغ تومان با جداکننده هزارگان */
@@ -3557,35 +3497,10 @@ function partner_discount_percent(): float
 }
 
 /** قیمت پایه متری: مشتری عادی یا همکار (قیمت صریح همکار، وگرنه قیمت منهای درصد همکار) */
-function product_base_price_per_meter(array $product, bool $isPartner): float
-{
-    $price = (float) ($product['price_per_meter'] ?? 0);
-    if (!$isPartner) {
-        return $price;
-    }
-    $partner = $product['partner_price_per_meter'] ?? null;
-    if ($partner !== null && $partner !== '' && (float) $partner > 0) {
-        return (float) $partner;
-    }
-    return $price * (1 - partner_discount_percent() / 100);
-}
-
 /**
  * قیمت واحد متری با آپشن‌های انتخابی: پایه + مجموع اختلاف قیمت متری گزینه‌ها.
  * $selectedOptionIds: آرایه‌ای از شناسه گزینه‌ها (یا مقادیر رشته‌ای فرم‌ها).
  */
-function product_unit_price(array $product, array $selectedOptionIds = [], bool $isPartner = false): float
-{
-    $unit = product_base_price_per_meter($product, $isPartner);
-    foreach ($selectedOptionIds as $oid) {
-        $opt = get_attribute_option((int) $oid);
-        if ($opt !== null) {
-            $unit += (float) ($opt['price_delta_per_meter'] ?? 0);
-        }
-    }
-    return $unit;
-}
-
 /** برآورد قیمت کل برای طول مشخص (متر، اعشاری مجاز؛ طول نامعتبر = صفر) */
 function estimate_price(array $product, float $lengthM, array $selectedOptionIds = [], bool $isPartner = false): float
 {
@@ -3745,147 +3660,19 @@ function apply_stock_movement(PDO $pdo, int $materialId, string $type, float $qt
 }
 
 /** ردیف‌های فرمول ساخت (BOM) یک محصول همراه مشخصات و قیمت جاری هر ماده */
-function product_bom_lines(int $productId): array
-{
-    $stmt = db()->prepare(
-        'SELECT pm.*, m.name AS material_name, m.unit AS material_unit, m.last_price AS material_price, m.stock_qty AS material_stock, m.is_active AS material_active
-         FROM product_materials pm
-         JOIN materials m ON m.id = pm.material_id
-         WHERE pm.product_id = :p
-         ORDER BY pm.sort_order ASC, pm.id ASC'
-    );
-    $stmt->execute([':p' => $productId]);
-    return $stmt->fetchAll();
-}
-
 /**
  * بهای مواد محصول با آخرین قیمت خرید مواد:
  * ['per_meter' => int, 'per_fixture' => int, 'lines' => [material_id, name, unit, qty, basis, unit_price, line_cost]]
  * بهای «هر چراغ» جدا گزارش می‌شود و عمداً داخل بهای متری قاطی نمی‌شود.
  */
-function product_material_cost(int $productId): array
-{
-    $perMeter = 0.0;
-    $perFixture = 0.0;
-    $lines = [];
-    foreach (product_bom_lines($productId) as $l) {
-        $unitPrice = (int) $l['material_price'];
-        $q = (float) $l['qty'];
-        $lineCost = $q * $unitPrice;
-        if ((string) $l['basis'] === 'per_fixture') {
-            $perFixture += $lineCost;
-        } else {
-            $perMeter += $lineCost;
-        }
-        $lines[] = [
-            'material_id' => (int) $l['material_id'],
-            'name'        => (string) $l['material_name'],
-            'unit'        => (string) $l['material_unit'],
-            'qty'         => $q,
-            'basis'       => (string) $l['basis'],
-            'unit_price'  => $unitPrice,
-            'line_cost'   => $lineCost,
-        ];
-    }
-    // هزینه تولید (نسخه ۹٫۱): دستمزد/سربار به‌ازای هر متر و هر چراغ
-    $prod = get_product($productId);
-    $laborMeter = (float) ($prod['labor_cost_per_meter'] ?? 0);
-    $laborFixture = (float) ($prod['labor_cost_per_fixture'] ?? 0);
-    if ($laborMeter > 0) {
-        $lines[] = [
-            'material_id' => 0,
-            'name'        => 'هزینه تولید (هر متر)',
-            'unit'        => '',
-            'qty'         => 1,
-            'basis'       => 'per_meter',
-            'unit_price'  => (int) round($laborMeter),
-            'line_cost'   => $laborMeter,
-            'is_labor'    => true,
-        ];
-        $perMeter += $laborMeter;
-    }
-    if ($laborFixture > 0) {
-        $lines[] = [
-            'material_id' => 0,
-            'name'        => 'هزینه تولید (هر چراغ)',
-            'unit'        => '',
-            'qty'         => 1,
-            'basis'       => 'per_fixture',
-            'unit_price'  => (int) round($laborFixture),
-            'line_cost'   => $laborFixture,
-            'is_labor'    => true,
-        ];
-        $perFixture += $laborFixture;
-    }
-    return ['per_meter' => (int) round($perMeter), 'per_fixture' => (int) round($perFixture), 'lines' => $lines];
-}
-
 /**
  * برآورد نیاز مواد برای ساخت یک سفارش از محصول: طول (متر) × مصرف متری + تعداد چراغ × مصرف هر چراغ.
  * هر ردیف: material_id, name, unit, needed, stock, shortage (کمبود = max(۰، نیاز − موجودی))
  */
-function product_required_materials(int $productId, float $lengthMeters, int $fixtures = 1): array
-{
-    if (!is_finite($lengthMeters) || $lengthMeters < 0) {
-        $lengthMeters = 0.0;
-    }
-    if ($fixtures < 0) {
-        $fixtures = 0;
-    }
-    $agg = [];
-    foreach (product_bom_lines($productId) as $l) {
-        $mid = (int) $l['material_id'];
-        if (!isset($agg[$mid])) {
-            $agg[$mid] = [
-                'material_id' => $mid,
-                'name'        => (string) $l['material_name'],
-                'unit'        => (string) $l['material_unit'],
-                'needed'      => 0.0,
-                'stock'       => (float) $l['material_stock'],
-            ];
-        }
-        $agg[$mid]['needed'] += ((string) $l['basis'] === 'per_fixture')
-            ? (float) $l['qty'] * $fixtures
-            : (float) $l['qty'] * $lengthMeters;
-    }
-    $out = [];
-    foreach ($agg as $r) {
-        $r['needed']   = round($r['needed'], 6);
-        $r['shortage'] = round(max(0.0, $r['needed'] - $r['stock']), 6);
-        $out[] = $r;
-    }
-    return $out;
-}
-
 /**
  * حاشیه سود متری محصول در برابر بهای مواد هر متر (مشتری و همکار).
  * بهای ثابت هر چراغ جدا برگردانده می‌شود تا در تحلیل سفارش (به‌ازای هر ردیف) لحاظ شود.
  */
-function product_margin(int $productId): array
-{
-    $product = get_product($productId);
-    $cost = product_material_cost($productId);
-    $retail  = $product !== null ? product_base_price_per_meter($product, false) : 0.0;
-    $partner = $product !== null ? product_base_price_per_meter($product, true) : 0.0;
-    $costPerMeter = (float) $cost['per_meter'];
-    $calc = static function (float $price) use ($costPerMeter): array {
-        $margin = $price - $costPerMeter;
-        return [$margin, $price > 0 ? ($margin / $price) * 100 : 0.0];
-    };
-    [$retailMargin, $retailPct] = $calc($retail);
-    [$partnerMargin, $partnerPct] = $calc($partner);
-    return [
-        'retail_price'          => $retail,
-        'partner_price'         => $partner,
-        'cost_per_meter'        => $cost['per_meter'],
-        'cost_per_fixture'      => $cost['per_fixture'],
-        'retail_margin'         => $retailMargin,
-        'retail_margin_percent' => $retailPct,
-        'partner_margin'        => $partnerMargin,
-        'partner_margin_percent' => $partnerPct,
-    ];
-}
-
 /** سید مواد اولیه نمونه نسخه ۷ — فقط یک بار (با پرچم تنظیمات) و فقط وقتی جدول مواد خالی است؛ هرگز داده کاربر بازنویسی نمی‌شود */
 function seed_inventory_if_needed(PDO $pdo): void
 {
@@ -4005,11 +3792,6 @@ function seed_finance_if_needed(PDO $pdo): void
 // پنل «قوانین قیمت‌گذاری» قابل‌ویرایش‌اند؛ در کد هیچ عدد تجاری ثابتی نیست.
 
 /** خواندن یک تنظیم سفارش با مقدار پیش‌فرض */
-function order_setting(string $key, $default = '')
-{
-    return get_setting($key, (string) $default);
-}
-
 /** پلکان‌های تخفیف فعال/غیرفعال به ترتیب */
 function price_tiers(bool $onlyActive = true): array
 {
@@ -4022,38 +3804,8 @@ function price_tiers(bool $onlyActive = true): array
 }
 
 /** وضعیت‌های سفارش به ترتیب */
-function order_statuses(bool $onlyActive = true): array
-{
-    $sql = 'SELECT * FROM order_statuses';
-    if ($onlyActive) {
-        $sql .= ' WHERE is_active = 1';
-    }
-    $sql .= ' ORDER BY sort_order ASC, id ASC';
-    return db()->query($sql)->fetchAll();
-}
-
 /** عنوان فارسی یک وضعیت سفارش */
-function order_status_title(string $key): string
-{
-    foreach (order_statuses(false) as $s) {
-        if ((string) $s['status_key'] === $key) {
-            return (string) $s['title'];
-        }
-    }
-    return $key;
-}
-
 /** رنگ یک وضعیت سفارش */
-function order_status_color(string $key): string
-{
-    foreach (order_statuses(false) as $s) {
-        if ((string) $s['status_key'] === $key) {
-            return (string) ($s['color'] ?? '#6b7280');
-        }
-    }
-    return '#6b7280';
-}
-
 /** طول قابل‌صورتحساب هر چراغ (متر) — کمتر از حداقل، همان حداقل حساب می‌شود */
 function billable_length_m(float $lengthCm): float
 {
@@ -4192,40 +3944,6 @@ function compute_order_totals(array $lines, bool $isPartner): array
  * هر ردیف سفارش: ['product_id'=>int, 'length_cm'=>float, 'qty'=>int, 'has_endcap'=>bool]
  * مواد با شرط endcap فقط وقتی شمرده می‌شوند که ردیف درپوش داشته باشد.
  */
-function order_required_materials(array $orderLines): array
-{
-    $acc = [];
-    foreach ($orderLines as $ln) {
-        $pid = (int) ($ln['product_id'] ?? 0);
-        $qty = max(1, (int) ($ln['qty'] ?? 1));
-        $lengthM = round((float) ($ln['length_cm'] ?? 0), 1) / 100.0;
-        $hasEndcap = !empty($ln['has_endcap']);
-        foreach (product_bom_lines($pid) as $bom) {
-            if (($bom['apply_condition'] ?? 'always') === 'endcap' && !$hasEndcap) {
-                continue;
-            }
-            $mid = (int) $bom['material_id'];
-            $need = $bom['basis'] === 'per_fixture' ? (float) $bom['qty'] * $qty : (float) $bom['qty'] * $lengthM * $qty;
-            if (!isset($acc[$mid])) {
-                $mat = get_material($mid);
-                $acc[$mid] = [
-                    'material_id' => $mid,
-                    'name' => (string) ($mat['name'] ?? ('#' . $mid)),
-                    'unit' => (string) ($mat['unit'] ?? ''),
-                    'needed' => 0.0,
-                    'stock' => (float) ($mat['stock_qty'] ?? 0),
-                ];
-            }
-            $acc[$mid]['needed'] += $need;
-        }
-    }
-    foreach ($acc as &$r) {
-        $r['shortage'] = max(0.0, (float) $r['needed'] - (float) $r['stock']);
-    }
-    unset($r);
-    return array_values($acc);
-}
-
 /** سید قواعد فاز ۳ — فقط یک بار (با پرچم تنظیمات)؛ هرگز داده کاربر بازنویسی نمی‌شود */
 /** نسخه ۸٫۲٫۳: افزودن استایل تازه فرم ثبت سفارش به CSS داخل دیتابیس (یک بار؛ CSS قبلی در بازبینی‌های طراحی آرشیو می‌شود) */
 function seed_order_form_css_v823_if_needed(PDO $pdo): void
@@ -5159,55 +4877,6 @@ function gallery_next_number(PDO $pdo): int
  * نسخه ۹ — ویترین محصولات در صفحه اصلی (زیر نوار متحرک)
  * کارت‌های محصولات فعال با عکس، قیمت و لینک
  */
-function products_showcase_html(): string
-{
-    $products = get_products(true);
-    if ($products === []) {
-        return '';
-    }
-    $out = '<section class="products-showcase" id="products-showcase"><div class="container">';
-    $out .= '<div class="ps-head"><h2>محصولات ما</h2><p>چراغ‌های خطی و نور رشد گیاه — برش دقیق در ابعاد دلخواه شما</p></div>';
-    $out .= '<div class="ps-grid">';
-    foreach ($products as $p) {
-        $name = (string) ($p['name'] ?? '');
-        $img = uploaded_image_url($p['image'] ?? '');
-        $price = product_base_price_per_meter($p, false);
-        $partnerPrice = product_base_price_per_meter($p, true);
-        $out .= '<a class="ps-card rv" href="' . e(pretty_url('products.php#' . (int) $p['id'])) . '">';
-        if ($img !== '') {
-            $out .= '<div class="ps-img"><img loading="lazy" src="' . e($img) . '" alt="' . e($name) . '"></div>';
-        }
-        $out .= '<div class="ps-body"><h3>' . e($name) . '</h3>';
-        if (!empty($p['category_title'])) {
-            $out .= '<span class="ps-cat">' . e((string) $p['category_title']) . '</span>';
-        }
-        $pricingModel = (string) ($p['pricing_model'] ?? 'per_meter');
-        if ($pricingModel === 'per_watt') {
-            $basePrice = (int) ($p['base_price'] ?? 0);
-            $ppw = (int) ($p['price_per_watt'] ?? 0);
-            if ($basePrice > 0) {
-                $out .= '<div class="ps-price">از ' . e(format_price($basePrice)) . ' <small>تومان</small></div>';
-            }
-            if ($ppw > 0) {
-                $out .= '<div class="ps-partner">هر وات ' . e(format_price($ppw)) . ' تومان + قیمت قاب</div>';
-            }
-        } else {
-            if ($price > 0) {
-                $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
-            }
-            if ($partnerPrice > 0 && $partnerPrice != $price) {
-                $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
-            }
-        }
-        $out .= '<span class="btn btn-gold ps-cta">مشاهده و ثبت سفارش ←</span>';
-        $out .= '</div></a>';
-    }
-    $out .= '</div>';
-    $out .= '<div class="ps-more"><a class="btn btn-gold" href="' . e(pretty_url('products.php')) . '">مشاهده همه محصولات</a></div>';
-    $out .= '</div></section>';
-    return $out;
-}
-
 /**
  * نسخه ۹ — صفحه‌ساز ویژوال
  * بلوک‌های صفحه: متن، تصویر، گالری، محصولات، CTA، ویژگی‌ها، جداکننده، ویدیو
@@ -5431,29 +5100,6 @@ function get_product_images(int $productId): array
 }
 
 /** HTML گالری تصاویر محصول برای صفحه عمومی */
-function product_gallery_html(int $productId): string
-{
-    $images = get_product_images($productId);
-    if ($images === []) {
-        return '';
-    }
-    $html = '<div class="product-gallery"><h3>گالری تصاویر</h3><div class="pg-public-grid">';
-    foreach ($images as $img) {
-        $url = uploaded_image_url($img['image'] ?? '');
-        if ($url === '') {
-            continue;
-        }
-        $cap = (string) ($img['caption'] ?? '');
-        $html .= '<figure class="pg-public-item"><img loading="lazy" src="' . e($url) . '" alt="' . e($cap) . '">';
-        if ($cap !== '') {
-            $html .= '<figcaption>' . e($cap) . '</figcaption>';
-        }
-        $html .= '</figure>';
-    }
-    $html .= '</div></div>';
-    return $html;
-}
-
 /**
  * نسخه ۹٫۱ — فیلدهای سفارشی فرم سفارش (per محصول/دسته)
  */
@@ -5485,74 +5131,7 @@ function get_order_form_fields(int $productId): array
 }
 
 /** تنظیمات فرم سفارش یک محصول (کدام فیلدهای استاندارد نمایش داده شوند) */
-function product_order_form_config(array $product): array
-{
-    $defaults = ['show_length' => true, 'show_qty' => true, 'show_wire' => true, 'show_endcap' => true, 'show_options' => true];
-    $raw = (string) ($product['order_form_config'] ?? '');
-    if ($raw === '') {
-        return $defaults;
-    }
-    $cfg = json_decode($raw, true);
-    if (!is_array($cfg)) {
-        return $defaults;
-    }
-    foreach ($defaults as $k => $v) {
-        if (!array_key_exists($k, $cfg)) {
-            $cfg[$k] = $v;
-        } else {
-            $cfg[$k] = (bool) $cfg[$k];
-        }
-    }
-    return $cfg;
-}
-
 /** HTML فیلدهای سفارشی برای فرم سفارش */
-function order_custom_fields_html(int $productId, string $namePrefix = 'cf'): array
-{
-    $fields = get_order_form_fields($productId);
-    if ($fields === []) {
-        return ['', []];
-    }
-    $html = '<div class="so-custom-fields"><h4>مشخصات تکمیلی</h4>';
-    $meta = [];
-    foreach ($fields as $f) {
-        $fid = (int) $f['id'];
-        $name = $namePrefix . '[' . $fid . ']';
-        $label = (string) $f['label'];
-        $req = (int) $f['is_required'] === 1;
-        $ph = (string) ($f['placeholder'] ?? '');
-        $help = (string) ($f['help_text'] ?? '');
-        $type = (string) ($f['field_type'] ?? 'text');
-        $meta[$fid] = ['label' => $label, 'type' => $type];
-        $html .= '<div class="so-field"><label>' . e($label) . ($req ? ' *' : '') . '</label>';
-        if ($type === 'select') {
-            $opts = json_decode((string) ($f['options_json'] ?? '[]'), true);
-            if (!is_array($opts)) { $opts = []; }
-            $html .= '<select name="' . e($name) . '"' . ($req ? ' required' : '') . '><option value="">— انتخاب کنید —</option>';
-            foreach ($opts as $op) {
-                $op = trim((string) $op);
-                if ($op === '') { continue; }
-                $html .= '<option value="' . e($op) . '">' . e($op) . '</option>';
-            }
-            $html .= '</select>';
-        } elseif ($type === 'textarea') {
-            $html .= '<textarea name="' . e($name) . '" rows="2"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . '></textarea>';
-        } elseif ($type === 'number') {
-            $html .= '<input type="number" name="' . e($name) . '" step="any"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . '>';
-        } elseif ($type === 'checkbox') {
-            $html .= '<label class="check"><input type="checkbox" name="' . e($name) . '" value="1"> ' . e($ph !== '' ? $ph : 'بله') . '</label>';
-        } else {
-            $html .= '<input type="text" name="' . e($name) . '"' . ($req ? ' required' : '') . ($ph !== '' ? ' placeholder="' . e($ph) . '"' : '') . ' maxlength="255">';
-        }
-        if ($help !== '') {
-            $html .= '<p class="so-help">' . e($help) . '</p>';
-        }
-        $html .= '</div>';
-    }
-    $html .= '</div>';
-    return [$html, $meta];
-}
-
 // لود خودکار ماژول‌های فعال (۹٫۹۹٫۱۳)
 // فقط وقتی دیتابیس آماده است و در CLI نصب نیست
 if (PHP_SAPI !== 'cli' || defined('CMS_LOAD_MODULES_CLI')) {

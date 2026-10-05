@@ -20,3 +20,27 @@ function customers_list(): array
         return db()->query("SELECT * FROM customers ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable $e) { return []; }
 }
+
+// === توابع منتقل‌شده از هسته (۹٫۹۹٫۲۴) ===
+
+function customer_types(): array
+{
+    return [
+        'partner' => 'همکار',
+        'retail'  => 'مشتری',
+        'company' => 'شرکت',
+    ];
+}
+
+function customer_type_label(string $key): string
+{
+    $types = customer_types();
+    return $types[$key] ?? $types['retail'];
+}
+
+function customer_mobile_exists(string $mobile, int $excludeId = 0): bool
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM customers WHERE mobile = :m AND id != :x');
+    $stmt->execute([':m' => $mobile, ':x' => $excludeId]);
+    return (int) $stmt->fetchColumn() > 0;
+}

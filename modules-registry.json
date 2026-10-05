@@ -21,7 +21,7 @@
     },
     "customers": {
       "name": "مشتری‌ها",
-      "version": "9.99.18",
+      "version": "9.99.24",
       "description": "مدیریت مشتریان و همکاران",
       "category": "فروش",
       "author": "لاینرلایت",
@@ -84,7 +84,7 @@
     },
     "orders": {
       "name": "سفارش‌ها",
-      "version": "9.99.15",
+      "version": "9.99.24",
       "description": "ثبت و پیگیری سفارش‌ها",
       "category": "فروش",
       "author": "لاینرلایت",
@@ -120,7 +120,7 @@
     },
     "products": {
       "name": "محصولات",
-      "version": "9.99.18",
+      "version": "9.99.24",
       "description": "کاتالوگ محصولات",
       "category": "فروش",
       "author": "لاینرلایت",
