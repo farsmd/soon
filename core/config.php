@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.11');
+define('APP_VERSION', '9.99.12');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -21,6 +21,25 @@ require_once __DIR__ . '/defaults.php';
 /**
  * اتصال PDO به SQLite (فایل در همان فولدر ساخته می‌شود)
  */
+
+/** مایگریشن ستون template برای سیستم قالب (۹٫۹۹٫۱۲) */
+function migrate_template_columns(): void
+{
+    try {
+        $tables = ['blog_posts', 'pages', 'products', 'product_categories'];
+        foreach ($tables as $t) {
+            $cols = [];
+            $stmt = db()->query("PRAGMA table_info($t)");
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $c) {
+                $cols[] = $c['name'];
+            }
+            if (!in_array('template', $cols, true)) {
+                db()->exec("ALTER TABLE $t ADD COLUMN template TEXT NOT NULL DEFAULT ''");
+            }
+        }
+    } catch (Throwable $e) { /* silent */ }
+}
+
 function db(): PDO
 {
     static $pdo = null;
@@ -35,6 +54,7 @@ function db(): PDO
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec('PRAGMA busy_timeout = 5000');
     init_db($pdo);
+    migrate_template_columns();
     return $pdo;
 }
 
@@ -2900,6 +2920,7 @@ function session_lifetime_seconds(): int
 // نگهدارندهٔ نشست دیتابیسی و شروع نشست (نسخه ۸٫۲٫۲: نشست خودترمیم با کوکی امضاشده) در session_handler.php است.
 require_once __DIR__ . '/session_handler.php';
 require_once __DIR__ . '/modules.php';
+require_once __DIR__ . '/templates.php';
 
 /** آی‌پی واقعی بازدیدکننده (با احترام به هدر پراکسی هاست‌های اشتراکی). */
 function client_ip(): string

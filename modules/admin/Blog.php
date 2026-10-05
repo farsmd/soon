@@ -41,11 +41,12 @@ function blog_handle_post(string $action): void
                 ':f' => trim((string) ($_POST['featured_image'] ?? '')),
                 ':st' => (($_POST['status'] ?? 'draft') === 'published') ? 'published' : 'draft',
                 ':p' => trim((string) ($_POST['published_at'] ?? '')),
+                ':tpl' => trim((string) ($_POST['template'] ?? '')),
             ];
             if ($action === 'add_blog_post') {
                 $pdo->prepare(
-                    'INSERT INTO blog_posts (title, slug, excerpt, content, featured_image, status, published_at) ' .
-                    'VALUES (:t, :s, :e, :c, :f, :st, :p)'
+                    'INSERT INTO blog_posts (title, slug, excerpt, content, featured_image, status, published_at, template) ' .
+                    'VALUES (:t, :s, :e, :c, :f, :st, :p, :tpl)'
                 )->execute($data);
                 flash('ok', 'مقاله «' . $title . '» ساخته شد.');
             } else {
@@ -53,7 +54,7 @@ function blog_handle_post(string $action): void
                 $data[':id'] = $id;
                 $pdo->prepare(
                     'UPDATE blog_posts SET title=:t, slug=:s, excerpt=:e, content=:c, featured_image=:f, ' .
-                    'status=:st, published_at=:p, updated_at=CURRENT_TIMESTAMP WHERE id=:id'
+                    'status=:st, published_at=:p, template=:tpl, updated_at=CURRENT_TIMESTAMP WHERE id=:id'
                 )->execute($data);
                 flash('ok', 'مقاله به‌روز شد.');
             }
@@ -110,6 +111,9 @@ function blog_render_admin(array $d): void
             <?php if ($edit): ?><input type="hidden" name="id" value="<?= (int) $edit['id'] ?>"><?php endif; ?>
             <label>عنوان *
                 <input type="text" name="title" required value="<?= e((string) ($edit['title'] ?? '')) ?>">
+            </label>
+            <label>قالب نمایشی
+                <?= template_select_html('post', (string) ($edit['template'] ?? '')) ?>
             </label>
             <div class="inline-fields">
                 <label>اسلاگ (انگلیسی، خالی = خودکار)
