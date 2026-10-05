@@ -1,10 +1,10 @@
 {
   "name": "تنظیمات",
-  "description": "تنظیمات سایت و سیستم",
-  "version": "9.99.10",
+  "description": "تنظیمات کلی سایت و سیستم",
+  "version": "9.99.25",
   "author": "لاینرلایت",
   "category": "سیستم",
-  "icon": "gear",
+  "icon": "settings",
   "is_core": true,
-  "requires": "9.99.10"
+  "requires": "9.99.25"
 }

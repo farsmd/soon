@@ -30,7 +30,7 @@
     },
     "dashboard": {
       "name": "داشبورد",
-      "version": "9.99.10",
+      "version": "9.99.25",
       "description": "نمای کلی وضعیت کسب‌وکار",
       "category": "اصلی",
       "author": "لاینرلایت",
@@ -93,7 +93,7 @@
     },
     "pages": {
       "name": "صفحه‌ها",
-      "version": "9.99.10",
+      "version": "9.99.25",
       "description": "مدیریت صفحات سایت",
       "category": "محتوا",
       "author": "لاینرلایت",
@@ -138,7 +138,7 @@
     },
     "settings": {
       "name": "تنظیمات",
-      "version": "9.99.10",
+      "version": "9.99.25",
       "description": "تنظیمات سایت و سیستم",
       "category": "سیستم",
       "author": "لاینرلایت",

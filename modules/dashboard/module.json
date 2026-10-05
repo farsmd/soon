@@ -1,10 +1,10 @@
 {
   "name": "داشبورد",
-  "description": "نمای کلی وضعیت کسب‌وکار",
-  "version": "9.99.10",
+  "description": "داشبورد مدیریتی با ویجت‌ها و KPIها",
+  "version": "9.99.25",
   "author": "لاینرلایت",
-  "category": "اصلی",
+  "category": "سیستم",
   "icon": "dashboard",
   "is_core": true,
-  "requires": "9.99.10"
+  "requires": "9.99.25"
 }
