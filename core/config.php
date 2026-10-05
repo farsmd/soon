@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.12');
+define('APP_VERSION', '9.99.13');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -5551,4 +5551,10 @@ function order_custom_fields_html(int $productId, string $namePrefix = 'cf'): ar
     }
     $html .= '</div>';
     return [$html, $meta];
+}
+
+// لود خودکار ماژول‌های فعال (۹٫۹۹٫۱۳)
+// فقط وقتی دیتابیس آماده است و در CLI نصب نیست
+if (PHP_SAPI !== 'cli' || defined('CMS_LOAD_MODULES_CLI')) {
+    try { modules_load_active(); } catch (Throwable $e) { /* silent */ }
 }

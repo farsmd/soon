@@ -3,7 +3,7 @@
   "modules": {
     "blog": {
       "name": "مقالات",
-      "version": "9.99.10",
+      "version": "9.99.13",
       "description": "مدیریت مقالات و بلاگ",
       "category": "محتوا",
       "author": "لاینرلایت",
