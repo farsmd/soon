@@ -3888,12 +3888,84 @@ if ($page === 'design') {
                         <button type="submit" name="run_cleaner" value="1" class="btn primary">حذف فایل‌های انتخاب‌شده</button>
                     </form>
                 <?php endif; ?>
+                <h3 style="margin-top:20px;">تمیزکاری هاست (فایل‌های منسوخ نسخه‌های قبلی)</h3>
+                <?php
+                // فایل‌های حذف‌شده در ۹٫۹۹٫۱۹ و ۹٫۹۹٫۲۰ — فقط با شرط امن حذف می‌شن
+                $hostCleanupFiles = [
+                    // ۹٫۹۹٫۱۹: فایل‌های خالی (فقط اگر ۰ بایت باشند)
+                    'admin_assets.php', 'admin_blocks_ui.php', 'admin_blog.php', 'admin_catalog.php',
+                    'admin_finance.php', 'admin_gallery_ui.php', 'admin_hr.php', 'admin_inventory.php',
+                    'admin_logs.php', 'admin_notifications.php', 'admin_orders.php', 'admin_production.php',
+                    'admin_proposal.php', 'admin_reports.php', 'admin_users.php', 'session_handler.php',
+                    // ۹٫۹۹٫۲۰: آیکون‌های منتقل‌شده (فقط اگر نسخه جدید وجود داشته باشد)
+                    'pwa-icon-192.png', 'pwa-icon-512.png', 'apple-touch-icon.png', 'qr-card.png',
+                ];
+                $hostFound = [];
+                foreach ($hostCleanupFiles as $fn) {
+                    $p = "$root/$fn";
+                    if (!is_file($p)) { continue; }
+                    // شرط امن برای PHP: فقط خالی
+                    if (str_ends_with($fn, '.php') && filesize($p) > 0) { continue; }
+                    // شرط امن برای PNG: نسخه جدید باید در assets/icons/ باشد
+                    if (str_ends_with($fn, '.png') && !is_file("$root/assets/icons/$fn")) { continue; }
+                    $hostFound[] = $fn;
+                }
+                // پردازش حذف فایل‌های هاست
+                if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['run_host_cleanup']) && isset($_POST['csrf'])) {
+                    if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)$_POST['csrf'])) {
+                        $cleanerResult = ['error' => 'توکن امنیتی نامعتبر است.'];
+                    } else {
+                        $hDeleted = []; $hErrors = [];
+                        $toDel = $_POST['host_files'] ?? [];
+                        if (!is_array($toDel)) { $toDel = []; }
+                        foreach ($toDel as $fn) {
+                            if (!in_array($fn, $hostCleanupFiles, true)) { continue; }
+                            if (str_contains($fn, '/') || str_contains($fn, '\\')) { continue; }
+                            $p = "$root/$fn";
+                            if (!is_file($p)) { continue; }
+                            if (str_ends_with($fn, '.php') && filesize($p) > 0) { continue; }
+                            if (str_ends_with($fn, '.png') && !is_file("$root/assets/icons/$fn")) { continue; }
+                            if (@unlink($p)) { $hDeleted[] = $fn; } else { $hErrors[] = $fn; }
+                        }
+                        if (!empty($hDeleted)) {
+                            $cleanerResult = ['deleted' => $hDeleted, 'errors' => $hErrors];
+                        }
+                        $hostFound = [];
+                        foreach ($hostCleanupFiles as $fn) {
+                            $p = "$root/$fn";
+                            if (!is_file($p)) { continue; }
+                            if (str_ends_with($fn, '.php') && filesize($p) > 0) { continue; }
+                            if (str_ends_with($fn, '.png') && !is_file("$root/assets/icons/$fn")) { continue; }
+                            $hostFound[] = $fn;
+                        }
+                    }
+                }
+                ?>
+                <?php if (empty($hostFound)): ?>
+                    <p class="muted">فایل منسوخی روی هاست نیست — تمیز است.</p>
+                <?php else: ?>
+                    <p><?= count($hostFound) ?> فایل منسوخ پیدا شد (از نسخه‌های ۹٫۹۹٫۱۹ و ۹٫۹۹٫۲۰):</p>
+                    <form method="post" onsubmit="return confirm('فایل‌های تیک‌خورده حذف می‌شوند. مطمئنی؟');">
+                        <?= csrf_field() ?>
+                        <ul style="list-style:none; padding:0;">
+                            <?php foreach ($hostFound as $fn): ?>
+                                <li style="margin:8px 0;">
+                                    <label>
+                                        <input type="checkbox" name="host_files[]" value="<?= e($fn) ?>" checked>
+                                        <code dir="ltr"><?= e($fn) ?></code>
+                                    </label>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <button type="submit" name="run_host_cleanup" value="1" class="btn primary">حذف فایل‌های منسوخ</button>
+                    </form>
+                <?php endif; ?>
                 <h3 style="margin-top:20px;">محافظت‌شده (هرگز حذف نمی‌شوند)</h3>
                 <ul class="muted" style="font-size:13px;">
                     <li>دیتابیس (<code dir="ltr">database.sqlite</code>)</li>
                     <li>پوشه‌های <code dir="ltr">uploads/</code> و <code dir="ltr">backups/</code></li>
                     <li>فایل <code dir="ltr">.htaccess</code></li>
-                    <li>همه فایل‌های سیستمی (<code dir="ltr">admin.php</code>، <code dir="ltr">core/</code>، <code dir="ltr">admin_*.php</code>)</li>
+                    <li>همه فایل‌های سیستمی (<code dir="ltr">admin.php</code>، <code dir="ltr">core/</code>، <code dir="ltr">modules/</code>)</li>
                     <li>همه پوشه‌های ماژول (<code dir="ltr">modules/</code>)</li>
                 </ul>
             </div>
