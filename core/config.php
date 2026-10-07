@@ -2831,8 +2831,93 @@ $out .= '<meta name="apple-mobile-web-app-title" content="لاینرلایت">' 
 }
 
 /** پایان سند: اسکریپت سبک منوی موبایل، تغییر تم و اسلایدر + بستن body و html */
+
+/** محتوای ۴۰۴ هوشمند (۹٫۹۹٫۲۲) — شمارش معکوس و هدایت خودکار به صفحه اصلی (با حفظ کد ۴۰۴) */
+function notfound_auto_redirect_html(): string
+{
+    $home = e(pretty_url('index.php'));
+    $homeJs = json_encode(pretty_url('index.php'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    return '<div class="ll-404">'
+        . '<div class="code" dir="ltr">404</div>'
+        . '<h1>صفحه پیدا نشد</h1>'
+        . '<p>صفحه‌ای با این آدرس وجود ندارد یا غیرفعال است.</p>'
+        . '<p>تا <span class="count" id="ll404count">۵</span> ثانیه دیگر به صفحه اصلی هدایت می‌شوید…</p>'
+        . '<p><a class="btn" href="' . $home . '">بازگشت به صفحه اصلی</a></p>'
+        . '</div>'
+        . '<script>(function(){var n=5,el=document.getElementById("ll404count"),fa="۰۱۲۳۴۵۶۷۸۹";'
+        . 'var t=setInterval(function(){n--;if(n<=0){clearInterval(t);window.location.href=' . $homeJs . ';return;}'
+        . 'if(el){el.textContent=fa[n]||n;}},1000);})();</script>';
+}
+
+/** تب‌بار شناور موبایل (۹٫۹۹٫۲۲) — خانه، ثبت سفارش، درباره ما، تماس با ما */
+function tabbar_html(): string
+{
+    $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+    $path = strtolower(trim((string) parse_url($uri, PHP_URL_PATH), '/'));
+    // نگاشت مسیر به تب فعال
+    $active = '';
+    if ($path === '' || $path === 'index.php') $active = 'home';
+    elseif (str_starts_with($path, 'products') || str_starts_with($path, 'order')) $active = 'order';
+    elseif (str_starts_with($path, 'about')) $active = 'about';
+    elseif (str_starts_with($path, 'contact')) $active = 'contact';
+
+    $svg = function (string $body): string {
+        return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' . $body . '</g></svg>';
+    };
+    $items = [
+        ['key' => 'home',    'url' => '/',         'label' => 'خانه',
+         'icon' => $svg('<path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>')],
+        ['key' => 'order',   'url' => '/products', 'label' => 'ثبت سفارش',
+         'icon' => $svg('<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/>')],
+        ['key' => 'about',   'url' => '/about',    'label' => 'درباره ما',
+         'icon' => $svg('<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>')],
+        ['key' => 'contact', 'url' => '/contact',  'label' => 'تماس با ما',
+         'icon' => $svg('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>')],
+    ];
+    $out = '<nav class="ll-tabbar" aria-label="ناوبری موبایل">';
+    foreach ($items as $it) {
+        $on = ($active === $it['key']) ? ' on' : '';
+        $aria = ($active === $it['key']) ? ' aria-current="page"' : '';
+        $out .= '<a href="' . e($it['url']) . '" class="tab' . $on . '"' . $aria . '>' . $it['icon'] . '<span>' . e($it['label']) . '</span></a>';
+    }
+    $out .= '</nav>';
+    return $out;
+}
+
+/** آیا محتوای فوتر همان نسخه کارخانه‌ای قبل از ۹٫۹۹٫۲۲ است؟ */
+function design_footer_is_legacy(string $content): bool
+{
+    $norm = (string) preg_replace('/\s+/', '', $content);
+    return str_contains($norm, 'سفارشوکاتالوگ')
+        && str_contains($norm, '/catalog/linerlight-catalog.pdf')
+        && !str_contains($norm, 'همکاریباما');
+}
+
+/** همگام‌سازی طراحی ۹٫۹۹٫۲۲ — یک‌بار و امن؛ سفارشی‌سازی کاربر دست نمی‌خورد */
+function design_sync_9922(): void
+{
+    try {
+        $cur = (int) get_setting('design_version', '0');
+        if ($cur >= 9922) return;
+
+        // فوتر: فقط اگر دقیقاً نسخه کارخانه‌ای قبلی است
+        $row = get_template_row('footer');
+        if ($row !== null && design_footer_is_legacy((string) ($row['content'] ?? ''))) {
+            $all = factory_templates();
+            $new = (string) ($all['footer']['content'] ?? '');
+            if ($new !== '') {
+                save_template_content('footer', $new, 'همگام‌سازی خودکار طراحی ۹٫۹۹٫۲۲');
+            }
+        }
+        // اگر ردیفی در دیتابیس نیست، پیش‌فرض کارخانه‌ای جدید خودکار اعمال می‌شود.
+
+        set_setting('design_version', '9922');
+    } catch (Throwable $e) { /* silent — طراحی نباید سایت را بخواباند */ }
+}
+
 function skeleton_foot(): string
 {
+    design_sync_9922();
     $html = <<<'HTML'
 <script>
 (function(){
@@ -2899,6 +2984,8 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>", $html);
     }
+    // تب‌بار شناور موبایل (۹٫۹۹٫۲۲) — قبل از بستن body
+    $html = str_replace('</body>', tabbar_html() . "\n</body>", $html);
     return $html;
 }
 

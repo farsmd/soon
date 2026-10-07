@@ -124,15 +124,17 @@ HTML,
             <p class="f-title">دسترسی سریع</p>
             <nav class="f-links" aria-label="دسترسی سریع">
                 <a href="/">خانه</a>
-                <a href="/products">محصولات</a>
+                <a href="/products">کاتالوگ محصولات</a>
                 <a href="/gallery">گالری پروژه‌ها</a>
                 <a href="/about">درباره ما</a>
             </nav>
         </div>
         <div>
-            <p class="f-title">سفارش و کاتالوگ</p>
-            <nav class="f-links" aria-label="سفارش و کاتالوگ">
-                <a href="/products">ثبت سفارش</a>
+            <p class="f-title">بیشتر</p>
+            <nav class="f-links" aria-label="بیشتر">
+                <a href="/partner">همکاری با ما</a>
+                <a href="blog.php">مقالات</a>
+                <a href="/contact">تماس با ما</a>
                 <a href="/catalog/linerlight-catalog.pdf">دانلود کاتالوگ (PDF)</a>
             </nav>
         </div>
@@ -962,6 +964,60 @@ html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 .pf-field input::placeholder,.pf-field textarea::placeholder{color:var(--muted);opacity:.75}
 .pf-field .muted{font-weight:400;font-size:12px}
 @media(max-width:560px){.pf-grid{grid-template-columns:1fr}.partner-form{padding:18px}}
+
+
+
+/* ============================================================
+   ۹٫۹۹٫۲۲ — قالب موبایل‌اپ: تب‌بار شناور، گالری شیک، کارت گرد، ۴۰۴
+   ============================================================ */
+
+/* ---- تب‌بار شناور موبایل ---- */
+.ll-tabbar{display:none;}
+@media (max-width:768px){
+  .ll-tabbar{display:flex;position:fixed;z-index:1200;
+    bottom:calc(12px + env(safe-area-inset-bottom));right:12px;left:12px;
+    background:rgba(14,19,27,.93);
+    background:color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--surface-border);border-radius:24px;padding:8px 6px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);}
+  .ll-tabbar .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    color:var(--muted);text-decoration:none;font-size:10px;font-weight:600;
+    padding:6px 2px;border-radius:16px;font-family:inherit;}
+  .ll-tabbar .tab svg{width:23px;height:23px;}
+  .ll-tabbar .tab.on{color:var(--primary);}
+  .ll-tabbar .tab.on svg{filter:drop-shadow(0 0 8px rgba(201,162,39,.55));}
+  .ll-tabbar .tab:active{transform:scale(.94);}
+  .site-footer{padding-bottom:104px;}
+}
+
+/* ---- گالری شیک (immersive) ---- */
+.ll-gallery figure{border-radius:22px;border:1px solid var(--surface-border);
+  box-shadow:0 10px 34px rgba(0,0,0,.38);}
+.ll-gallery img{height:300px;}
+.ll-gallery figcaption{position:absolute;bottom:0;right:0;left:0;z-index:2;
+  padding:52px 16px 14px;font-size:14px;font-weight:700;color:#fff;text-align:right;
+  background:linear-gradient(to top,rgba(0,0,0,.85) 20%,transparent);}
+.ll-gallery figure::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.12),transparent 30%);}
+@media (max-width:768px){
+  .ll-gallery{grid-template-columns:1fr 1fr;gap:12px;}
+  .ll-gallery img{height:200px;}
+  .ll-gallery figcaption{font-size:12px;padding:40px 12px 10px;}
+}
+
+/* ---- کارت‌های محصول گردتر ---- */
+.p-card,.product-card{border-radius:26px;}
+.p-card .p-media,.product-card .product-media{border-radius:22px 22px 0 0;}
+
+/* ---- صفحه ۴۰۴ ---- */
+.ll-404{text-align:center;padding:70px 20px;max-width:560px;margin:0 auto;}
+.ll-404 .code{font-size:92px;font-weight:800;line-height:1;color:var(--primary);
+  text-shadow:0 0 60px rgba(201,162,39,.35);}
+.ll-404 h1{font-size:24px;margin:14px 0 8px;}
+.ll-404 p{color:var(--muted);line-height:2.1;}
+.ll-404 .count{font-weight:800;color:var(--primary);font-size:18px;}
+.ll-404 .btn{margin-top:18px;}
 
 CSS;
 }

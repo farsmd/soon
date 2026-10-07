@@ -24,8 +24,7 @@ if ($page === null) {
     $desc  = (string) ($settings['seo_description'] ?? '') !== '' ? (string) $settings['seo_description'] : (string) ($settings['site_description'] ?? '');
     $viewPage = [
         'title'   => 'صفحه پیدا نشد',
-        'content' => '<p>صفحه‌ای با این آدرس وجود ندارد یا غیرفعال است.</p>'
-            . '<p><a class="btn" href="' . e(pretty_url('index.php')) . '">بازگشت به صفحه اصلی</a></p>',
+        'content' => notfound_auto_redirect_html(),
     ];
 } else {
     $title = (string) ($page['seo_title'] ?? '') !== '' ? (string) $page['seo_title'] : ((string) $page['title'] . ' — ' . $siteTitle);
