@@ -471,4 +471,49 @@ if ($res === 'equipment') {
     api_out(['ok' => true, 'equipment' => $rows]);
 }
 
-api_fail('منبع نامعتبر است (res). منابع مجاز: ping, pages, page, sections, section, settings, products, product, orders, order, gallery_upload, employees, salary_payments, equipment', 404);
+
+// ---------------- آمار بازدید (فقط خواندنی، ۹٫۹۹٫۳۲) ----------------
+if ($res === 'visits') {
+    $days = min(90, max(1, (int) api_in('days', 30)));
+    // ستون‌های اختیاری (ممکن است در دیتابیس‌های قدیمی نباشند)
+    $cols = db()->query("PRAGMA table_info(visit_logs)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    $hasBot = in_array('is_bot', $cols, true);
+    $hasAdmin = in_array('admin_user', $cols, true);
+    $filter = "kind = 'visit'";
+    if ($hasBot) $filter .= " AND COALESCE(is_bot, 0) = 0";
+    if ($hasAdmin) $filter .= " AND COALESCE(admin_user, '') = ''";
+
+    $one = function(string $sql, array $params = []) {
+        $st = db()->prepare($sql);
+        $st->execute($params);
+        return $st->fetchAll(PDO::FETCH_ASSOC);
+    };
+    $cnt = function(string $where = '') use ($one, $filter) {
+        $w = $filter . ($where !== '' ? " AND ($where)" : '');
+        $r = $one("SELECT COUNT(*) AS c FROM visit_logs WHERE $w");
+        return (int) ($r[0]['c'] ?? 0);
+    };
+
+    $today = $cnt("date(created_at) = date('now')");
+    $yesterday = $cnt("date(created_at) = date('now', '-1 day')");
+    $last7 = $cnt("date(created_at) >= date('now', '-6 days')");
+    $last30 = $cnt("date(created_at) >= date('now', '-29 days')");
+    $total = $cnt();
+
+    $uniq = $one("SELECT COUNT(DISTINCT ip) AS c FROM visit_logs WHERE $filter AND date(created_at) >= date('now', '-29 days')");
+    $topPages = $one("SELECT path, COUNT(*) AS visits FROM visit_logs WHERE $filter AND date(created_at) >= date('now', '-29 days') GROUP BY path ORDER BY visits DESC LIMIT 10");
+    $daily = $one("SELECT date(created_at) AS d, COUNT(*) AS visits FROM visit_logs WHERE $filter AND date(created_at) >= date('now', '-" . ($days - 1) . " days') GROUP BY d ORDER BY d ASC");
+
+    api_out(['ok' => true, 'visits' => [
+        'total' => $total,
+        'today' => $today,
+        'yesterday' => $yesterday,
+        'last_7_days' => $last7,
+        'last_30_days' => $last30,
+        'unique_ips_30d' => (int) ($uniq[0]['c'] ?? 0),
+        'top_pages' => array_map(fn($r) => ['path' => (string) $r['path'], 'visits' => (int) $r['visits']], $topPages),
+        'daily' => array_map(fn($r) => ['date' => (string) $r['d'], 'visits' => (int) $r['visits']], $daily),
+    ]]);
+}
+
+api_fail('منبع نامعتبر است (res). منابع مجاز: ping, pages, page, sections, section, settings, products, product, orders, order, gallery_upload, employees, salary_payments, equipment, visits', 404);
