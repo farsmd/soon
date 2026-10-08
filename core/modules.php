@@ -258,3 +258,59 @@ function module_update_from_github(string $key): bool
         return true;
     } catch (Throwable $e) { return false; }
 }
+
+/** دریافت یک ماژول با کلید (۹٫۹۹٫۳۱ — منتقل از ماژول ادمین تا در صفحات عمومی هم در دسترس باشد) */
+function module_get(string $key): ?array
+{
+    try {
+        $stmt = db()->prepare("SELECT * FROM modules WHERE module_key = ?");
+        $stmt->execute([$key]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    } catch (Throwable $e) { return null; }
+}
+
+/** آیا ماژول فعال است؟ (اگر ماژول ثبت نشده، پیش‌فرض فعال فرض می‌شود) */
+function module_is_enabled(string $key): bool
+{
+    $m = module_get($key);
+    if ($m === null) return true;
+    return (int) $m['enabled'] === 1;
+}
+
+/** دریافت همه ماژول‌ها (۹٫۹۹٫۳۱ — منتقل از ماژول ادمین تا در صفحات عمومی هم در دسترس باشد) */
+function modules_all(bool $onlyEnabled = false): array
+{
+    try {
+        $sql = "SELECT * FROM modules" . ($onlyEnabled ? " WHERE enabled = 1" : "") . " ORDER BY sort_order ASC, name ASC";
+        return db()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) { return []; }
+}
+
+/** تغییر وضعیت فعال/غیرفعال (۹٫۹۹٫۳۱ — منتقل از ماژول ادمین) */
+function module_set_enabled(string $key, bool $enabled): bool
+{
+    try {
+        $m = module_get($key);
+        if ($m === null) return false;
+        if ((int) $m['is_core'] === 1 && !$enabled) return false; // ماژول هسته غیرفعال نمی‌شود
+        $stmt = db()->prepare("UPDATE modules SET enabled = ?, updated_at = ? WHERE module_key = ?");
+        return $stmt->execute([$enabled ? 1 : 0, time(), $key]);
+    } catch (Throwable $e) { return false; }
+}
+
+/** افزودن ماژول جدید (۹٫۹۹٫۳۱ — منتقل از ماژول ادمین) */
+function module_add(array $data): ?int
+{
+    try {
+        $stmt = db()->prepare("INSERT INTO modules (module_key, name, description, version, enabled, is_core, category, icon, file_path, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?)");
+        $now = time();
+        $stmt->execute([
+            $data['key'], $data['name'], $data['description'] ?? '',
+            $data['version'] ?? '1.0.0', $data['category'] ?? '',
+            $data['icon'] ?? '', $data['file_path'] ?? '',
+            (int) ($data['sort'] ?? 999), $now, $now,
+        ]);
+        return (int) db()->lastInsertId();
+    } catch (Throwable $e) { return null; }
+}
