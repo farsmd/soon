@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.38');
+define('APP_VERSION', '9.99.21');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -2832,7 +2832,7 @@ $out .= '<meta name="apple-mobile-web-app-title" content="لاینرلایت">' 
 
 /** پایان سند: اسکریپت سبک منوی موبایل، تغییر تم و اسلایدر + بستن body و html */
 
-/** محتوای ۴۰۴ هوشمند (۹٫۹۹٫۳۰) — شمارش معکوس و هدایت خودکار به صفحه اصلی (با حفظ کد ۴۰۴) */
+/** محتوای ۴۰۴ هوشمند (۹٫۹۹٫۲۲) — شمارش معکوس و هدایت خودکار به صفحه اصلی (با حفظ کد ۴۰۴) */
 function notfound_auto_redirect_html(): string
 {
     $home = e(pretty_url('index.php'));
@@ -2849,7 +2849,7 @@ function notfound_auto_redirect_html(): string
         . 'if(el){el.textContent=fa[n]||n;}},1000);})();</script>';
 }
 
-/** تب‌بار شناور موبایل (۹٫۹۹٫۳۰) — خانه، ثبت سفارش، درباره ما، تماس با ما */
+/** تب‌بار شناور موبایل (۹٫۹۹٫۲۲) — خانه، ثبت سفارش، درباره ما، تماس با ما */
 function tabbar_html(): string
 {
     $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
@@ -2884,7 +2884,7 @@ function tabbar_html(): string
     return $out;
 }
 
-/** آیا محتوای فوتر همان نسخه کارخانه‌ای قبل از ۹٫۹۹٫۳۰ است؟ */
+/** آیا محتوای فوتر همان نسخه کارخانه‌ای قبل از ۹٫۹۹٫۲۲ است؟ */
 function design_footer_is_legacy(string $content): bool
 {
     $norm = (string) preg_replace('/\s+/', '', $content);
@@ -2893,12 +2893,12 @@ function design_footer_is_legacy(string $content): bool
         && !str_contains($norm, 'همکاریباما');
 }
 
-/** همگام‌سازی طراحی ۹٫۹۹٫۳۰ — یک‌بار و امن؛ سفارشی‌سازی کاربر دست نمی‌خورد */
-function design_sync_9930(): void
+/** همگام‌سازی طراحی ۹٫۹۹٫۲۲ — یک‌بار و امن؛ سفارشی‌سازی کاربر دست نمی‌خورد */
+function design_sync_9922(): void
 {
     try {
         $cur = (int) get_setting('design_version', '0');
-        if ($cur >= 9930) return;
+        if ($cur >= 9922) return;
 
         // فوتر: فقط اگر دقیقاً نسخه کارخانه‌ای قبلی است
         $row = get_template_row('footer');
@@ -2906,45 +2906,18 @@ function design_sync_9930(): void
             $all = factory_templates();
             $new = (string) ($all['footer']['content'] ?? '');
             if ($new !== '') {
-                save_template_content('footer', $new, 'همگام‌سازی خودکار طراحی ۹٫۹۹٫۳۰');
+                save_template_content('footer', $new, 'همگام‌سازی خودکار طراحی ۹٫۹۹٫۲۲');
             }
         }
         // اگر ردیفی در دیتابیس نیست، پیش‌فرض کارخانه‌ای جدید خودکار اعمال می‌شود.
 
-        set_setting('design_version', '9930');
-    } catch (Throwable $e) { /* silent — طراحی نباید سایت را بخواباند */ }
-}
-
-function design_sync_9935(): void
-{
-    try {
-        $cur = (int) get_setting('design_version', '0');
-        if ($cur >= 9935) return;
-
-        // هدر: اضافه کردن width/height به لوگو برای رفع اخطار CLS پیج‌اسپید
-        $row = get_template_row('header');
-        if ($row !== null) {
-            $content = (string) ($row['content'] ?? '');
-            if (strpos($content, 'logo-img') !== false && strpos($content, 'width="159"') === false) {
-                $newContent = str_replace(
-                    '<img class="logo-img" src="uploads/gallery/logo.png"',
-                    '<img class="logo-img" src="uploads/gallery/logo.png" width="159" height="160"',
-                    $content
-                );
-                if ($newContent !== $content) {
-                    save_template_content('header', $newContent, 'همگام‌سازی خودکار طراحی ۹٫۹۹٫۳۵ (ابعاد لوگو)');
-                }
-            }
-        }
-
-        set_setting('design_version', '9935');
+        set_setting('design_version', '9922');
     } catch (Throwable $e) { /* silent — طراحی نباید سایت را بخواباند */ }
 }
 
 function skeleton_foot(): string
 {
-    design_sync_9930();
-    design_sync_9935();
+    design_sync_9922();
     $html = <<<'HTML'
 <script>
 (function(){
@@ -3011,7 +2984,7 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>", $html);
     }
-    // تب‌بار شناور موبایل (۹٫۹۹٫۳۰) — قبل از بستن body
+    // تب‌بار شناور موبایل (۹٫۹۹٫۲۲) — قبل از بستن body
     $html = str_replace('</body>', tabbar_html() . "\n</body>", $html);
     return $html;
 }
