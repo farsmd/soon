@@ -3506,7 +3506,9 @@ section{scroll-margin-top:90px}
 .btn-gold{background:linear-gradient(135deg,#ffb45e,var(--accent));color:#fff;
     box-shadow:var(--glow),0 4px 14px rgba(255,154,60,.25)}
 .btn-gold:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(255,154,60,.55),0 4px 14px rgba(255,154,60,.3);color:#fff}
-.btn-ghost{background:#fff;border:1px solid var(--surface-border);color:var(--text);box-shadow:var(--shadow-soft)}
+.btn-ghost{background:rgba(255,255,255,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.9);color:var(--text);
+    box-shadow:0 0 20px rgba(255,154,60,.12),0 6px 20px rgba(0,0,0,.06),inset 0 1px 0 rgba(255,255,255,1)}
 .btn-ghost:hover{border-color:var(--primary);color:var(--primary-dark);transform:translateY(-2px)}
 .btn-light{background:#fff;border:1px solid var(--surface-border);color:var(--text);box-shadow:var(--shadow-soft)}
 .btn-light:hover{border-color:var(--primary);color:var(--primary-dark)}
@@ -3618,11 +3620,14 @@ section{scroll-margin-top:90px}
 .section-image img{border-radius:var(--radius);box-shadow:var(--shadow)}
 
 /* ---------- ویترین محصولات (کارت) ---------- */
-.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:8px}
+.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:8px;position:relative}
+.prod-grid::before{content:"";position:absolute;inset:-40px -60px;z-index:-1;border-radius:40px;
+    background:linear-gradient(135deg,rgba(255,154,60,.08),rgba(255,255,255,0) 40%,rgba(59,91,219,.06) 70%,rgba(255,154,60,.1));
+    filter:blur(10px)}
 .p-card{background:var(--surface);border:1px solid rgba(255,255,255,.7);
     border-radius:var(--radius);overflow:hidden;transition:transform .35s ease,box-shadow .35s ease;
     display:flex;flex-direction:column;box-shadow:var(--shadow-clay)}
-.p-card:hover{transform:translateY(-8px);box-shadow:0 26px 54px rgba(31,38,63,.14),0 0 36px rgba(255,154,60,.16)}
+.p-card:hover{transform:translateY(-8px);background:rgba(255,255,255,.75);box-shadow:0 26px 54px rgba(31,38,63,.14),0 0 36px rgba(255,154,60,.16)}
 .p-media{aspect-ratio:4/3;overflow:hidden;background:#eef0f5;position:relative}
 .p-media img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
 .p-card:hover .p-media img{transform:scale(1.07)}
@@ -3666,9 +3671,12 @@ section{scroll-margin-top:90px}
 .ps-head h2{font-size:clamp(24px,4vw,36px);color:var(--text);margin:0 0 8px}
 .ps-head p{color:var(--muted);margin:0}
 .ps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px}
-.ps-card{display:block;background:var(--surface);border:1px solid rgba(255,255,255,.7);border-radius:var(--radius);
-    overflow:hidden;text-decoration:none;color:inherit;box-shadow:var(--shadow-clay);
-    transition:transform .3s,box-shadow .3s;animation:softCardIn .7s ease both}
+.ps-card{display:block;background:rgba(255,255,255,.62);
+    backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.85);border-radius:var(--radius);
+    overflow:hidden;text-decoration:none;color:inherit;
+    box-shadow:0 8px 32px rgba(31,38,63,.08),inset 0 1px 0 rgba(255,255,255,.9);
+    transition:transform .3s,box-shadow .3s,background .3s;animation:softCardIn .7s ease both}
 .ps-grid .ps-card:nth-child(2){animation-delay:.12s}
 .ps-grid .ps-card:nth-child(3){animation-delay:.24s}
 .ps-grid .ps-card:nth-child(4){animation-delay:.36s}
@@ -4046,6 +4054,30 @@ label{font-weight:600;font-size:13px;color:var(--text)}
    سایت خودش مثل محصول می‌درخشد: نور از پشت کارت‌ها، زیر هدر،
    لبه‌ی بخش‌ها می‌تابد — مثل نور مخفی کمد و کابینت
    ============================================================ */
+
+
+/* دکمه ثبت سفارش — سفید ظریف با هاله‌ی نور گرم (مثل نور مخفی) */
+.ps-cta{
+    background:#ffffff;color:#1a1d26;
+    border:1px solid rgba(255,154,60,.25);
+    border-radius:999px;
+    padding:12px 36px;
+    font-size:14px;font-weight:600;letter-spacing:.02em;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,.8),
+        0 0 24px 4px rgba(255,154,60,.35),
+        0 0 60px 12px rgba(255,154,60,.18),
+        0 8px 24px rgba(0,0,0,.08);
+    transition:box-shadow .4s ease,transform .3s ease;
+}
+.ps-cta:hover{
+    transform:translateY(-2px);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,.9),
+        0 0 32px 6px rgba(255,154,60,.5),
+        0 0 80px 16px rgba(255,154,60,.25),
+        0 12px 32px rgba(0,0,0,.1);
+}
 
 /* نوار نور زیر هدر — مثل نور مخفی زیر کابینت */
 .site-header::after{
