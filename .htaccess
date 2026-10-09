@@ -15,16 +15,9 @@
 # --- صفحه ۴۰۴ هوشمند (۹٫۹۹٫۳۳) — آدرس‌های مرده مثل price.html قدیمی ---
 ErrorDocument 404 /404.php
 
-
 # --- آدرس‌های تمیز سئودوست (نسخه ۹٫۱۳) ---
 <IfModule mod_rewrite.c>
     RewriteEngine On
-
-    # ریدایرکت آدرس‌های مرده قدیمی /cms/* به صفحه اصلی (۹٫۹۹٫۳۵)
-    # فقط وقتی فایل/پوشه واقعی وجود ندارد — نصب ترونگیت در /cms دست‌نخورده می‌ماند
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^cms(/.*)?$ / [R=301,L]
 
     # ۳۰۱ از آدرس‌های قدیمی به تمیز (فقط GET/HEAD تا POST فرم‌ها داده از دست ندهد؛ THE_REQUEST تا لوپ نشود)
     RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
