@@ -4043,7 +4043,7 @@ label{font-weight:600;font-size:13px;color:var(--text)}
 .ll-404 h1{font-size:120px;font-weight:900;background:linear-gradient(135deg,var(--primary),#ff7b0f);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
 
 /* ---------- تب‌بار ---------- */
-.ll-tabbar{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(400px,calc(100% - 32px));background:rgba(255,255,255,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.9);border-radius:28px;padding:10px 26px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,.12)}
+.ll-tabbar{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(400px,calc(100% - 32px));background:#ffffff;border:1px solid #eef0f5;border-radius:28px;padding:10px 26px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 12px 32px rgba(0,0,0,.1)}
 @media(min-width:769px){.ll-tabbar{display:none}}
 
 /* ---------- لایت‌باکس ---------- */
@@ -4079,17 +4079,7 @@ label{font-weight:600;font-size:13px;color:var(--text)}
         0 12px 32px rgba(0,0,0,.1);
 }
 
-/* نوار نور زیر هدر — مثل نور مخفی زیر کابینت */
-.site-header::after{
-    content:"";position:absolute;bottom:-2px;right:8%;left:8%;height:3px;border-radius:3px;
-    background:linear-gradient(90deg,transparent,var(--primary) 20%,#ffc46b 50%,var(--primary) 80%,transparent);
-    box-shadow:0 0 16px 3px rgba(255,154,60,.45),0 0 40px 8px rgba(255,154,60,.15);
-    animation:hiddenGlow 4s ease-in-out infinite alternate;
-}
-@keyframes hiddenGlow{
-    0%{opacity:.75;box-shadow:0 0 12px 2px rgba(255,154,60,.35),0 0 30px 6px rgba(255,154,60,.12)}
-    100%{opacity:1;box-shadow:0 0 20px 4px rgba(255,154,60,.55),0 0 50px 10px rgba(255,154,60,.2)}
-}
+
 
 /* هاله‌ی نور پشت کارت‌های محصول — مثل نور مخفی پشت آینه */
 .ps-card::before{
