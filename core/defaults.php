@@ -963,6 +963,108 @@ html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 .pf-field .muted{font-weight:400;font-size:12px}
 @media(max-width:560px){.pf-grid{grid-template-columns:1fr}.partner-form{padding:18px}}
 
+/* ============================================================
+   انیمیشن‌های سینمایی + بهبود UX (۹٫۹۹٫۳۹)
+   ============================================================ */
+
+/* ---------- نورهای متحرک هیرو ---------- */
+.cinematic-hero{position:relative;overflow:hidden}
+.cinematic-hero::before{
+    content:"";position:absolute;inset:-20%;z-index:0;pointer-events:none;
+    background:
+        linear-gradient(115deg,transparent 42%,rgba(201,162,39,.06) 48%,rgba(232,198,106,.12) 50%,rgba(201,162,39,.06) 52%,transparent 58%),
+        linear-gradient(115deg,transparent 62%,rgba(201,162,39,.04) 68%,rgba(232,198,106,.08) 70%,rgba(201,162,39,.04) 72%,transparent 78%);
+    background-size:280% 280%,320% 320%;
+    animation:cineStreaks 16s ease-in-out infinite alternate;
+}
+@keyframes cineStreaks{
+    0%{background-position:120% 0,140% 0;opacity:.6}
+    50%{opacity:1}
+    100%{background-position:-20% 0,-40% 0;opacity:.6}
+}
+
+/* ---------- ورود پلکانی متن هیرو ---------- */
+.cinematic-hero .hero-kicker{animation:cineFadeUp 1s ease .1s both}
+.cinematic-hero h1{animation:cineFadeUp 1.1s ease .25s both}
+.cinematic-hero .lead{animation:cineFadeUp 1.1s ease .45s both}
+.cinematic-hero .hero-ctas{animation:cineFadeUp 1.1s ease .65s both}
+@keyframes cineFadeUp{
+    0%{opacity:0;transform:translateY(24px)}
+    100%{opacity:1;transform:translateY(0)}
+}
+
+/* ---------- دکمه مشاهده و ثبت سفارش — UX بهتر ---------- */
+.ps-cta{
+    display:flex!important;align-items:center;justify-content:center;gap:10px;
+    margin-top:16px!important;padding:13px 20px!important;
+    background:linear-gradient(135deg,#e8c66a,#c9a227)!important;
+    color:#0a0a0c!important;font-weight:700!important;font-size:14px!important;
+    border-radius:14px!important;max-width:100%;box-sizing:border-box;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:0 6px 20px rgba(201,162,39,.25);
+    transition:transform .3s,box-shadow .3s!important;
+}
+.ps-cta::after{content:"←";font-weight:700;transition:transform .3s}
+.ps-card:hover .ps-cta{transform:translateY(-2px);box-shadow:0 10px 28px rgba(201,162,39,.4)}
+.ps-card:hover .ps-cta::after{transform:translateX(-4px)}
+@media(max-width:768px){
+    .ps-cta{font-size:13px!important;padding:12px 16px!important}
+}
+
+/* ---------- باکس‌های چرا لاینرلایت — وسط‌چین با افکت ---------- */
+.features .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;margin-top:44px}
+.features .card{
+    text-align:center;padding:40px 28px;
+    background:linear-gradient(165deg,var(--surface),rgba(201,162,39,.05));
+    border:1px solid var(--surface-border);border-radius:24px;
+    position:relative;overflow:hidden;
+    opacity:0;transform:translateY(30px);
+    animation:cineCardIn .8s ease forwards;
+    transition:transform .4s cubic-bezier(.2,.7,.3,1.2),box-shadow .4s,border-color .4s;
+}
+.features .card:nth-child(1){animation-delay:.1s}
+.features .card:nth-child(2){animation-delay:.25s}
+.features .card:nth-child(3){animation-delay:.4s}
+.features .card:nth-child(4){animation-delay:.55s}
+@keyframes cineCardIn{
+    to{opacity:1;transform:translateY(0)}
+}
+.features .card::before{
+    content:"";position:absolute;top:0;right:50%;transform:translateX(50%);
+    width:60px;height:3px;border-radius:3px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    opacity:.6;transition:width .4s,opacity .4s;
+}
+.features .card::after{
+    content:"";position:absolute;bottom:-50px;right:50%;transform:translateX(50%);
+    width:160px;height:160px;border-radius:50%;
+    background:radial-gradient(circle,rgba(201,162,39,.12),transparent 70%);
+    transition:transform .5s;pointer-events:none;
+}
+.features .card:hover{transform:translateY(-10px);border-color:rgba(232,198,106,.5);
+    box-shadow:0 28px 60px rgba(0,0,0,.45),0 0 50px rgba(201,162,39,.15)}
+.features .card:hover::before{width:100px;opacity:1}
+.features .card:hover::after{transform:translateX(50%) scale(1.5)}
+.features .card-icon{
+    width:64px;height:64px;border-radius:20px;margin:0 auto 20px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,rgba(201,162,39,.2),rgba(201,162,39,.06));
+    border:1px solid rgba(232,198,106,.35);color:var(--accent);
+    transition:transform .4s,box-shadow .4s;
+}
+.features .card-icon svg{width:30px;height:30px}
+.features .card:hover .card-icon{transform:scale(1.12) rotate(-8deg);box-shadow:0 10px 30px rgba(201,162,39,.35)}
+.features .card h3{font-size:18px;font-weight:800;margin:0 0 12px;color:var(--text);text-align:center}
+.features .card p{font-size:14px;color:var(--muted);margin:0;line-height:2.1;text-align:center}
+
+/* ---------- حرکت کم ---------- */
+@media (prefers-reduced-motion:reduce){
+    .cinematic-hero::before,
+    .cinematic-hero .hero-kicker,.cinematic-hero h1,
+    .cinematic-hero .lead,.cinematic-hero .hero-ctas,
+    .features .card{animation:none!important;opacity:1;transform:none}
+}
+
 CSS;
 }
 
