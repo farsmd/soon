@@ -71,6 +71,7 @@ try {
 // صفحه محصولات
 if ($baseUrl !== '') {
     $urls[] = ['loc' => $baseUrl . '/products', 'changefreq' => 'weekly', 'priority' => '0.9'];
+    $urls[] = ['loc' => $baseUrl . '/price', 'changefreq' => 'monthly', 'priority' => '0.8'];
 }
 
 // صفحه پیگیری سفارش

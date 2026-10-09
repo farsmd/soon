@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '9.99.40');
+define('APP_VERSION', '9.99.41');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
@@ -5309,9 +5309,7 @@ function products_showcase_html(): string
             if ($price > 0) {
                 $out .= '<div class="ps-price">' . e(format_price($price)) . ' <small>/ متر</small></div>';
             }
-            if ($partnerPrice > 0 && $partnerPrice != $price) {
-                $out .= '<div class="ps-partner">تخفیف همکار: ' . e(format_price($partnerPrice)) . '</div>';
-            }
+
         }
         $out .= '<span class="btn btn-gold ps-cta">ثبت سفارش</span>';
         $out .= '</div></a>';
