@@ -2915,9 +2915,36 @@ function design_sync_9930(): void
     } catch (Throwable $e) { /* silent — طراحی نباید سایت را بخواباند */ }
 }
 
+function design_sync_9935(): void
+{
+    try {
+        $cur = (int) get_setting('design_version', '0');
+        if ($cur >= 9935) return;
+
+        // هدر: اضافه کردن width/height به لوگو برای رفع اخطار CLS پیج‌اسپید
+        $row = get_template_row('header');
+        if ($row !== null) {
+            $content = (string) ($row['content'] ?? '');
+            if (strpos($content, 'logo-img') !== false && strpos($content, 'width="159"') === false) {
+                $newContent = str_replace(
+                    '<img class="logo-img" src="uploads/gallery/logo.png"',
+                    '<img class="logo-img" src="uploads/gallery/logo.png" width="159" height="160"',
+                    $content
+                );
+                if ($newContent !== $content) {
+                    save_template_content('header', $newContent, 'همگام‌سازی خودکار طراحی ۹٫۹۹٫۳۵ (ابعاد لوگو)');
+                }
+            }
+        }
+
+        set_setting('design_version', '9935');
+    } catch (Throwable $e) { /* silent — طراحی نباید سایت را بخواباند */ }
+}
+
 function skeleton_foot(): string
 {
     design_sync_9930();
+    design_sync_9935();
     $html = <<<'HTML'
 <script>
 (function(){
