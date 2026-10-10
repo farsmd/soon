@@ -4039,6 +4039,26 @@ main{display:block;padding-top:76px}
 .g-item img{border-radius:calc(var(--radius-sm) - 8px);width:100%;height:100%;object-fit:cover;display:block}
 .g-item:nth-child(6n+1) img{aspect-ratio:3/4}
 
+
+/* ---------- گالری و بلاگ ۹٫۹۹٫۴۲ ---------- */
+/* کادر شیشه‌ای ۵ پیکسل دور عکس‌های گالری */
+.g-item{padding:5px!important}
+.g-item img{border:5px solid rgba(255,255,255,.5);box-shadow:inset 0 0 20px rgba(255,255,255,.3)}
+
+/* بلاگ — فاصله درست عکس‌ها */
+.blog-featured{width:calc(100% - 32px)!important;margin:20px 16px!important;border-radius:20px}
+.blog-content img{width:calc(100% - 24px)!important;margin:16px 12px!important;border-radius:16px}
+
+/* بکگراند گرادیان سیال برای بلاگ مثل رفرنس */
+.blog-list,.blog-post{position:relative}
+.blog-list::before,.blog-post::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:
+        radial-gradient(800px 600px at 15% 10%,rgba(59,130,246,.18),transparent 60%),
+        radial-gradient(700px 500px at 85% 20%,rgba(168,85,247,.15),transparent 60%),
+        radial-gradient(600px 700px at 50% 80%,rgba(236,72,153,.12),transparent 60%),
+        radial-gradient(500px 400px at 80% 85%,rgba(34,211,238,.14),transparent 60%),
+        linear-gradient(180deg,#f2f3f7,#eef0f6)}
+
 /* ---------- چاپ ---------- */
 @media print{
     .site-header,.hero-canvas,.hero-scroll,.marquee,.final-cta,.g-wrap,.ll-tabbar{display:none}
