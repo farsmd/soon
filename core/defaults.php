@@ -3206,6 +3206,94 @@ textarea{min-height:120px;resize:vertical}
     .mq-track{animation:mq 40s linear infinite}
 }
 
+
+/* ============================================================
+   انیمیشن‌های سینمایی تم کیهانی (۹٫۹۹٫۳۸)
+   نورهای متحرک، ذرات شناور، ورود متن — حس زنده و سینمایی
+   ============================================================ */
+
+/* ---------- نوارهای نور متحرک در هیرو ---------- */
+.cinematic-hero{position:relative;overflow:hidden}
+.cinematic-hero::before{
+    content:"";position:absolute;inset:-20%;z-index:0;pointer-events:none;
+    background:
+        linear-gradient(115deg,transparent 42%,rgba(255,217,160,.07) 48%,rgba(255,223,158,.14) 50%,rgba(255,217,160,.07) 52%,transparent 58%),
+        linear-gradient(115deg,transparent 62%,rgba(255,217,160,.05) 68%,rgba(255,223,158,.1) 70%,rgba(255,217,160,.05) 72%,transparent 78%);
+    background-size:280% 280%,320% 320%;
+    animation:spaceStreaks 14s ease-in-out infinite alternate;
+}
+@keyframes spaceStreaks{
+    0%{background-position:120% 0,140% 0;opacity:.7}
+    50%{opacity:1}
+    100%{background-position:-20% 0,-40% 0;opacity:.7}
+}
+
+/* ---------- ذرات نورانی شناور (CSS) ---------- */
+.cinematic-hero::after{
+    content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-image:
+        radial-gradient(2px 2px at 12% 28%,rgba(255,223,158,.9),transparent),
+        radial-gradient(1.5px 1.5px at 28% 62%,rgba(255,217,160,.7),transparent),
+        radial-gradient(2px 2px at 45% 18%,rgba(255,223,158,.8),transparent),
+        radial-gradient(1px 1px at 62% 42%,rgba(255,217,160,.6),transparent),
+        radial-gradient(2.5px 2.5px at 74% 72%,rgba(255,223,158,.75),transparent),
+        radial-gradient(1.5px 1.5px at 86% 32%,rgba(255,217,160,.65),transparent),
+        radial-gradient(2px 2px at 94% 58%,rgba(255,223,158,.7),transparent),
+        radial-gradient(1px 1px at 8% 78%,rgba(255,217,160,.5),transparent),
+        radial-gradient(1.5px 1.5px at 38% 88%,rgba(255,223,158,.6),transparent),
+        radial-gradient(2px 2px at 58% 8%,rgba(255,217,160,.7),transparent);
+    background-size:120% 120%;
+    animation:spaceDrift 18s ease-in-out infinite alternate;
+}
+@keyframes spaceDrift{
+    0%{background-position:0 0;opacity:.55}
+    50%{opacity:1}
+    100%{background-position:-60px -40px;opacity:.55}
+}
+
+/* ---------- ورود متن هیرو با تأخیر پلکانی ---------- */
+.cinematic-hero .hero-kicker{animation:spaceFadeUp 1s ease .15s both}
+.cinematic-hero h1{animation:spaceFadeUp 1.1s ease .3s both}
+.cinematic-hero .lead{animation:spaceFadeUp 1.1s ease .5s both}
+.cinematic-hero .hero-ctas{animation:spaceFadeUp 1.1s ease .7s both}
+.cinematic-hero .hero-scroll{animation:spaceFadeUp 1s ease .9s both}
+@keyframes spaceFadeUp{
+    0%{opacity:0;transform:translateY(28px);filter:blur(6px)}
+    100%{opacity:1;transform:translateY(0);filter:blur(0)}
+}
+
+/* ---------- درخشش ضربانی نقطه‌های کیکر ---------- */
+.hero-kicker::before,.hero-kicker::after{animation:spacePulse 2.4s ease-in-out infinite}
+@keyframes spacePulse{
+    0%,100%{box-shadow:0 0 6px 1px rgba(255,217,160,.5);transform:scale(1)}
+    50%{box-shadow:0 0 14px 4px rgba(255,217,160,.85);transform:scale(1.25)}
+}
+
+/* ---------- هاله‌ی طلایی شناور پشت تیتر ---------- */
+.cinematic-hero h1{position:relative}
+.cinematic-hero h1::after{
+    content:"";position:absolute;top:50%;right:50%;width:320px;height:120px;
+    transform:translate(50%,-50%);z-index:-1;pointer-events:none;
+    background:radial-gradient(ellipse,rgba(255,217,160,.12),transparent 70%);
+    animation:spaceGlow 5s ease-in-out infinite alternate;
+}
+@keyframes spaceGlow{
+    0%{opacity:.5;transform:translate(50%,-50%) scale(.9)}
+    100%{opacity:1;transform:translate(50%,-50%) scale(1.15)}
+}
+
+/* ---------- حرکت کم: انیمیشن‌های سنگین غیرفعال ---------- */
+@media (prefers-reduced-motion:reduce){
+    .cinematic-hero::before,.cinematic-hero::after,
+    .cinematic-hero .hero-kicker,.cinematic-hero h1,
+    .cinematic-hero .lead,.cinematic-hero .hero-ctas,
+    .hero-kicker::before,.hero-kicker::after,
+    .cinematic-hero h1::after{animation:none!important}
+    .cinematic-hero .hero-kicker,.cinematic-hero h1,
+    .cinematic-hero .lead,.cinematic-hero .hero-ctas{opacity:1;transform:none;filter:none}
+}
+
+
 /* ---------- چاپ ---------- */
 @media print{
     .site-header,.hero-canvas,.hero-scroll,.marquee,.final-cta,.g-wrap,.ll-tabbar,
