@@ -3522,7 +3522,7 @@ section{scroll-margin-top:90px}
 .logo{font-weight:900;font-size:20px;color:var(--header-text);display:flex;align-items:center;gap:10px}
 .logo-img{height:38px;width:auto;border-radius:10px;box-shadow:0 4px 12px rgba(31,38,63,.12)}
 .main-nav{display:flex;align-items:center}
-.nav-toggle{background:rgba(255,255,255,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.75);border-radius:16px;box-shadow:0 4px 16px rgba(31,38,63,.08),inset 0 1px 0 rgba(255,255,255,.9);width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#1a1d26}
+.nav-toggle{background:rgba(255,255,255,.28);backdrop-filter:blur(32px) saturate(1.8);-webkit-backdrop-filter:blur(32px) saturate(1.8);border:1px solid rgba(255,255,255,.65);border-radius:16px;box-shadow:0 8px 24px rgba(31,38,63,.08),inset 0 1px 1px rgba(255,255,255,.8);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#1a1d26;font-size:20px}
 .nav-list{display:flex;align-items:center;gap:6px}
 .nav-list a{color:var(--header-link);font-size:14.5px;font-weight:600;padding:10px 17px;border-radius:999px;transition:.25s}
 .nav-list a:hover{color:var(--primary-dark);background:rgba(255,154,60,.12)}
@@ -4042,7 +4042,7 @@ label{font-weight:600;font-size:13px;color:var(--text)}
 .ll-404 h1{font-size:120px;font-weight:900;background:linear-gradient(135deg,var(--primary),#ff7b0f);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
 
 /* ---------- تب‌بار ---------- */
-.ll-tabbar{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(380px,calc(100% - 24px));background:rgba(255,255,255,.42);backdrop-filter:blur(28px) saturate(1.8);-webkit-backdrop-filter:blur(28px) saturate(1.8);border:1px solid rgba(255,255,255,.65);border-radius:24px;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 8px 32px rgba(31,38,63,.08),inset 0 1px 1px rgba(255,255,255,.8),inset 0 -1px 1px rgba(255,255,255,.3);transition:width .4s cubic-bezier(.4,0,.2,1),padding .4s}
+.ll-tabbar{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(380px,calc(100% - 24px));background:rgba(255,255,255,.28);backdrop-filter:blur(32px) saturate(1.8);-webkit-backdrop-filter:blur(32px) saturate(1.8);border:1px solid rgba(255,255,255,.65);border-radius:24px;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 8px 32px rgba(31,38,63,.08),inset 0 1px 1px rgba(255,255,255,.8),inset 0 -1px 1px rgba(255,255,255,.3);transition:width .4s cubic-bezier(.4,0,.2,1),padding .4s}
 .ll-tabbar .tab{display:flex;flex-direction:column;align-items:center;gap:2px;transition:opacity .3s,transform .3s;font-size:11px}
 .ll-tabbar .tab svg{width:20px;height:20px}
 @media(max-width:480px){.ll-tabbar{padding:6px 12px;border-radius:20px;width:calc(100% - 20px)}.ll-tabbar .tab{font-size:10px}.ll-tabbar .tab svg{width:18px;height:18px}}
