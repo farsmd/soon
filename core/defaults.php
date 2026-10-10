@@ -4042,9 +4042,11 @@ label{font-weight:600;font-size:13px;color:var(--text)}
 .ll-404 h1{font-size:120px;font-weight:900;background:linear-gradient(135deg,var(--primary),#ff7b0f);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
 
 /* ---------- تب‌بار ---------- */
-.ll-tabbar{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(400px,calc(100% - 32px));background:rgba(255,255,255,.6);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border:1px solid rgba(255,255,255,.75);border-radius:28px;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 12px 40px rgba(31,38,63,.12),inset 0 1px 0 rgba(255,255,255,.9);transition:width .4s cubic-bezier(.4,0,.2,1),padding .4s}
-.ll-tabbar .tab{display:flex;flex-direction:column;align-items:center;gap:4px;transition:opacity .3s,transform .3s}
-.tabbar-toggle{background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.8);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7280;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:transform .3s}
+.ll-tabbar{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(380px,calc(100% - 24px));background:rgba(255,255,255,.42);backdrop-filter:blur(28px) saturate(1.8);-webkit-backdrop-filter:blur(28px) saturate(1.8);border:1px solid rgba(255,255,255,.65);border-radius:24px;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 8px 32px rgba(31,38,63,.08),inset 0 1px 1px rgba(255,255,255,.8),inset 0 -1px 1px rgba(255,255,255,.3);transition:width .4s cubic-bezier(.4,0,.2,1),padding .4s}
+.ll-tabbar .tab{display:flex;flex-direction:column;align-items:center;gap:2px;transition:opacity .3s,transform .3s;font-size:11px}
+.ll-tabbar .tab svg{width:20px;height:20px}
+@media(max-width:480px){.ll-tabbar{padding:6px 12px;border-radius:20px;width:calc(100% - 20px)}.ll-tabbar .tab{font-size:10px}.ll-tabbar .tab svg{width:18px;height:18px}}
+.tabbar-toggle{background:rgba(255,255,255,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#9aa1b2;flex-shrink:0;box-shadow:0 2px 10px rgba(31,38,63,.06),inset 0 1px 1px rgba(255,255,255,.8);transition:transform .3s,color .3s}
 .tabbar-toggle:hover{color:#1a1d26}
 .ll-tabbar.collapsed{width:auto;padding:10px 12px}
 .ll-tabbar.collapsed .tab{opacity:0;transform:scale(.8);pointer-events:none;position:absolute;visibility:hidden}
