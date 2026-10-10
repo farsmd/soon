@@ -4025,6 +4025,20 @@ textarea{min-height:120px;resize:vertical}
     box-shadow:0 16px 44px rgba(31,38,63,.12),inset 0 1px 0 rgba(255,255,255,.9)!important;
 }
 
+
+/* ---------- فیکس‌های ۹٫۹۹٫۴۲ ---------- */
+/* ۱) صفحات زیر هدر نرن */
+main{display:block;padding-top:76px}
+@media(max-width:768px){main{padding-top:68px}}
+
+/* ۲) QR تماس — سایز مناسب */
+.contact-qr-img{width:168px!important;height:168px!important;border-radius:20px;background:#fff;padding:10px;flex-shrink:0;box-shadow:0 8px 24px rgba(31,38,63,.1)}
+
+/* ۳) کادر شیشه‌ای برای عکس‌های گالری + حذف فضای خالی */
+.g-item{background:linear-gradient(135deg,rgba(255,244,230,.5),rgba(255,255,255,.3))!important;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.7)!important;padding:8px}
+.g-item img{border-radius:calc(var(--radius-sm) - 8px);width:100%;height:100%;object-fit:cover;display:block}
+.g-item:nth-child(6n+1) img{aspect-ratio:3/4}
+
 /* ---------- چاپ ---------- */
 @media print{
     .site-header,.hero-canvas,.hero-scroll,.marquee,.final-cta,.g-wrap,.ll-tabbar{display:none}
