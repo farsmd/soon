@@ -3452,7 +3452,7 @@ function theme_soft_css(): string
     --text:#1a1d26;
     --muted:#6b7280;
     --muted-2:#9aa1b2;
-    --header-bg:rgba(255,255,255,.72);
+    --header-bg:rgba(255,255,255,.45);
     --header-text:#1a1d26;
     --header-link:#4b5263;
     --footer-bg:#e9ebf2;
@@ -3670,9 +3670,9 @@ section{scroll-margin-top:90px}
 .ps-head h2{font-size:clamp(24px,4vw,36px);color:var(--text);margin:0 0 8px}
 .ps-head p{color:var(--muted);margin:0}
 .ps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px}
-.ps-card{display:block;background:rgba(255,255,255,.62);
-    backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
-    border:1px solid rgba(255,255,255,.85);border-radius:var(--radius);
+.ps-card{display:block;background:linear-gradient(135deg,rgba(255,244,230,.55),rgba(255,255,255,.35));
+    backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
+    border:1px solid rgba(255,255,255,.7);border-radius:var(--radius);
     overflow:hidden;text-decoration:none;color:inherit;
     box-shadow:0 8px 32px rgba(31,38,63,.08),inset 0 1px 0 rgba(255,255,255,.9);
     transition:transform .3s,box-shadow .3s,background .3s;animation:softCardIn .7s ease both}
