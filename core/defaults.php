@@ -4059,6 +4059,32 @@ main{display:block;padding-top:76px}
         radial-gradient(500px 400px at 80% 85%,rgba(34,211,238,.14),transparent 60%),
         linear-gradient(180deg,#f2f3f7,#eef0f6)}
 
+
+/* ---------- لیکویید گلس ۹٫۹۹٫۴۲ ---------- */
+/* گالری — کادر شیشه‌ای ۵ پیکسل دور عکس (قابل مشاهده) */
+.g-item{padding:10px!important;background:rgba(255,255,255,.25)!important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.6)!important;border-radius:20px!important;box-shadow:0 8px 32px rgba(31,38,63,.1),inset 0 1px 0 rgba(255,255,255,.8)!important}
+.g-item img{border:5px solid rgba(255,255,255,.65)!important;border-radius:14px!important;box-shadow:0 4px 16px rgba(31,38,63,.12),inset 0 0 0 1px rgba(255,255,255,.4)!important}
+
+/* درباره ما و تماس — کارت‌های لیکویید گلس */
+.page-body,.contact-card,.about-card{
+    background:linear-gradient(135deg,rgba(255,255,255,.55),rgba(255,244,230,.35))!important;
+    backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.7)!important;border-radius:24px!important;
+    box-shadow:0 12px 44px rgba(31,38,63,.1),inset 0 1px 0 rgba(255,255,255,.9)!important;
+    padding:32px!important}
+
+/* بلاگ — کارت‌های لیکویید گلس زیبا */
+.blog-card{
+    background:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,244,230,.4))!important;
+    backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.75)!important;border-radius:22px!important;overflow:hidden;
+    box-shadow:0 10px 36px rgba(31,38,63,.09),inset 0 1px 0 rgba(255,255,255,.9)!important;
+    transition:transform .35s ease,box-shadow .35s ease}
+.blog-card:hover{transform:translateY(-8px);
+    box-shadow:0 20px 56px rgba(31,38,63,.14),0 0 32px rgba(255,154,60,.15),inset 0 1px 0 rgba(255,255,255,.9)!important}
+.blog-card .blog-thumb{border-radius:16px 16px 0 0;overflow:hidden;margin:6px 6px 0}
+.blog-card .blog-thumb img{border-radius:12px}
+
 /* ---------- چاپ ---------- */
 @media print{
     .site-header,.hero-canvas,.hero-scroll,.marquee,.final-cta,.g-wrap,.ll-tabbar{display:none}
