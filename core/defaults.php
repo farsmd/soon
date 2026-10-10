@@ -3522,8 +3522,7 @@ section{scroll-margin-top:90px}
 .logo{font-weight:900;font-size:20px;color:var(--header-text);display:flex;align-items:center;gap:10px}
 .logo-img{height:38px;width:auto;border-radius:10px;box-shadow:0 4px 12px rgba(31,38,63,.12)}
 .main-nav{display:flex;align-items:center}
-.nav-toggle{display:none;background:#fff;border:1px solid var(--surface-border);color:var(--text);box-shadow:var(--shadow-soft);
-    border-radius:14px;padding:8px 14px;font-size:18px;cursor:pointer;font-family:inherit}
+.nav-toggle{background:rgba(255,255,255,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.75);border-radius:16px;box-shadow:0 4px 16px rgba(31,38,63,.08),inset 0 1px 0 rgba(255,255,255,.9);width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#1a1d26}
 .nav-list{display:flex;align-items:center;gap:6px}
 .nav-list a{color:var(--header-link);font-size:14.5px;font-weight:600;padding:10px 17px;border-radius:999px;transition:.25s}
 .nav-list a:hover{color:var(--primary-dark);background:rgba(255,154,60,.12)}
@@ -4043,7 +4042,14 @@ label{font-weight:600;font-size:13px;color:var(--text)}
 .ll-404 h1{font-size:120px;font-weight:900;background:linear-gradient(135deg,var(--primary),#ff7b0f);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}
 
 /* ---------- تب‌بار ---------- */
-.ll-tabbar{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(400px,calc(100% - 32px));background:#ffffff;border:1px solid #eef0f5;border-radius:28px;padding:10px 26px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 12px 32px rgba(0,0,0,.1)}
+.ll-tabbar{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:50%;transform:translateX(50%);width:min(400px,calc(100% - 32px));background:rgba(255,255,255,.6);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border:1px solid rgba(255,255,255,.75);border-radius:28px;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;z-index:50;box-shadow:0 12px 40px rgba(31,38,63,.12),inset 0 1px 0 rgba(255,255,255,.9);transition:width .4s cubic-bezier(.4,0,.2,1),padding .4s}
+.ll-tabbar .tab{display:flex;flex-direction:column;align-items:center;gap:4px;transition:opacity .3s,transform .3s}
+.tabbar-toggle{background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.8);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7280;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:transform .3s}
+.tabbar-toggle:hover{color:#1a1d26}
+.ll-tabbar.collapsed{width:auto;padding:10px 12px}
+.ll-tabbar.collapsed .tab{opacity:0;transform:scale(.8);pointer-events:none;position:absolute;visibility:hidden}
+.ll-tabbar.collapsed .tabbar-toggle svg{transform:rotate(180deg)}
+.tabbar-toggle svg{transition:transform .3s}
 @media(min-width:769px){.ll-tabbar{display:none}}
 
 /* ---------- لایت‌باکس ---------- */
@@ -4058,25 +4064,25 @@ label{font-weight:600;font-size:13px;color:var(--text)}
 
 /* دکمه ثبت سفارش — سفید ظریف با هاله‌ی نور گرم (مثل نور مخفی) */
 .ps-cta{
-    background:#ffffff!important;color:#1a1d26!important;
-    border:1px solid rgba(255,154,60,.25);
+    background:#f4f5f8!important;color:#1a1d26!important;
+    border:none;
     border-radius:999px;
-    padding:12px 36px;
-    font-size:14px;font-weight:600;letter-spacing:.02em;
+    padding:10px 24px;
+    font-size:13px;font-weight:700;letter-spacing:.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
     box-shadow:
-        0 0 0 1px rgba(255,255,255,.8),
-        0 0 24px 4px rgba(255,154,60,.35),
-        0 0 60px 12px rgba(255,154,60,.18),
-        0 8px 24px rgba(0,0,0,.08);
-    transition:box-shadow .4s ease,transform .3s ease;
+        5px 5px 12px rgba(31,38,63,.12),
+        -4px -4px 10px rgba(255,255,255,.95),
+        inset 0 1px 2px rgba(255,255,255,.9);
+    transition:box-shadow .3s ease,transform .25s ease;
 }
 .ps-cta:hover{
-    transform:translateY(-2px);
+    transform:translateY(-1px);
     box-shadow:
-        0 0 0 1px rgba(255,255,255,.9),
-        0 0 32px 6px rgba(255,154,60,.5),
-        0 0 80px 16px rgba(255,154,60,.25),
-        0 12px 32px rgba(0,0,0,.1);
+        6px 6px 16px rgba(31,38,63,.14),
+        -4px -4px 12px rgba(255,255,255,.95),
+        0 0 20px rgba(255,154,60,.25),
+        inset 0 1px 2px rgba(255,255,255,.9);
 }
 
 

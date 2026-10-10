@@ -2875,6 +2875,7 @@ function tabbar_html(): string
          'icon' => $svg('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>')],
     ];
     $out = '<nav class="ll-tabbar" aria-label="ناوبری موبایل">';
+    $out .= '<button type="button" class="tabbar-toggle" aria-label="باز یا بسته کردن منو"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>';
     foreach ($items as $it) {
         $on = ($active === $it['key']) ? ' on' : '';
         $aria = ($active === $it['key']) ? ' aria-current="page"' : '';
@@ -2959,6 +2960,14 @@ function skeleton_foot(): string
         });
         if(list){list.addEventListener('click',function(ev){if(ev.target&&ev.target.tagName==='A'){closeNav();}});}
         document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&list&&list.classList.contains('open')){closeNav();navToggle.focus();}});
+    }
+    // باز/بسته کردن منوی شناور پایین
+    var tabbarToggle=document.querySelector('.tabbar-toggle');
+    var tabbar=document.querySelector('.ll-tabbar');
+    if(tabbarToggle&&tabbar){
+        tabbarToggle.addEventListener('click',function(){
+            tabbar.classList.toggle('collapsed');
+        });
     }
     // تم سایت فقط از تنظیمات پیش‌فرض پنل اعمال می‌شود
     var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
