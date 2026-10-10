@@ -4058,7 +4058,7 @@ label{font-weight:600;font-size:13px;color:var(--text)}
 
 /* دکمه ثبت سفارش — سفید ظریف با هاله‌ی نور گرم (مثل نور مخفی) */
 .ps-cta{
-    background:#ffffff;color:#1a1d26;
+    background:#ffffff!important;color:#1a1d26!important;
     border:1px solid rgba(255,154,60,.25);
     border-radius:999px;
     padding:12px 36px;
