@@ -4008,6 +4008,23 @@ textarea{min-height:120px;resize:vertical}
 .tech-badge{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border:1px solid #dbe4ff;color:#3b5bdb;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px}
 .measure{font-variant-numeric:tabular-nums;letter-spacing:.02em}
 
+
+/* ---------- کارت‌های شیشه‌ای یکپارچه (کاتالوگ، گالری، مقالات) ---------- */
+.p-card,.g-item,.blog-card{
+    background:linear-gradient(135deg,rgba(255,244,230,.55),rgba(255,255,255,.35))!important;
+    backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
+    border:1px solid rgba(255,255,255,.7)!important;
+    box-shadow:0 8px 32px rgba(31,38,63,.08),inset 0 1px 0 rgba(255,255,255,.9)!important;
+}
+.p-card:hover,.blog-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 16px 44px rgba(31,38,63,.12),0 0 24px rgba(255,154,60,.12),inset 0 1px 0 rgba(255,255,255,.9)!important;
+}
+.g-item:hover{
+    transform:translateY(-4px) scale(1.02);
+    box-shadow:0 16px 44px rgba(31,38,63,.12),inset 0 1px 0 rgba(255,255,255,.9)!important;
+}
+
 /* ---------- چاپ ---------- */
 @media print{
     .site-header,.hero-canvas,.hero-scroll,.marquee,.final-cta,.g-wrap,.ll-tabbar{display:none}
