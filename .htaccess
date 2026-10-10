@@ -15,7 +15,6 @@
 # --- صفحه ۴۰۴ هوشمند (۹٫۹۹٫۳۳) — آدرس‌های مرده مثل price.html قدیمی ---
 ErrorDocument 404 /404.php
 
-
 # --- آدرس‌های تمیز سئودوست (نسخه ۹٫۱۳) ---
 <IfModule mod_rewrite.c>
     RewriteEngine On
