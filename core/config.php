@@ -1267,6 +1267,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('gallery accordion migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۴۶: لایت‌باکس آکاردئون (یک بار) ---
+    try {
+        migrate_gallery_lightbox_v9946_if_needed();
+    } catch (Throwable $e) {
+        error_log('gallery lightbox migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -4864,7 +4870,7 @@ function gallery_parse_figures(string $html): array
     return $figs;
 }
 
-/** ساخت HTML گالری از آرایه figureها — نسخه ۹٫۹۹٫۴۵: آکاردئون کشویی (جای کاشی‌ها) */
+/** ساخت HTML گالری از آرایه figureها — نسخه ۹٫۹۹٫۴۶: آکاردئون + لایت‌باکس تمام‌صفحه با آیکون SVG */
 function gallery_build_html(array $figs): string
 {
     $out = '<ul class="acc-gallery">' . "\n";
@@ -4882,28 +4888,65 @@ function gallery_build_html(array $figs): string
         $out .= '</div></figure></li>' . "\n";
     }
     $out .= "</ul>\n";
-    $out .= <<<'ACC'
+    $out .= <<<'GLB'
+<div class="glb" id="glb" hidden>
+  <div class="glb-backdrop" data-glb-close></div>
+  <figure class="glb-stage">
+    <img class="glb-img" alt="">
+    <figcaption class="glb-meta"><span class="glb-cap"></span><span class="glb-count"></span></figcaption>
+  </figure>
+  <button type="button" class="glb-close" data-glb-close aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  <button type="button" class="glb-prev" aria-label="تصویر قبلی"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+  <button type="button" class="glb-next" aria-label="تصویر بعدی"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+</div>
 <script>
 (function(){
   var ul=document.querySelector('.acc-gallery');
   if(!ul)return;
   var items=Array.prototype.slice.call(ul.querySelectorAll('.acc-item'));
   if(!items.length)return;
+  var lb=document.getElementById('glb');
   function closeAll(){items.forEach(function(it){it.classList.remove('acc-open');});}
-  items.forEach(function(it){
+  items.forEach(function(it,idx){
     it.addEventListener('click',function(){
-      var wasOpen=it.classList.contains('acc-open');
-      closeAll();
-      if(!wasOpen)it.classList.add('acc-open');
+      if(it.classList.contains('acc-open')){openLb(idx);return;}
+      closeAll();it.classList.add('acc-open');
     });
     it.addEventListener('keydown',function(ev){
       if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();it.click();}
     });
   });
   items[0].classList.add('acc-open');
+  if(!lb)return;
+  var img=lb.querySelector('.glb-img'),cap=lb.querySelector('.glb-cap'),cnt=lb.querySelector('.glb-count'),idx=0;
+  function fa(n){return Number(n).toLocaleString('fa-IR');}
+  function show(i){
+    idx=(i+items.length)%items.length;
+    var im=items[idx].querySelector('img'),fc=items[idx].querySelector('figcaption'),ds=items[idx].querySelector('.gdesc');
+    img.src=im.getAttribute('src');img.alt=im.getAttribute('alt')||'';
+    cap.textContent=(fc?fc.textContent:'')+((ds&&ds.textContent)?' \u2014 '+ds.textContent:'');
+    cnt.textContent=fa(idx+1)+' از '+fa(items.length);
+  }
+  function openLb(i){show(i);lb.hidden=false;document.body.style.overflow='hidden';}
+  function closeLb(){lb.hidden=true;document.body.style.overflow='';}
+  lb.querySelector('.glb-prev').addEventListener('click',function(e){e.stopPropagation();show(idx-1);});
+  lb.querySelector('.glb-next').addEventListener('click',function(e){e.stopPropagation();show(idx+1);});
+  lb.querySelectorAll('[data-glb-close]').forEach(function(b){b.addEventListener('click',closeLb);});
+  document.addEventListener('keydown',function(e){
+    if(lb.hidden)return;
+    if(e.key==='Escape')closeLb();
+    else if(e.key==='ArrowLeft')show(idx+1);
+    else if(e.key==='ArrowRight')show(idx-1);
+  });
+  var tx=0;
+  lb.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  lb.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>48){show(idx+(dx<0?1:-1));}
+  },{passive:true});
 })();
 </script>
-ACC;
+GLB;
     return $out;
 }
 
@@ -4911,7 +4954,8 @@ ACC;
 function acc_gallery_css(): string
 {
     return <<<'CSS'
-/* ---------- گالری آکاردئونی (۹٫۹۹٫۴۵) ---------- */
+/* ---------- گالری آکاردئونی (۹٫۹۹٫۴۵) + آیکون‌های SVG لایت‌باکس (۹٫۹۹٫۴۶) ---------- */
+.glb-close svg,.glb-prev svg,.glb-next svg{width:20px;height:20px;display:block}
 .page-body .acc-gallery{list-style:none;margin:0;padding:10px 2px 24px;display:flex;gap:14px;overflow-x:auto;scrollbar-width:thin}
 .page-body .acc-gallery .acc-item{position:relative;flex:0 0 78px;height:440px;margin:0;padding:0;border-radius:30px;overflow:hidden;cursor:pointer;
   border:1px solid rgba(255,255,255,.14);background:#101014;
@@ -4938,6 +4982,33 @@ function acc_gallery_css(): string
   .page-body .acc-gallery .acc-item figcaption{font-size:15px}
 }
 CSS;
+}
+
+
+/** مایگریشن نسخه ۹٫۹۹٫۴۶: افزودن لایت‌باکس SVG به گالری آکاردئون + استایل آیکون‌ها */
+function migrate_gallery_lightbox_v9946_if_needed(): void
+{
+    try {
+        if (get_setting('gallery_lightbox_9946', '0') === '1') {
+            return;
+        }
+        $pdo = db();
+        $row = $pdo->query("SELECT content FROM pages WHERE slug = 'gallery' LIMIT 1")->fetch();
+        if ($row && strpos((string) $row['content'], 'acc-gallery') !== false && strpos((string) $row['content'], 'id="glb"') === false) {
+            $figs = gallery_parse_figures((string) $row['content']);
+            if ($figs !== []) {
+                gallery_save_figures($pdo, $figs);
+            }
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '.glb-close svg') === false) {
+            $css .= "\n/* آیکون‌های SVG لایت‌باکس (۹٫۹۹٫۴۶) */\n.glb-close svg,.glb-prev svg,.glb-next svg{width:20px;height:20px;display:block}\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('gallery_lightbox_9946', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۴۵: بازسازی محتوای صفحه گالری با مارکاپ آکاردئون + افزودن استایل به CSS زنده */
