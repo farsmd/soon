@@ -2145,8 +2145,8 @@ function appearance_css(): string
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
 /* نسخه ۹٫۹۹٫۸۰: کارت محصول افقی (مثل فایل card) */
-.products-grid{display:grid;grid-template-columns:1fr;gap:24px!important}
-.product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:20px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
+.products-grid{display:grid!important;grid-template-columns:1fr!important;gap:24px!important}
+.product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:8px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
 .pc-media{min-width:0;aspect-ratio:1/1;overflow:hidden;border-radius:17px;background:#f1f5f9}
 .pc-media img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s ease}
 .product-card:hover .pc-media img{transform:scale(1.03)}
