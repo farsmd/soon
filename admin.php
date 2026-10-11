@@ -1922,7 +1922,12 @@ if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isse
     } else {
         $saveKey = trim((string) ($_POST['ts_key'] ?? ''));
         $saveHtml = (string) ($_POST['ts_html'] ?? '');
+        $saveCss = trim((string) ($_POST['ts_css'] ?? ''));
         if ($saveKey !== '' && preg_match('/^[a-z_]+$/', $saveKey)) {
+            // اگر CSS وارد شده، به انتهای HTML اضافه کن
+            if ($saveCss !== '') {
+                $saveHtml .= "\n<style>\n" . $saveCss . "\n</style>";
+            }
             try {
                 $exists = db()->prepare("SELECT COUNT(*) FROM site_templates WHERE template_key = ?")->execute([$saveKey]);
                 // استفاده از REPLACE
@@ -3895,37 +3900,175 @@ if ($page === 'design') {
             </section>
             <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>
             <?php if ($tsEditKey !== ''): ?>
-            <!-- ویرایشگر -->
+            <!-- ویرایشگر حرفه‌ای -->
             <p><a href="admin.php?page=template_studio" class="btn btn-secondary">← بازگشت به لیست</a></p>
             <section class="card wide">
                 <h2>ویرایش: <?= e($tsEditKey) ?></h2>
-                <form method="post">
+                <style>
+                .ts-editor-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+                @media(max-width:900px){.ts-editor-wrap{grid-template-columns:1fr}}
+                .ts-codebox{position:relative;border:1px solid #334155;border-radius:12px;overflow:hidden;background:#0f172a}
+                .ts-codebox pre,.ts-codebox textarea{margin:0;padding:12px 12px 12px 48px;font-family:'Courier New',monospace;font-size:13px;line-height:1.6;direction:ltr;text-align:left;white-space:pre;tab-size:4}
+                .ts-codebox pre{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;pointer-events:none;color:#e2e8f0}
+                .ts-codebox textarea{position:relative;width:100%;height:480px;background:transparent;color:transparent;caret-color:#fbbf24;border:none;outline:none;resize:vertical;overflow:auto}
+                .ts-codebox textarea::selection{background:rgba(251,191,36,.3)}
+                .ts-linenums{position:absolute;top:0;left:0;bottom:0;width:40px;padding:12px 8px;background:#1e293b;color:#64748b;font-family:monospace;font-size:13px;line-height:1.6;text-align:right;overflow:hidden;user-select:none}
+                .ts-tag{color:#f472b6}.ts-attr{color:#93c5fd}.ts-str{color:#86efac}.ts-com{color:#64748b;font-style:italic}.ts-sel{color:#fbbf24}.ts-prop{color:#93c5fd}.ts-val{color:#86efac}
+                .ts-preview{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;min-height:480px}
+                .ts-preview-head{background:#f8fafc;padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+                .ts-preview-body{padding:16px;overflow:auto;max-height:600px}
+                .ts-preview-body iframe{width:100%;height:560px;border:none;background:#fff}
+                .ts-tabs{display:flex;gap:8px;margin-bottom:12px}
+                .ts-tab{padding:8px 20px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-weight:600}
+                .ts-tab.active{background:#0f172a;color:#fff;border-color:#0f172a}
+                </style>
+                <div class="ts-tabs">
+                    <button type="button" class="ts-tab active" onclick="tsSwitchTab('html',this)">HTML</button>
+                    <button type="button" class="ts-tab" onclick="tsSwitchTab('css',this)">CSS</button>
+                </div>
+                <form method="post" id="tsEditForm">
                     <?= csrf_field() ?>
                     <input type="hidden" name="ts_save" value="1">
                     <input type="hidden" name="ts_key" value="<?= e($tsEditKey) ?>">
-                    <label>HTML
-                        <textarea name="ts_html" rows="25" dir="ltr" style="font-family:monospace;width:100%"><?= e($tsEditContent) ?></textarea>
-                    </label>
+                    <input type="hidden" name="ts_css" id="tsCssInput" value="">
+                    <div class="ts-editor-wrap">
+                        <div>
+                            <div class="ts-codebox" id="tsHtmlBox">
+                                <div class="ts-linenums" id="tsHtmlNums">1</div>
+                                <pre id="tsHtmlHi" aria-hidden="true"></pre>
+                                <textarea name="ts_html" id="tsHtmlTa" spellcheck="false"><?= e($tsEditContent) ?></textarea>
+                            </div>
+                            <div class="ts-codebox" id="tsCssBox" style="display:none">
+                                <div class="ts-linenums" id="tsCssNums">1</div>
+                                <pre id="tsCssHi" aria-hidden="true"></pre>
+                                <textarea id="tsCssTa" spellcheck="false" placeholder="/* CSS مخصوص این قالب */"></textarea>
+                            </div>
+                        </div>
+                        <div class="ts-preview">
+                            <div class="ts-preview-head">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                پیش‌نمایش زنده
+                            </div>
+                            <div class="ts-preview-body">
+                                <iframe id="tsPreviewFrame" sandbox="allow-same-origin" title="پیش‌نمایش"></iframe>
+                            </div>
+                        </div>
+                    </div>
                     <p style="margin-top:12px">
                         <button type="submit" class="btn btn-primary">ذخیره</button>
-                        <a href="<?= e(site_base_url()) ?>" target="_blank" class="btn btn-secondary">پیش‌نمایش سایت</a>
+                        <a href="<?= e(site_base_url()) ?>" target="_blank" class="btn btn-secondary">مشاهده سایت</a>
                     </p>
                 </form>
+                <script>
+                function tsHighlightHtml(code){
+                    code = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    // کامنت‌ها
+                    code = code.replace(/&lt;!--([\s\S]*?)--&gt;/g, '<span class="ts-com">&lt;!--$1--&gt;</span>');
+                    // تگ‌ها
+                    code = code.replace(/&lt;(\/?)([a-zA-Z][a-zA-Z0-9-]*)/g, '<span class="ts-tag">&lt;$1$2</span>');
+                    code = code.replace(/([a-zA-Z-]+)=(&quot;|")([^"&]*?)(&quot;|")/g, ' <span class="ts-attr">$1</span>=<span class="ts-str">$2$3$4</span>');
+                    code = code.replace(/&gt;/g, '<span class="ts-tag">&gt;</span>');
+                    return code;
+                }
+                function tsHighlightCss(code){
+                    code = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    code = code.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="ts-com">$1</span>');
+                    code = code.replace(/^([^{]+)\{/gm, '<span class="ts-sel">$1</span>{');
+                    code = code.replace(/([a-z-]+)(\s*:)/g, '<span class="ts-prop">$1</span>$2');
+                    return code;
+                }
+                function tsUpdateNums(ta, nums){
+                    var lines = ta.value.split('\n').length;
+                    var html = '';
+                    for(var i=1;i<=lines;i++) html += i + '<br>';
+                    nums.innerHTML = html;
+                    nums.scrollTop = ta.scrollTop;
+                }
+                function tsSyncEditor(taId, hiId, numsId, isCss){
+                    var ta = document.getElementById(taId);
+                    var hi = document.getElementById(hiId);
+                    var nums = document.getElementById(numsId);
+                    function update(){
+                        hi.innerHTML = (isCss ? tsHighlightCss(ta.value) : tsHighlightHtml(ta.value)) + '\n';
+                        tsUpdateNums(ta, nums);
+                        hi.scrollTop = ta.scrollTop;
+                        hi.scrollLeft = ta.scrollLeft;
+                        tsUpdatePreview();
+                    }
+                    ta.addEventListener('input', update);
+                    ta.addEventListener('scroll', function(){
+                        hi.scrollTop = ta.scrollTop; hi.scrollLeft = ta.scrollLeft;
+                        nums.scrollTop = ta.scrollTop;
+                    });
+                    ta.addEventListener('keydown', function(e){
+                        if(e.key === 'Tab'){
+                            e.preventDefault();
+                            var s = ta.selectionStart, en = ta.selectionEnd;
+                            ta.value = ta.value.substring(0,s) + '    ' + ta.value.substring(en);
+                            ta.selectionStart = ta.selectionEnd = s + 4;
+                            update();
+                        }
+                    });
+                    update();
+                }
+                var tsPreviewTimer = null;
+                function tsUpdatePreview(){
+                    clearTimeout(tsPreviewTimer);
+                    tsPreviewTimer = setTimeout(function(){
+                        var html = document.getElementById('tsHtmlTa').value;
+                        var css = document.getElementById('tsCssTa').value;
+                        var doc = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + html + '</body></html>';
+                        document.getElementById('tsPreviewFrame').srcdoc = doc;
+                    }, 300);
+                }
+                function tsSwitchTab(which, btn){
+                    document.querySelectorAll('.ts-tab').forEach(function(b){ b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    document.getElementById('tsHtmlBox').style.display = which === 'html' ? 'block' : 'none';
+                    document.getElementById('tsCssBox').style.display = which === 'css' ? 'block' : 'none';
+                }
+                // ذخیره CSS در فرم
+                document.getElementById('tsEditForm').addEventListener('submit', function(){
+                    document.getElementById('tsCssInput').value = document.getElementById('tsCssTa').value;
+                });
+                tsSyncEditor('tsHtmlTa', 'tsHtmlHi', 'tsHtmlNums', false);
+                tsSyncEditor('tsCssTa', 'tsCssHi', 'tsCssNums', true);
+                </script>
             </section>
             <?php else: ?>
             <p class="muted">قالب HTML و CSS هر بخش سایت را اینجا ویرایش کنید.</p>
-            <?php foreach ($templateStudioGroups as $groupTitle => $items): ?>
-            <section class="card wide" style="margin-bottom:20px">
-                <h2><?= e($groupTitle) ?></h2>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
-                    <?php foreach ($items as $it): ?>
-                    <a href="admin.php?page=template_studio&ts_edit=<?= e($it['key']) ?>" class="card" style="padding:16px;text-decoration:none;display:block">
-                        <strong><?= e($it['title']) ?></strong>
-                        <p class="muted" style="margin:4px 0 0;font-size:13px"><?= e($it['desc']) ?></p>
-                    </a>
-                    <?php endforeach; ?>
+            <style>
+            .ts-accordion{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
+            .ts-acc-head{padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;user-select:none}
+            .ts-acc-head:hover{background:#f1f5f9}
+            .ts-acc-head h3{margin:0;font-size:15px}
+            .ts-acc-icon{transition:transform .2s;font-size:12px;color:#64748b}
+            .ts-accordion.open .ts-acc-icon{transform:rotate(180deg)}
+            .ts-acc-body{display:none;padding:16px 20px;border-top:1px solid #e2e8f0}
+            .ts-accordion.open .ts-acc-body{display:block}
+            .ts-tpl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+            .ts-tpl-item{padding:14px;border:1px solid #e2e8f0;border-radius:10px;text-decoration:none;display:block;transition:border-color .2s}
+            .ts-tpl-item:hover{border-color:#f59e0b}
+            .ts-tpl-item strong{display:block;margin-bottom:4px;color:#0f172a}
+            .ts-tpl-item p{margin:0;font-size:13px;color:#64748b}
+            </style>
+            <?php $tsAccIdx = 0; foreach ($templateStudioGroups as $groupTitle => $items): $tsAccIdx++; ?>
+            <div class="ts-accordion<?= $tsAccIdx === 1 ? ' open' : '' ?>">
+                <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
+                    <h3><?= e($groupTitle) ?> <span class="muted" style="font-weight:400;font-size:13px">(<?= count($items) ?> قالب)</span></h3>
+                    <span class="ts-acc-icon">▼</span>
                 </div>
-            </section>
+                <div class="ts-acc-body">
+                    <div class="ts-tpl-list">
+                        <?php foreach ($items as $it): ?>
+                        <a href="admin.php?page=template_studio&ts_edit=<?= e($it['key']) ?>" class="ts-tpl-item">
+                            <strong><?= e($it['title']) ?></strong>
+                            <p><?= e($it['desc']) ?></p>
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
             <?php endforeach; ?>
             <?php endif; ?>
         <?php elseif ($page === 'api'): ?>
