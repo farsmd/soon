@@ -2107,6 +2107,11 @@ function appearance_css(): string
   .hero-inner{padding-top:{$heroPad}px!important}
 }
 .onepage-gallery-grid{grid-template-columns:repeat($gCols,1fr)}
+/* نسخه ۹٫۹۹٫۶۴: کاهش فاصله‌های خالی صفحه محصول */
+.product-section{padding-top:24px!important}
+.product-layout{gap:20px!important;margin-bottom:16px!important}
+.product-info h1{margin-bottom:12px!important}
+.product-desc{margin-bottom:12px!important}
 /* === APPEARANCE-END === */
 CSS;
 }
@@ -2920,7 +2925,9 @@ function tpl_raw_keys(): array
         // فاز ۲: HTML داخلی ساخته‌شده در کد برای کاتالوگ و محصول (هرگز از ورودی کاربر ساخته نمی‌شود)
         'categories_nav', 'products_grid', 'product_specs', 'attributes_options', 'estimator',
         // نسخه ۹: ویترین محصولات صفحه اصلی
-        'products_showcase'];
+        'products_showcase',
+        // نسخه ۹٫۹۹٫۶۴: توضیحات محصول (HTML از ادمین)
+        'product_description'];
 }
 
 /** پارس بازگشتی توکن‌های قالب به درخت گره‌ها (متن / متغیر / شرط) */
