@@ -1303,6 +1303,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('lightbox full migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۵۴: فیکس QR (یک بار) ---
+    try {
+        migrate_qr_fix_v9954_if_needed();
+    } catch (Throwable $e) {
+        error_log('qr fix migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2003,6 +2009,42 @@ function lightbox_full_css(): string
   .glb-next{left:6px}
 }
 CSS;
+}
+
+/** استایل کارت QR (۹٫۹۹٫۵۴) — چیدمان ستونی وسط‌چین */
+function qr_card_css(): string
+{
+    return <<<'CSS'
+/* ---------- کارت QR (۹٫۹۹٫۵۴) ---------- */
+.contact-qr-card{flex-direction:column!important;text-align:center;gap:14px!important;align-items:center!important}
+.contact-qr-card .contact-icon{margin:0}
+.contact-qr-card .contact-label{margin:0}
+.contact-qr-img{width:168px!important;height:168px!important;border-radius:20px;background:#fff;padding:10px;flex-shrink:0;box-shadow:0 8px 24px rgba(31,38,63,.1)}
+.contact-qr-hint{font-size:13px!important;font-weight:400!important;margin:0}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۵۴: فیکس QR (مسیر عکس + چیدمان) */
+function migrate_qr_fix_v9954_if_needed(): void
+{
+    try {
+        if (get_setting('qr_fix_9954', '0') === '1') {
+            return;
+        }
+        $tpl = get_template_content('contact_page');
+        if ($tpl !== '' && strpos($tpl, 'src="qr-card.png"') !== false) {
+            $tpl = str_replace('src="qr-card.png"', 'src="assets/icons/qr-card.png"', $tpl);
+            set_template_content('contact_page', $tpl);
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, 'کارت QR (۹٫۹۹٫۵۴)') === false) {
+            $css .= "\n" . qr_card_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('qr_fix_9954', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۵۳: استایل کامل لایت‌باکس */

@@ -191,7 +191,7 @@ HTML,
                 <a href="/card" class="contact-card contact-qr-card">
                     <span class="contact-icon">📱</span>
                     <span class="contact-label">کارت ویزیت دیجیتال (QR)</span>
-                    <img src="qr-card.png" alt="QR کارت ویزیت لاینرلایت" class="contact-qr-img" loading="lazy">
+                    <img src="assets/icons/qr-card.png" alt="QR کارت ویزیت لاینرلایت" class="contact-qr-img" loading="lazy">
                     <span class="contact-value contact-qr-hint">اسکن کنید یا لمس کنید</span>
                 </a>
             </div>
@@ -1071,6 +1071,7 @@ CSS;
     $out .= "\n" . (function_exists('mobile_header_css') ? mobile_header_css() : '');
     $out .= "\n" . (function_exists('onepage_css') ? onepage_css() : '');
     $out .= "\n" . (function_exists('lightbox_full_css') ? lightbox_full_css() : '');
+    $out .= "\n" . (function_exists('qr_card_css') ? qr_card_css() : '');
     return $out;
 }
 
