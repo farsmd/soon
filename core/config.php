@@ -1351,6 +1351,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('remove estimator migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۶۷: لینک‌های سفارش (همیشه) ---
+    try {
+        migrate_order_links_v9967_if_needed();
+    } catch (Throwable $e) {
+        error_log('order links migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2135,6 +2141,36 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۶۷: لینک ثبت سفارش به /order */
+function migrate_order_links_v9967_if_needed(): void
+{
+    try {
+        // هدر
+        $tpl = get_template_content('header');
+        if ($tpl !== '' && strpos($tpl, 'href="/products">ثبت سفارش') !== false) {
+            $tpl = str_replace('href="/products">ثبت سفارش', 'href="/order">ثبت سفارش', $tpl);
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'header'")->execute([':c' => $tpl]);
+        }
+        // فوتر
+        $tpl = get_template_content('footer');
+        if ($tpl !== '' && strpos($tpl, 'href="/products">ثبت سفارش') !== false) {
+            $tpl = str_replace('href="/products">ثبت سفارش', 'href="/order">ثبت سفارش', $tpl);
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'footer'")->execute([':c' => $tpl]);
+        }
+        // حذف قطعی estimator از صفحه محصول (با regex)
+        $tpl = get_template_content('product');
+        if ($tpl !== '') {
+            $newTpl = preg_replace('/\{\{\s*estimator\s*\}\}/', '', $tpl);
+            if ($newTpl !== $tpl) {
+                db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
+            }
+        }
+        set_setting('order_links_9967', '1');
+    } catch (Throwable $e) {
+        error_log('order links failed: ' . $e->getMessage());
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۶۳: حذف برآورد از صفحه محصول */
@@ -3557,7 +3593,7 @@ function tabbar_html(): string
     $items = [
         ['key' => 'home',    'url' => '/',         'label' => 'خانه',
          'icon' => $svg('<path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>')],
-        ['key' => 'order',   'url' => '/products', 'label' => 'ثبت سفارش',
+        ['key' => 'order',   'url' => '/order', 'label' => 'ثبت سفارش',
          'icon' => $svg('<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/>')],
         ['key' => 'about',   'url' => '/about',    'label' => 'درباره ما',
          'icon' => $svg('<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>')],

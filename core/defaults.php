@@ -16,7 +16,7 @@ function factory_templates(): array
     <div class="container header-inner">
         <a class="logo" href="/"><img class="logo-img" src="uploads/gallery/logo.png" width="159" height="160" alt="{{site_title}}" onerror="this.remove()"><span>{{site_title}}</span></a>
         {{menu}}
-        <a class="btn btn-gold btn-sm header-cta" href="/products">ثبت سفارش</a>
+        <a class="btn btn-gold btn-sm header-cta" href="/order">ثبت سفارش</a>
     </div>
 </header>
 HTML,
@@ -132,7 +132,7 @@ HTML,
         <div>
             <p class="f-title">سفارش و کاتالوگ</p>
             <nav class="f-links" aria-label="سفارش و کاتالوگ">
-                <a href="/products">ثبت سفارش</a>
+                <a href="/order">ثبت سفارش</a>
                 <a href="/catalog/linerlight-catalog.pdf">دانلود کاتالوگ (PDF)</a>
             </nav>
         </div>
