@@ -1945,6 +1945,26 @@ if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isse
 if ($page === 'template_studio' && $tsEditKey !== '') {
     $tsEditContent = get_template_content($tsEditKey);
 }
+// مرتب‌سازی سکشن‌های صفحه اصلی
+$tsOrderMsg = '';
+if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ts_reorder'])) {
+    if (!csrf_check()) {
+        $tsOrderMsg = 'توکن امنیتی نامعتبر است.';
+    } else {
+        $newOrder = $_POST['section_order'] ?? [];
+        $valid = ['hero','products','about','gallery','contact'];
+        $filtered = array_values(array_intersect($newOrder, $valid));
+        // موارد جاافتاده را اضافه کن
+        foreach ($valid as $v) {
+            if (!in_array($v, $filtered, true)) { $filtered[] = $v; }
+        }
+        set_setting('homepage_sections_order', json_encode($filtered, JSON_UNESCAPED_UNICODE));
+        $tsOrderMsg = 'ترتیب سکشن‌ها ذخیره شد.';
+    }
+}
+$tsCurrentOrder = json_decode((string) get_setting('homepage_sections_order', '["hero","products","about","gallery","contact"]'), true);
+if (!is_array($tsCurrentOrder)) { $tsCurrentOrder = ['hero','products','about','gallery','contact']; }
+$tsSectionNames = ['hero' => 'هیرو', 'products' => 'محصولات', 'about' => 'درباره', 'gallery' => 'گالری', 'contact' => 'تماس'];
 $templateStudioGroups = [
     'سربرگ سایت' => [
         ['key' => 'header', 'title' => 'هدر', 'desc' => 'HTML و CSS هدر سایت'],
@@ -3829,6 +3849,49 @@ if ($page === 'design') {
             <?php templates_render(); ?>
         <?php elseif ($page === 'template_studio'): ?>
             <h1>استودیو قالب</h1>
+            <!-- ترتیب سکشن‌های صفحه اصلی -->
+            <section class="card wide" style="margin-bottom:20px">
+                <h2>ترتیب سکشن‌های صفحه اصلی</h2>
+                <?php if ($tsOrderMsg): ?><div class="alert alert-ok"><?= e($tsOrderMsg) ?></div><?php endif; ?>
+                <form method="post" id="tsOrderForm">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="ts_reorder" value="1">
+                    <div id="tsOrderList" style="display:flex;flex-direction:column;gap:8px">
+                        <?php foreach ($tsCurrentOrder as $sk): ?>
+                        <div class="card" style="padding:12px;display:flex;align-items:center;gap:12px;cursor:move" draggable="true" data-key="<?= e($sk) ?>">
+                            <span style="font-size:20px">⋮⋮</span>
+                            <strong><?= e($tsSectionNames[$sk] ?? $sk) ?></strong>
+                            <input type="hidden" name="section_order[]" value="<?= e($sk) ?>">
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <p style="margin-top:12px"><button type="submit" class="btn btn-primary">ذخیره ترتیب</button></p>
+                </form>
+                <script>
+                (function(){
+                    var list = document.getElementById('tsOrderList');
+                    var dragEl = null;
+                    list.querySelectorAll('[draggable]').forEach(function(el){
+                        el.addEventListener('dragstart', function(){ dragEl = el; el.style.opacity = '0.5'; });
+                        el.addEventListener('dragend', function(){ el.style.opacity = ''; });
+                        el.addEventListener('dragover', function(e){ e.preventDefault(); });
+                        el.addEventListener('drop', function(e){
+                            e.preventDefault();
+                            if (dragEl && dragEl !== el) {
+                                var items = Array.from(list.children);
+                                var di = items.indexOf(dragEl), ti = items.indexOf(el);
+                                if (di < ti) { list.insertBefore(dragEl, el.nextSibling); }
+                                else { list.insertBefore(dragEl, el); }
+                                // به‌روزرسانی inputها
+                                list.querySelectorAll('[data-key]').forEach(function(item){
+                                    item.querySelector('input').value = item.getAttribute('data-key');
+                                });
+                            }
+                        });
+                    });
+                })();
+                </script>
+            </section>
             <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>
             <?php if ($tsEditKey !== ''): ?>
             <!-- ویرایشگر -->

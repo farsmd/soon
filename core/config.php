@@ -1833,15 +1833,23 @@ function is_valid_slug(string $slug): bool
 function onepage_sections_html(array $settings): string
 {
     $html = '';
-    // درباره ما (محتوای صفحه about — از پنل قابل ویرایش)
+    // ترتیب سکشن‌ها از تنظیمات (قدم ۳ استودیو قالب)
+    $orderRaw = get_setting('homepage_sections_order', '["hero","products","about","gallery","contact"]');
+    $order = json_decode($orderRaw, true);
+    if (!is_array($order)) { $order = ['hero','products','about','gallery','contact']; }
+
+    // تولید HTML هر سکشن
+    $sections = [];
+
+    // درباره ما
     $about = get_page_by_slug('about', true);
     if ($about !== null) {
         $aboutBg = trim((string) appearance_get('about_bg_image'));
         $aboutBgHtml = $aboutBg !== '' ? '<div class="section-bg-img" style="background-image:url(\'' . e($aboutBg) . '\')"></div>' . "\n" : '';
-        $html .= '<section id="about" class="onepage-section" aria-label="' . e((string) $about['title']) . '">' . "\n" . $aboutBgHtml;
-        $html .= render_db_template('single', $settings, null, $about) . "\n";
-        $html .= render_page_blocks((int) $about['id']) . "\n";
-        $html .= '</section>' . "\n";
+        $sections['about'] = '<section id="about" class="onepage-section" aria-label="' . e((string) $about['title']) . '">' . "\n" . $aboutBgHtml;
+        $sections['about'] .= render_db_template('single', $settings, null, $about) . "\n";
+        $sections['about'] .= render_page_blocks((int) $about['id']) . "\n";
+        $sections['about'] .= '</section>' . "\n";
     }
     // پیش‌نمایش گالری (۸ عکس اول + لینک مشاهده همه)
     try {
@@ -1853,30 +1861,36 @@ function onepage_sections_html(array $settings): string
         $preview = array_slice($figs, 0, 8);
         $galBg = trim((string) appearance_get('gallery_bg_image'));
         $galBgHtml = $galBg !== '' ? '<div class="section-bg-img" style="background-image:url(\'' . e($galBg) . '\')"></div>' . "\n" : '';
-        $html .= '<section id="gallery-preview" class="onepage-section" aria-label="گالری پروژه‌ها">' . "\n" . $galBgHtml;
-        $html .= '<div class="container"><h2 class="section-title">گالری پروژه‌ها</h2>';
-        $html .= '<div class="onepage-gallery-grid">';
+        $sections['gallery'] = '<section id="gallery-preview" class="onepage-section" aria-label="گالری پروژه‌ها">' . "\n" . $galBgHtml;
+        $sections['gallery'] .= '<div class="container"><h2 class="section-title">گالری پروژه‌ها</h2>';
+        $sections['gallery'] .= '<div class="onepage-gallery-grid">';
         foreach ($preview as $f) {
             $src = e((string) ($f['src'] ?? ''));
             $cap = e((string) ($f['caption'] ?? ''));
             if ($src === '') continue;
-            $html .= '<a class="onepage-gitem" href="' . e(pretty_url('page.php?slug=gallery')) . '" aria-label="' . $cap . '">';
-            $html .= '<img src="' . $src . '" alt="' . $cap . '" loading="lazy">';
-            $html .= '</a>';
+            $sections['gallery'] .= '<a class="onepage-gitem" href="' . e(pretty_url('page.php?slug=gallery')) . '" aria-label="' . $cap . '">';
+            $sections['gallery'] .= '<img src="' . $src . '" alt="' . $cap . '" loading="lazy">';
+            $sections['gallery'] .= '</a>';
         }
-        $html .= '</div>';
-        $html .= '<div class="onepage-more"><a class="btn" href="' . e(pretty_url('page.php?slug=gallery')) . '">مشاهده همه عکس‌ها</a></div>';
-        $html .= '</div></section>' . "\n";
+        $sections['gallery'] .= '</div>';
+        $sections['gallery'] .= '<div class="onepage-more"><a class="btn" href="' . e(pretty_url('page.php?slug=gallery')) . '">مشاهده همه عکس‌ها</a></div>';
+        $sections['gallery'] .= '</div></section>' . "\n";
     }
     // تماس با ما (محتوای صفحه contact + فرم — از پنل قابل ویرایش)
     $contact = get_page_by_slug('contact', true);
     if ($contact !== null) {
         $conBg = trim((string) appearance_get('contact_bg_image'));
         $conBgHtml = $conBg !== '' ? '<div class="section-bg-img" style="background-image:url(\'' . e($conBg) . '\')"></div>' . "\n" : '';
-        $html .= '<section id="contact" class="onepage-section" aria-label="' . e((string) $contact['title']) . '">' . "\n" . $conBgHtml;
-        $html .= render_db_template('contact_page', $settings, null, $contact) . "\n";
-        $html .= render_page_blocks((int) $contact['id']) . "\n";
-        $html .= '</section>' . "\n";
+        $sections['contact'] = '<section id="contact" class="onepage-section" aria-label="' . e((string) $contact['title']) . '">' . "\n" . $conBgHtml;
+        $sections['contact'] .= render_db_template('contact_page', $settings, null, $contact) . "\n";
+        $sections['contact'] .= render_page_blocks((int) $contact['id']) . "\n";
+        $sections['contact'] .= '</section>' . "\n";
+    }
+    // خروجی به ترتیب تنظیم‌شده
+    foreach ($order as $key) {
+        if (isset($sections[$key])) {
+            $html .= $sections[$key];
+        }
     }
     return $html;
 }
@@ -2055,6 +2069,7 @@ function appearance_defaults(): array
         'hero_kicker' => '0', 'hero_align' => 'center', 'hero_parallax' => '1', 'hero_parallax_speed' => '35', 'hero_padding_top' => '88',
         'gallery_columns' => '4', 'gallery_lightbox' => '1',
         'hero_bg_image' => '', 'products_bg_image' => '', 'about_bg_image' => '', 'gallery_bg_image' => '', 'contact_bg_image' => '',
+        'homepage_sections_order' => '["hero","products","about","gallery","contact"]',
         'pcard_bg' => 'rgba(255,255,255,.9)', 'pcard_blur' => '20', 'pcard_radius' => '25', 'pcard_padding' => '8',
         'pcard_btn_bg' => '#d4af37', 'pcard_btn_hover' => '#b8941f', 'pcard_btn_text' => '#000000',
         'pcard_img_radius' => '17',
