@@ -195,9 +195,11 @@ $catalogSeo = [
 echo skeleton_head($settings, $title, $desc, $catalogSeo);
 echo render_db_template('header', $settings) . "\n";
 echo '<main id="main">' . "\n";
-// اگر قالب catalog خراب است (حاوی placeholderهای سکشن)، از قالب صحیح استفاده کن
+// قالب catalog باید پلیس‌هولدر گرید محصولات را داشته باشد؛
+// اگر قالب دیتابیس خراب یا ناسازگار است (هر نسخه‌ای)، از قالب داخلی سالم استفاده می‌شود
+// تا بازدیدکننده هیچ‌وقت placeholder خام نبیند (۱۰٫۲۰)
 $catalogTpl = get_template_content('catalog');
-if (strpos($catalogTpl, 'section_heading') !== false) {
+if (strpos($catalogTpl, '{{products_grid}}') === false) {
     $catalogTpl = '<section class="content-section catalog-section">' . "\n" .
         '    <div class="container">' . "\n" .
         '        <h1>{{catalog_title}}</h1>' . "\n" .
@@ -205,10 +207,8 @@ if (strpos($catalogTpl, 'section_heading') !== false) {
         '        {{products_grid}}' . "\n" .
         '    </div>' . "\n" .
         '</section>';
-    echo tpl_render($catalogTpl, template_context('catalog', $settings, null, null, $extra)) . "\n";
-} else {
-    echo render_db_template('catalog', $settings, null, null, $extra) . "\n";
 }
+echo tpl_render($catalogTpl, template_context('catalog', $settings, null, null, $extra)) . "\n";
 echo '</main>' . "\n";
 echo render_db_template('footer', $settings) . "\n";
 echo skeleton_foot();
