@@ -2164,6 +2164,10 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۹۹: استایل سراسری دکمه‌ها (مثل فرم سفارش) */
+.btn,.btn-primary,button[type="submit"],input[type="submit"]{min-height:52px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:0 32px!important;border:0!important;border-radius:16px!important;background:linear-gradient(135deg,#f5b942,#e8a838)!important;color:#fff!important;font-size:16px!important;font-weight:700!important;text-decoration:none!important;cursor:pointer!important;transition:.25s!important;box-shadow:0 8px 20px rgba(232,168,56,.35)!important}
+.btn:hover,.btn-primary:hover,button[type="submit"]:hover{transform:translateY(-2px)!important;box-shadow:0 12px 28px rgba(232,168,56,.45)!important}
+.btn-secondary,.btn-outline{background:#fff!important;color:#0f172a!important;box-shadow:0 4px 16px rgba(15,23,42,.08)!important}
 /* نسخه ۹٫۹۹٫۹۲: فاصله‌های صفحه محصول */
 .product-layout{padding-top:16px!important;padding-bottom:16px!important}
 .product-layout .breadcrumb{margin-bottom:8px!important}
@@ -2255,13 +2259,13 @@ function migrate_rebuild_appearance_v9971_if_needed(): void
     try {
         // نسخه ۹٫۹۹٫۸۳: بازسازی مجدد برای CSS کارت محصول
         $flag = get_setting('rebuild_appear_9971', '0');
-        if ($flag === '8') {
+        if ($flag === '9') {
             return;
         }
         if (function_exists('appearance_apply')) {
             appearance_apply();
         }
-        set_setting('rebuild_appear_9971', '8');
+        set_setting('rebuild_appear_9971', '9');
     } catch (Throwable $e) {
         error_log('rebuild appearance failed: ' . $e->getMessage());
     }
