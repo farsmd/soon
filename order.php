@@ -39,6 +39,12 @@ if ($orderProduct === null) {
 }
 
 $siteName = get_setting('site_name', 'لاینر لایت');
+$settings = [];
+try {
+    foreach (db()->query("SELECT k, v FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR) as $k => $v) {
+        $settings[$k] = $v;
+    }
+} catch (Throwable $e) { $settings = []; }
 $lengthUnit = get_setting('length_unit', 'mm');
 $unitLabel = ($lengthUnit === 'mm') ? 'میلی‌متر' : 'سانتی‌متر';
 // ضریب تبدیل واحد نمایشی به سانتی‌متر (ورودی پردازشگر سفارش سانتی‌متر است)
@@ -46,14 +52,12 @@ $toCm = ($lengthUnit === 'mm') ? 0.1 : 1.0;
 
 $submittedOk = !empty($state['submitted']) && !empty($state['ok']);
 ?>
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ثبت سفارش مستقیم | <?= e($siteName) ?></title>
-<link rel="canonical" href="<?= e(site_base_url() . '/order') ?>">
-<link rel="stylesheet" href="/style.php">
+<?php
+$title = 'ثبت سفارش | ' . $siteName;
+$desc = 'فرم ثبت سفارش ' . $siteName;
+$seo = ['canonical' => site_base_url() . '/order'];
+echo skeleton_head($settings, $title, $desc, $seo);
+?>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Vazirmatn', Tahoma, sans-serif; background: #f8fafc; color: #0f172a; padding: 20px; line-height: 1.9; }
@@ -78,8 +82,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37
 .hp-field { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
 .back-link { display: block; text-align: center; margin-top: 18px; color: #d4af37; text-decoration: none; }
 </style>
-</head>
-<body>
+<?php
+echo render_db_template('header', $settings) . "\n";
+?>
+<main id="main">
 <div class="container">
     <!-- h1 حذف شد — فرم عنوان خودش را دارد -->
     <?php if ($orderProduct !== null): ?>
@@ -88,5 +94,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37
     <p>محصولی برای سفارش یافت نشد.</p>
     <?php endif; ?>
 </div>
-</body>
-</html>
+</main>
+<?php
+echo render_db_template('footer', $settings) . "\n";
+echo skeleton_foot();
+?>
