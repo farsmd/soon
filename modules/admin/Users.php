@@ -78,6 +78,7 @@ function admin_page_catalog(): array
             'sitemap'          => 'نقشه سایت',
         ],
         'سیستم' => [
+            'profile'  => 'پروفایل من',
             'sysinfo'  => 'مشخصات نرم‌افزار',
             'update'   => 'آپدیت سیستم',
             'cleaner'  => 'تمیزکننده هاست',

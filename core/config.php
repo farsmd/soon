@@ -2256,6 +2256,28 @@ function migrate_order_links_v9967_if_needed(): void
                 db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
             }
         }
+        // نسخه ۹٫۹۹٫۸۵: دسترسی پروفایل برای همه نقش‌ها
+        try {
+            $rolesRaw = get_setting('user_roles', '');
+            if ($rolesRaw !== '') {
+                $roles = json_decode($rolesRaw, true);
+                if (is_array($roles)) {
+                    $changed = false;
+                    foreach ($roles as &$r) {
+                        if (!in_array('profile', (array)($r['pages'] ?? []), true)) {
+                            $r['pages'][] = 'profile';
+                            $changed = true;
+                        }
+                    }
+                    unset($r);
+                    if ($changed) {
+                        set_setting('user_roles', json_encode($roles, JSON_UNESCAPED_UNICODE));
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('profile access migration failed: ' . $e->getMessage());
+        }
         set_setting('order_links_9967', '1');
     } catch (Throwable $e) {
         error_log('order links failed: ' . $e->getMessage());

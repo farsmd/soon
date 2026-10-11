@@ -3930,6 +3930,19 @@ if ($page === 'design') {
                 <p class="muted">بکاپی که از «ابزار و بکاپ» دانلود می‌کنید روی دستگاه شما ذخیره می‌شود. نسخه‌های امن قبل از بازیابی یا تعویض دیتابیس، با نام‌های <code>database-backup-before-restore.sqlite</code> و <code>database-backup-before-switch.sqlite</code> در همان فولدر برنامه نگه داشته می‌شوند. همه تنظیمات، صفحه‌ها، بخش‌ها، پیام‌ها و هش پسورد مدیریت داخل فایل <code>database.sqlite</code> است؛ بنابراین بعد از اتصال به یک دیتابیس دیگر، ورود با پسورد ذخیره‌شده در همان دیتابیس جدید انجام می‌شود.</p>
             </section>
 
+        <?php elseif ($page === 'profile'): ?>
+            <?php $pu = current_admin_user(); ?>
+            <h1>پروفایل من</h1>
+            <p class="muted">اطلاعات حساب کاربری شما.</p>
+            <section class="card">
+                <h2>مشخصات</h2>
+                <table><tbody>
+                    <tr><th>نام کاربری</th><td><?= e($pu['username'] ?? '') ?></td></tr>
+                    <tr><th>نام نمایشی</th><td><?= e($pu['display_name'] ?? '') ?></td></tr>
+                    <tr><th>نقش</th><td><?= e($pu['role_key'] ?? '') ?></td></tr>
+                </tbody></table>
+                <p><a class="btn" href="admin.php?page=profile&tab=password">تغییر رمز عبور</a></p>
+            </section>
         <?php elseif ($page === 'sysinfo'): ?>
             <h1>مشخصات نرم‌افزار</h1>
             <p class="muted">اطلاعات فنی سیستم، نسخه‌ها و وضعیت هاست.</p>
