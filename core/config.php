@@ -2152,6 +2152,8 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۹۰: فاصله بالای صفحه محصول کمتر */
+.product-layout{padding-top:40px!important}
 /* نسخه ۹٫۹۹٫۸۹: بکگراند عکس سکشن‌ها */
 .hero-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
 .section-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.12;z-index:0;pointer-events:none}
@@ -2269,9 +2271,9 @@ function migrate_order_links_v9967_if_needed(): void
                 db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
             }
         }
-        // نسخه ۹٫۹۹٫۸۴: اطمینان از دکمه ثبت سفارش در قالب محصول
+        // نسخه ۹٫۹۹٫۹۰: اطمینان از دکمه ثبت سفارش در قالب محصول (اجباری)
         $tpl = get_template_content('product');
-        if ($tpl !== '' && strpos($tpl, '/order?product=') === false) {
+        if ($tpl !== '' && strpos($tpl, '/order?product={{product_id}}') === false) {
             // دکمه را قبل از بستن section اضافه کن
             $btn = '<p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
             $newTpl = str_replace('{{product_gallery}}', '{{product_gallery}}' . "\n" . '                ' . $btn, $tpl);
@@ -2302,6 +2304,25 @@ function migrate_order_links_v9967_if_needed(): void
             error_log('profile access migration failed: ' . $e->getMessage());
         }
         set_setting('order_links_9967', '1');
+        // نسخه ۹٫۹۹٫۹۰: بررسی مجدد دکمه سفارش (مستقل از فلگ قبلی)
+        try {
+            $tpl2 = get_template_content('product');
+            if ($tpl2 !== '' && strpos($tpl2, '/order?product={{product_id}}') === false) {
+                $btn2 = '<p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
+                // بعد از گالری اضافه کن
+                if (strpos($tpl2, '{{product_gallery}}') !== false) {
+                    $newTpl2 = str_replace('{{product_gallery}}', '{{product_gallery}}' . "\n" . '                ' . $btn2, $tpl2);
+                } else {
+                    // آخر سکشن اضافه کن
+                    $newTpl2 = str_replace('</section>', '                ' . $btn2 . "\n" . '</section>', $tpl2);
+                }
+                if ($newTpl2 !== $tpl2) {
+                    db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl2]);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('product button v9990 failed: ' . $e->getMessage());
+        }
     } catch (Throwable $e) {
         error_log('order links failed: ' . $e->getMessage());
     }
