@@ -578,6 +578,7 @@ $pageTitles = [
     'pages'      => 'صفحه‌ها',
     'gallery'    => 'مدیریت گالری',
     'design'     => 'قالب و استایل',
+    'appearance' => 'تنظیمات ظاهری',
     'messages'   => 'پیام‌های تماس',
     'partners'   => 'درخواست‌های همکاری',
     'customers'  => 'مشتری‌ها',
@@ -635,6 +636,7 @@ $navGroups = [
         ['admin.php?page=gallery', 'image', 'مدیریت گالری', 'gallery'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
+        ['admin.php?page=appearance', 'palette', 'تنظیمات ظاهری', 'appearance'],
         ['admin.php?page=templates', 'templates', 'قالب‌های نمایشی', 'templates'],
     ]],
     'customers' => ['مشتریان', [
@@ -1920,6 +1922,58 @@ $adminTheme = (string) get_setting('admin_theme', 'light');
 if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke'], true)) {
     $adminTheme = 'light';
 }
+if ($page === 'appearance') {
+    $appearMsg = '';
+    $appearErr = '';
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['csrf'])) {
+        if (!hash_equals($_SESSION['csrf_token'] ?? '', (string) $_POST['csrf'])) {
+            $appearErr = 'توکن امنیتی نامعتبر است. صفحه را رفرش کنید.';
+        } else {
+            if (isset($_POST['appear_reset'])) {
+                // بازگشت به پیش‌فرض
+                foreach (appearance_defaults() as $k => $v) {
+                    set_setting('appear_' . $k, (string) $v);
+                }
+                $appearMsg = 'به تنظیمات پیش‌فرض برگشت.';
+            } else {
+                // ذخیره
+                $defs = appearance_defaults();
+                foreach ($defs as $k => $def) {
+                    $raw = (string) ($_POST['appear_' . $k] ?? $def);
+                    if (str_ends_with($k, '_bg') || $k === 'hamburger_icon') {
+                        // رنگ hex
+                        $raw = trim($raw);
+                        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $raw) && !preg_match('/^#[0-9a-fA-F]{3}$/', $raw)) {
+                            $raw = $def;
+                        }
+                    } elseif (str_ends_with($k, '_opacity')) {
+                        $raw = (string) max(0, min(100, (int) $raw));
+                    } elseif (str_ends_with($k, '_blur')) {
+                        $raw = (string) max(0, min(30, (int) $raw));
+                    }
+                    set_setting('appear_' . $k, $raw);
+                }
+                $appearMsg = 'ذخیره شد.';
+            }
+            try {
+                appearance_apply();
+            } catch (Throwable $e) {
+                $appearErr = 'خطا در اعمال CSS: ' . $e->getMessage();
+            }
+        }
+    }
+    $appearVals = [];
+    foreach (appearance_defaults() as $k => $def) {
+        $appearVals[$k] = appearance_get($k);
+    }
+    $appearSections = [
+        'header' => 'هدر',
+        'hamburger' => 'منوی همبرگری',
+        'tabbar' => 'منوی شناور',
+        'mmenu' => 'منوی تمام‌صفحه',
+        'footer' => 'فوتر',
+    ];
+}
 if ($page === 'design') {
     $designTab = (string) ($_GET['tab'] ?? 'templates');
     if (!in_array($designTab, ['templates', 'css', 'themes'], true)) {
@@ -2869,6 +2923,57 @@ if ($page === 'design') {
         <?php elseif ($page === 'gallery'): ?>
             <?php /* admin_gallery_ui.php به modules/admin/UI/Gallery.php منتقل شد (۹٫۹۹٫۱۹) */ ?>
 
+        <?php elseif ($page === 'appearance'): ?>
+            <h1>تنظیمات ظاهری</h1>
+            <p class="muted">رنگ، شفافیت و بلور هدر، منوی همبرگری، منوی شناور، منوی تمام‌صفحه و فوتر — بدون دست‌کاری کد. با ذخیره، استایل سایت خودکار به‌روز می‌شود.</p>
+            <?php if ($appearMsg !== ''): ?><div class="alert success"><?= e($appearMsg) ?></div><?php endif; ?>
+            <?php if ($appearErr !== ''): ?><div class="alert error"><?= e($appearErr) ?></div><?php endif; ?>
+            <form method="post" action="admin.php?page=appearance" class="appear-form">
+                <?= csrf_field() ?>
+                <?php foreach ($appearSections as $secKey => $secTitle): ?>
+                <div class="card appear-card">
+                    <h3><?= e($secTitle) ?></h3>
+                    <div class="appear-grid">
+                        <label class="appear-field">
+                            <span>رنگ پس‌زمینه</span>
+                            <input type="color" name="appear_<?= $secKey ?>_bg" value="<?= e($appearVals[$secKey . '_bg']) ?>">
+                            <code><?= e($appearVals[$secKey . '_bg']) ?></code>
+                        </label>
+                        <label class="appear-field">
+                            <span>شفافیت <b class="appear-val" data-for="appear_<?= $secKey ?>_opacity"><?= e($appearVals[$secKey . '_opacity']) ?>٪</b></span>
+                            <input type="range" name="appear_<?= $secKey ?>_opacity" min="0" max="100" step="1" value="<?= e($appearVals[$secKey . '_opacity']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'٪'">
+                        </label>
+                        <label class="appear-field">
+                            <span>بلور <b class="appear-val" data-for="appear_<?= $secKey ?>_blur"><?= e($appearVals[$secKey . '_blur']) ?>px</b></span>
+                            <input type="range" name="appear_<?= $secKey ?>_blur" min="0" max="30" step="1" value="<?= e($appearVals[$secKey . '_blur']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'">
+                        </label>
+                        <?php if ($secKey === 'hamburger'): ?>
+                        <label class="appear-field">
+                            <span>رنگ آیکون</span>
+                            <input type="color" name="appear_hamburger_icon" value="<?= e($appearVals['hamburger_icon']) ?>">
+                            <code><?= e($appearVals['hamburger_icon']) ?></code>
+                        </label>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">ذخیره تنظیمات ظاهری</button>
+                    <button type="submit" name="appear_reset" value="1" class="btn btn-ghost" onclick="return confirm('به پیش‌فرض برگردد؟')">بازنشانی به پیش‌فرض</button>
+                </div>
+            </form>
+            <style>
+            .appear-form{max-width:860px}
+            .appear-card{margin-bottom:18px;padding:20px}
+            .appear-card h3{margin:0 0 14px;font-size:16px}
+            .appear-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+            .appear-field{display:flex;flex-direction:column;gap:8px;font-size:13px}
+            .appear-field input[type=color]{width:64px;height:40px;padding:2px;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer}
+            .appear-field input[type=range]{width:100%}
+            .appear-field code{font-size:11px;color:#64748b;direction:ltr}
+            .appear-val{color:#0ea5e9}
+            .form-actions{display:flex;gap:12px;margin-top:8px}
+            </style>
         <?php elseif ($page === 'design'): ?>
             <h1>قالب و استایل</h1>
             <p class="muted">از نسخه ۵، متن قالب‌ها و CSS سایت داخل دیتابیس نگه داشته می‌شوند و فقط اسکلت صفحه (سربرگ سند، منوی موبایل و اسکریپت‌های سبک) در فایل‌هاست؛ پس قالب و CSS با آپدیت یک‌کلیکی گیت‌هاب پاک نمی‌شوند و همه‌چیز از همین‌جا قابل ویرایش و بازیابی است. داخل قالب‌ها کد PHP هرگز اجرا نمی‌شود؛ فقط پلیس‌هولدرهای امن پشتیبانی می‌شوند. قبل از هر ذخیره یا بازنشانی، نسخه قبلی به‌صورت خودکار در «تاریخچه نسخه‌ها» می‌ماند تا اشتباه‌ها برگشت‌پذیر باشند.</p>

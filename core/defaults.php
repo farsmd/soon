@@ -1073,6 +1073,7 @@ CSS;
     $out .= "\n" . (function_exists('lightbox_full_css') ? lightbox_full_css() : '');
     $out .= "\n" . (function_exists('qr_card_css') ? qr_card_css() : '');
     $out .= "\n" . (function_exists('parallax_css') ? parallax_css() : '');
+    // تنظیمات ظاهری از پنل می‌آید؛ سید فقط جای خالی می‌گذارد تا مایگریشن پر کند
     return $out;
 }
 

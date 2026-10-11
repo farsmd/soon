@@ -1315,6 +1315,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('parallax migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۵۶: تنظیمات ظاهری (یک بار) ---
+    try {
+        migrate_appearance_v9956_if_needed();
+    } catch (Throwable $e) {
+        error_log('appearance migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1983,6 +1989,113 @@ function migrate_mobile_header_v9949_if_needed(): void
             set_setting('site_css', $css);
         }
         set_setting('mobile_header_9949', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
+/** تنظیمات ظاهری پنل (۹٫۹۹٫۵۶) — بلور/رنگ/شفافیت هدر، همبرگری، شناور، فول‌اسکرین، فوتر */
+function appearance_defaults(): array
+{
+    return [
+        'header_bg' => '#0a0c12', 'header_opacity' => '14', 'header_blur' => '8',
+        'hamburger_bg' => '#ffffff', 'hamburger_opacity' => '0', 'hamburger_blur' => '0', 'hamburger_icon' => '#ffffff',
+        'tabbar_bg' => '#ffffff', 'tabbar_opacity' => '72', 'tabbar_blur' => '20',
+        'mmenu_bg' => '#080a0e', 'mmenu_opacity' => '93', 'mmenu_blur' => '24',
+        'footer_bg' => '#0a0c12', 'footer_opacity' => '100', 'footer_blur' => '0',
+    ];
+}
+
+function appearance_get(string $key): string
+{
+    $defs = appearance_defaults();
+    $def = (string) ($defs[$key] ?? '');
+    $v = get_setting('appear_' . $key, $def);
+    if ($v === '') {
+        return $def;
+    }
+    return (string) $v;
+}
+
+function hex_to_rgba(string $hex, $opacity): string
+{
+    $hex = ltrim(trim($hex), '#');
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+    if (!preg_match('/^[0-9a-fA-F]{6}$/', $hex)) {
+        $hex = '0a0c12';
+    }
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    $a = max(0, min(100, (int) $opacity)) / 100;
+    // فرمت کوتاه برای خوانایی
+    $as = rtrim(rtrim(number_format($a, 2, '.', ''), '0'), '.');
+    if ($as === '') $as = '0';
+    return "rgba($r,$g,$b,$as)";
+}
+
+function appearance_css(): string
+{
+    $hBg = hex_to_rgba(appearance_get('header_bg'), appearance_get('header_opacity'));
+    $hBlur = max(0, min(30, (int) appearance_get('header_blur')));
+    $hbBg = hex_to_rgba(appearance_get('hamburger_bg'), appearance_get('hamburger_opacity'));
+    $hbBlur = max(0, min(30, (int) appearance_get('hamburger_blur')));
+    $hbIcon = appearance_get('hamburger_icon') !== '' ? appearance_get('hamburger_icon') : '#ffffff';
+    $tBg = hex_to_rgba(appearance_get('tabbar_bg'), appearance_get('tabbar_opacity'));
+    $tBlur = max(0, min(30, (int) appearance_get('tabbar_blur')));
+    $mBg = hex_to_rgba(appearance_get('mmenu_bg'), appearance_get('mmenu_opacity'));
+    $mBlur = max(0, min(30, (int) appearance_get('mmenu_blur')));
+    $fBg = hex_to_rgba(appearance_get('footer_bg'), appearance_get('footer_opacity'));
+    $fBlur = max(0, min(30, (int) appearance_get('footer_blur')));
+
+    return <<<CSS
+/* === APPEARANCE-START === */
+/* تنظیمات ظاهری پنل (۹٫۹۹٫۵۶) — خودکار بازسازی می‌شود، دستی ویرایش نکنید */
+@media(max-width:768px){
+  .site-header{background:$hBg;backdrop-filter:blur({$hBlur}px);-webkit-backdrop-filter:blur({$hBlur}px)}
+  .nav-toggle{background:$hbBg;backdrop-filter:blur({$hbBlur}px);-webkit-backdrop-filter:blur({$hbBlur}px);color:$hbIcon;border:none}
+}
+.ll-tabbar{background:$tBg!important;backdrop-filter:blur({$tBlur}px);-webkit-backdrop-filter:blur({$tBlur}px)}
+@media(max-width:768px){
+  .mmenu{background:$mBg;backdrop-filter:blur({$mBlur}px);-webkit-backdrop-filter:blur({$mBlur}px)}
+}
+.site-footer{background:$fBg;backdrop-filter:blur({$fBlur}px);-webkit-backdrop-filter:blur({$fBlur}px)}
+/* === APPEARANCE-END === */
+CSS;
+}
+
+/** بازسازی بلاک CSS ظاهری داخل site_css (روی ذخیره تنظیمات) */
+function appearance_apply(): void
+{
+    $css = (string) get_setting('site_css', '');
+    $new = appearance_css();
+    if (strpos($css, '/* === APPEARANCE-START === */') !== false) {
+        $css = preg_replace(
+            '/\/\* === APPEARANCE-START === \*\/.*?\/\* === APPEARANCE-END === \*\//s',
+            trim($new),
+            $css
+        );
+    } else {
+        $css .= "\n" . $new . "\n";
+    }
+    set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۵۶: افزودن بلاک ظاهری اولیه */
+function migrate_appearance_v9956_if_needed(): void
+{
+    try {
+        if (get_setting('appearance_9956', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '/* === APPEARANCE-START === */') === false) {
+            $css .= "\n" . appearance_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('appearance_9956', '1');
     } catch (Throwable $e) {
         // سکوت
     }
