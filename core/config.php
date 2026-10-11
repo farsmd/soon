@@ -2208,7 +2208,7 @@ function appearance_css(): string
 .pc-btn-outline:hover{transform:translateY(-2px)}
 @media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:1/1!important;border-radius:15px!important;width:100%!important;margin:0!important}.pc-content{padding:24px 16px 16px!important}}
 /* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
-.so-summary{position:fixed!important;bottom:0!important;left:0!important;right:0!important;z-index:50!important;border-radius:20px 20px 0 0!important;margin:0!important;max-width:680px;margin-left:auto!important;margin-right:auto!important}
+.so-summary{position:fixed!important;bottom:90px!important;left:12px!important;right:12px!important;z-index:60!important;border-radius:20px!important;margin:0 auto!important;max-width:656px!important;box-shadow:0 -8px 32px rgba(15,23,42,.15)!important}
 body{padding-bottom:140px!important}
 /* نسخه ۹٫۹۹٫۷۲: جزئیات فرم سفارش */
 .so-form button[type="submit"]:hover,.so-form .so-submit:hover{background:$submitHover!important;border-color:$submitHover!important}
@@ -2254,13 +2254,13 @@ function migrate_rebuild_appearance_v9971_if_needed(): void
     try {
         // نسخه ۹٫۹۹٫۸۳: بازسازی مجدد برای CSS کارت محصول
         $flag = get_setting('rebuild_appear_9971', '0');
-        if ($flag === '5') {
+        if ($flag === '6') {
             return;
         }
         if (function_exists('appearance_apply')) {
             appearance_apply();
         }
-        set_setting('rebuild_appear_9971', '5');
+        set_setting('rebuild_appear_9971', '6');
     } catch (Throwable $e) {
         error_log('rebuild appearance failed: ' . $e->getMessage());
     }
