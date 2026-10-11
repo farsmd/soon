@@ -258,7 +258,7 @@ HTML,
  */
 function cinematic_base_css(): string
 {
-    return <<<'CSS'
+    $css = <<<'CSS'
 /* ============================================================
    تم سینمایی لاینرلایت — نسخه ۸٫۹٫۰
    تیره، طلایی، مینیمال؛ همه توکن‌ها با «تنظیمات ظاهری» پنل قابل تغییرند.
@@ -1066,6 +1066,7 @@ html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 }
 
 CSS;
+    return $css . "\n" . (function_exists('acc_gallery_css') ? acc_gallery_css() : '');
 }
 
 /** CSS قالب «مدرن روشن» (نسخه ۹٫۳٫۰) — روشن، مینیمال و امروزی */

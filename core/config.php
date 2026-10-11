@@ -1261,6 +1261,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('gallery lightbox css migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۴۵: گالری آکاردئونی (یک بار) ---
+    try {
+        migrate_gallery_accordion_v9945_if_needed();
+    } catch (Throwable $e) {
+        error_log('gallery accordion migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -4858,72 +4864,106 @@ function gallery_parse_figures(string $html): array
     return $figs;
 }
 
-/** ساخت HTML گالری از آرایه figureها */
+/** ساخت HTML گالری از آرایه figureها — نسخه ۹٫۹۹٫۴۵: آکاردئون کشویی (جای کاشی‌ها) */
 function gallery_build_html(array $figs): string
 {
-    $out = '<div class="gallery-tiles">' . "\n";
+    $out = '<ul class="acc-gallery">' . "\n";
     foreach ($figs as $f) {
         $src = (string) ($f['src'] ?? '');
         $alt = (string) ($f['alt'] ?? $f['caption'] ?? '');
         $cap = (string) ($f['caption'] ?? '');
         $desc = (string) ($f['desc'] ?? '');
-        $out .= '<figure><img loading="lazy" src="' . e($src) . '" alt="' . e($alt) . '">'
-            . '<figcaption>' . e($cap) . '</figcaption>';
+        $out .= '<li class="acc-item" tabindex="0"><figure>'
+            . '<img loading="lazy" src="' . e($src) . '" alt="' . e($alt) . '">'
+            . '<div class="acc-meta"><figcaption>' . e($cap) . '</figcaption>';
         if ($desc !== '') {
             $out .= '<p class="gdesc">' . e($desc) . '</p>';
         }
-        $out .= "</figure>\n";
+        $out .= '</div></figure></li>' . "\n";
     }
-    $out .= "</div>\n";
-    $out .= <<<'GLB'
-<div class="glb" id="glb" hidden>
-  <div class="glb-backdrop" data-glb-close></div>
-  <figure class="glb-stage">
-    <img class="glb-img" alt="">
-    <figcaption class="glb-meta"><span class="glb-cap"></span><span class="glb-count"></span></figcaption>
-  </figure>
-  <button type="button" class="glb-close" data-glb-close aria-label="بستن">✕</button>
-  <button type="button" class="glb-prev" aria-label="تصویر قبلی">›</button>
-  <button type="button" class="glb-next" aria-label="تصویر بعدی">‹</button>
-</div>
+    $out .= "</ul>\n";
+    $out .= <<<'ACC'
 <script>
 (function(){
-  var grid=document.querySelector('.gallery-tiles');
-  var lb=document.getElementById('glb');
-  if(!grid||!lb)return;
-  var figs=Array.prototype.slice.call(grid.querySelectorAll('figure'));
-  if(!figs.length)return;
-  var img=lb.querySelector('.glb-img'),cap=lb.querySelector('.glb-cap'),cnt=lb.querySelector('.glb-count'),idx=0;
-  function fa(n){return Number(n).toLocaleString('fa-IR');}
-  function show(i){
-    idx=(i+figs.length)%figs.length;
-    var im=figs[idx].querySelector('img'),fc=figs[idx].querySelector('figcaption');
-    img.src=im.getAttribute('src');img.alt=im.getAttribute('alt')||'';
-    cap.textContent=fc?fc.textContent:'';
-    cnt.textContent=fa(idx+1)+' از '+fa(figs.length);
-  }
-  function open(i){show(i);lb.hidden=false;document.body.style.overflow='hidden';}
-  function close(){lb.hidden=true;document.body.style.overflow='';}
-  figs.forEach(function(f,i){f.addEventListener('click',function(){open(i);});});
-  lb.querySelector('.glb-prev').addEventListener('click',function(e){e.stopPropagation();show(idx-1);});
-  lb.querySelector('.glb-next').addEventListener('click',function(e){e.stopPropagation();show(idx+1);});
-  lb.querySelectorAll('[data-glb-close]').forEach(function(b){b.addEventListener('click',close);});
-  document.addEventListener('keydown',function(e){
-    if(lb.hidden)return;
-    if(e.key==='Escape')close();
-    else if(e.key==='ArrowLeft')show(idx+1);
-    else if(e.key==='ArrowRight')show(idx-1);
+  var ul=document.querySelector('.acc-gallery');
+  if(!ul)return;
+  var items=Array.prototype.slice.call(ul.querySelectorAll('.acc-item'));
+  if(!items.length)return;
+  function closeAll(){items.forEach(function(it){it.classList.remove('acc-open');});}
+  items.forEach(function(it){
+    it.addEventListener('click',function(){
+      var wasOpen=it.classList.contains('acc-open');
+      closeAll();
+      if(!wasOpen)it.classList.add('acc-open');
+    });
+    it.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();it.click();}
+    });
   });
-  var tx=0;
-  lb.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
-  lb.addEventListener('touchend',function(e){
-    var dx=e.changedTouches[0].clientX-tx;
-    if(Math.abs(dx)>48){show(idx+(dx<0?1:-1));}
-  },{passive:true});
+  items[0].classList.add('acc-open');
 })();
 </script>
-GLB;
+ACC;
     return $out;
+}
+
+/** استایل گالری آکاردئونی (۹٫۹۹٫۴۵) — هم در سید defaults.php و هم در مایگریشن CSS زنده استفاده می‌شود */
+function acc_gallery_css(): string
+{
+    return <<<'CSS'
+/* ---------- گالری آکاردئونی (۹٫۹۹٫۴۵) ---------- */
+.page-body .acc-gallery{list-style:none;margin:0;padding:10px 2px 24px;display:flex;gap:14px;overflow-x:auto;scrollbar-width:thin}
+.page-body .acc-gallery .acc-item{position:relative;flex:0 0 78px;height:440px;margin:0;padding:0;border-radius:30px;overflow:hidden;cursor:pointer;
+  border:1px solid rgba(255,255,255,.14);background:#101014;
+  transition:flex-basis .55s cubic-bezier(.22,.8,.3,1),border-color .3s ease}
+.page-body .acc-gallery .acc-item>figure{margin:0;height:100%}
+.page-body .acc-gallery .acc-item img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
+  filter:grayscale(30%);transform:scale(1.02);transition:filter .5s ease,transform .6s ease}
+.page-body .acc-gallery .acc-item .acc-meta{position:absolute;inset-inline:0;bottom:0;z-index:2;padding:52px 18px 20px;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,.85));
+  opacity:0;transform:translateY(14px);transition:opacity .45s ease .08s,transform .45s ease .08s;pointer-events:none}
+.page-body .acc-gallery .acc-item figcaption{margin:0 0 2px;color:#fff;font-size:17px;font-weight:800;line-height:1.8}
+.page-body .acc-gallery .acc-item .gdesc{margin:0;color:rgba(255,255,255,.62);font-size:13px;line-height:1.9}
+.page-body .acc-gallery .acc-item:hover,.page-body .acc-gallery .acc-item.acc-open{flex-basis:300px;border-color:rgba(255,255,255,.32)}
+.page-body .acc-gallery .acc-item:hover img,.page-body .acc-gallery .acc-item.acc-open img{filter:grayscale(0%);transform:scale(1.07)}
+.page-body .acc-gallery .acc-item:hover .acc-meta,.page-body .acc-gallery .acc-item.acc-open .acc-meta{opacity:1;transform:translateY(0)}
+.page-body .acc-gallery .acc-item:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){
+  .page-body .acc-gallery .acc-item,.page-body .acc-gallery .acc-item img,.page-body .acc-gallery .acc-item .acc-meta{transition:none}
+}
+@media(max-width:640px){
+  .page-body .acc-gallery{gap:10px}
+  .page-body .acc-gallery .acc-item{flex:0 0 64px;height:360px;border-radius:24px}
+  .page-body .acc-gallery .acc-item:hover,.page-body .acc-gallery .acc-item.acc-open{flex-basis:230px}
+  .page-body .acc-gallery .acc-item figcaption{font-size:15px}
+}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۴۵: بازسازی محتوای صفحه گالری با مارکاپ آکاردئون + افزودن استایل به CSS زنده */
+function migrate_gallery_accordion_v9945_if_needed(): void
+{
+    try {
+        if (get_setting('gallery_accordion_9945', '0') === '1') {
+            return;
+        }
+        $pdo = db();
+        $row = $pdo->query("SELECT content FROM pages WHERE slug = 'gallery' LIMIT 1")->fetch();
+        if ($row && strpos((string) $row['content'], 'gallery-tiles') !== false) {
+            $figs = gallery_parse_figures((string) $row['content']);
+            if ($figs !== []) {
+                gallery_save_figures($pdo, $figs);
+            }
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '.acc-gallery') === false) {
+            $css .= "\n" . acc_gallery_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('gallery_accordion_9945', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
 }
 
 /** مایگریشن نسخه ۹٫۱۳٫۱: پیچیدن محتوای گالری داخل کانتینر کاشی */
