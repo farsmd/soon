@@ -1963,9 +1963,11 @@ if ($page === 'appearance') {
                         $raw = in_array($raw, ['right','left'], true) ? $raw : 'right';
                     } elseif (in_array($k, ['form_show_wire','form_show_endcap','form_show_note','form_show_lightcolor'], true)) {
                         $raw = ($raw === '1') ? '1' : '0';
-                    } elseif ($k === 'form_submit_bg') {
+                    } elseif (in_array($k, ['form_submit_bg','form_submit_hover','form_submit_text','form_field_bg','form_field_border'], true)) {
                         $raw = trim($raw);
                         if (!preg_match('/^#[0-9a-fA-F]{6}$/', $raw)) { $raw = $def; }
+                    } elseif ($k === 'form_field_radius') {
+                        $raw = (string) max(0, min(30, (int) $raw));
                     }
                     set_setting('appear_' . $k, $raw);
                 }
@@ -3063,6 +3065,20 @@ if ($page === 'design') {
                             <label class="appear-field"><span>رنگ دکمه ثبت</span>
                                 <input type="color" name="appear_form_submit_bg" value="<?= e($appearVals['form_submit_bg']) ?>">
                                 <code><?= e($appearVals['form_submit_bg']) ?></code></label>
+                            <label class="appear-field"><span>رنگ هاور دکمه</span>
+                                <input type="color" name="appear_form_submit_hover" value="<?= e($appearVals['form_submit_hover']) ?>">
+                                <code><?= e($appearVals['form_submit_hover']) ?></code></label>
+                            <label class="appear-field"><span>رنگ متن دکمه</span>
+                                <input type="color" name="appear_form_submit_text" value="<?= e($appearVals['form_submit_text']) ?>">
+                                <code><?= e($appearVals['form_submit_text']) ?></code></label>
+                            <label class="appear-field"><span>پس‌زمینه فیلدها</span>
+                                <input type="color" name="appear_form_field_bg" value="<?= e($appearVals['form_field_bg']) ?>">
+                                <code><?= e($appearVals['form_field_bg']) ?></code></label>
+                            <label class="appear-field"><span>رنگ حاشیه فیلدها</span>
+                                <input type="color" name="appear_form_field_border" value="<?= e($appearVals['form_field_border']) ?>">
+                                <code><?= e($appearVals['form_field_border']) ?></code></label>
+                            <label class="appear-field"><span>گردی فیلدها <b class="appear-val"><?= e($appearVals['form_field_radius']) ?>px</b></span>
+                                <input type="range" name="appear_form_field_radius" min="0" max="30" value="<?= e($appearVals['form_field_radius']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
                         </div>
                     </div>
                 </div>

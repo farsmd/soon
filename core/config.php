@@ -2049,7 +2049,8 @@ function appearance_defaults(): array
         'hero_kicker' => '0', 'hero_align' => 'center', 'hero_parallax' => '1', 'hero_parallax_speed' => '35', 'hero_padding_top' => '88',
         'gallery_columns' => '4', 'gallery_lightbox' => '1',
         'form_show_wire' => '1', 'form_show_endcap' => '1', 'form_show_note' => '1', 'form_show_lightcolor' => '1',
-        'form_submit_bg' => '#0ea5e9',
+        'form_submit_bg' => '#0ea5e9', 'form_submit_hover' => '#0284c7', 'form_submit_text' => '#ffffff',
+        'form_field_bg' => '#ffffff', 'form_field_border' => '#cbd5e1', 'form_field_radius' => '12',
     ];
 }
 
@@ -2103,6 +2104,15 @@ function appearance_css(): string
     $gCols = in_array(appearance_get('gallery_columns'), ['2','3','4'], true) ? appearance_get('gallery_columns') : '4';
     $submitBg = appearance_get('form_submit_bg');
     if (!preg_match('/^#[0-9a-fA-F]{6}$/', $submitBg)) { $submitBg = '#0ea5e9'; }
+    $submitHover = appearance_get('form_submit_hover');
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $submitHover)) { $submitHover = '#0284c7'; }
+    $submitText = appearance_get('form_submit_text');
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $submitText)) { $submitText = '#ffffff'; }
+    $fieldBg = appearance_get('form_field_bg');
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $fieldBg)) { $fieldBg = '#ffffff'; }
+    $fieldBorder = appearance_get('form_field_border');
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $fieldBorder)) { $fieldBorder = '#cbd5e1'; }
+    $fieldRadius = max(0, min(30, (int) appearance_get('form_field_radius')));
 
     return <<<CSS
 /* === APPEARANCE-START === */
@@ -2134,6 +2144,10 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۷۲: جزئیات فرم سفارش */
+.so-form button[type="submit"]:hover,.so-form .so-submit:hover{background:$submitHover!important;border-color:$submitHover!important}
+.so-form button[type="submit"],.so-form .so-submit{color:$submitText!important}
+.so-form input,.so-form select,.so-form textarea{background:$fieldBg!important;border-color:$fieldBorder!important;border-radius:{$fieldRadius}px!important}
 /* نمایش/عدم نمایش فیلدهای فرم از استودیو طراحی */
 #so-form[data-fw="0"] .so-field:has(input[data-wire]){display:none!important}
 #so-form[data-fe="0"] .so-field:has(input[name*="[endcap]"]){display:none!important}
