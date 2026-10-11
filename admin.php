@@ -3921,70 +3921,6 @@ if ($page === 'design') {
             <?php templates_render(); ?>
         <?php elseif ($page === 'template_studio'): ?>
             <h1>استودیو قالب</h1>
-            <!-- ترتیب سکشن‌های صفحه اصلی (جمع‌شونده) -->
-            <div class="ts-accordion" style="margin-bottom:20px">
-                <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
-                    <h3>ترتیب سکشن‌های صفحه اصلی</h3>
-                    <span class="ts-acc-icon">▼</span>
-                </div>
-                <div class="ts-acc-body">
-            <section class="card wide" style="margin:0;border:none;padding:0;box-shadow:none">
-                <?php if ($tsOrderMsg): ?><div class="alert alert-ok"><?= e($tsOrderMsg) ?></div><?php endif; ?>
-                <form method="post" id="tsOrderForm">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="ts_reorder" value="1">
-                    <div id="tsOrderList" style="display:flex;flex-direction:column;gap:8px">
-                        <?php foreach ($tsCurrentOrder as $idx => $sk): ?>
-                        <div class="card" style="padding:12px;display:flex;align-items:center;gap:12px" data-key="<?= e($sk) ?>">
-                            <span style="font-size:18px;color:#64748b;font-weight:700"><?= $idx + 1 ?></span>
-                            <strong style="flex:1"><?= e($tsSectionNames[$sk] ?? $sk) ?></strong>
-                            <?php if ($idx > 0): ?>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="tsMoveUp(this)" title="بالا">▲</button>
-                            <?php endif; ?>
-                            <?php if ($idx < count($tsCurrentOrder) - 1): ?>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="tsMoveDown(this)" title="پایین">▼</button>
-                            <?php endif; ?>
-                            <input type="hidden" name="section_order[]" value="<?= e($sk) ?>">
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <p style="margin-top:12px"><button type="submit" class="btn btn-primary">ذخیره ترتیب</button></p>
-                </form>
-                <script>
-                function tsMoveUp(btn){
-                    var item = btn.closest('[data-key]');
-                    var prev = item.previousElementSibling;
-                    if (prev) {
-                        item.parentNode.insertBefore(item, prev);
-                        tsRefreshOrder();
-                    }
-                }
-                function tsMoveDown(btn){
-                    var item = btn.closest('[data-key]');
-                    var next = item.nextElementSibling;
-                    if (next) {
-                        item.parentNode.insertBefore(next, item);
-                        tsRefreshOrder();
-                    }
-                }
-                function tsRefreshOrder(){
-                    var list = document.getElementById('tsOrderList');
-                    var items = list.querySelectorAll('[data-key]');
-                    items.forEach(function(item, idx){
-                        // به‌روزرسانی شماره
-                        item.querySelector('span').textContent = idx + 1;
-                        // به‌روزرسانی input
-                        item.querySelector('input').value = item.getAttribute('data-key');
-                        // نمایش/مخفی کردن دکمه‌ها
-                        var upBtn = item.querySelector('[onclick*="tsMoveUp"]');
-                        var downBtn = item.querySelector('[onclick*="tsMoveDown"]');
-                        // ساده: همه دکمه‌ها را نگه دار، فقط ترتیب مهم است
-                    });
-                }
-                </script>
-            </section>
-                </div>
-            </div>
             <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>
             <?php if ($tsEditKey !== ''): ?>
             <!-- ویرایشگر حرفه‌ای -->
@@ -4137,6 +4073,70 @@ if ($page === 'design') {
                 </script>
             </section>
             <?php else: ?>
+            <!-- ترتیب سکشن‌های صفحه اصلی (جمع‌شونده) -->
+            <div class="ts-accordion" style="margin-bottom:20px">
+                <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
+                    <h3>ترتیب سکشن‌های صفحه اصلی</h3>
+                    <span class="ts-acc-icon">▼</span>
+                </div>
+                <div class="ts-acc-body">
+            <section class="card wide" style="margin:0;border:none;padding:0;box-shadow:none">
+                <?php if ($tsOrderMsg): ?><div class="alert alert-ok"><?= e($tsOrderMsg) ?></div><?php endif; ?>
+                <form method="post" id="tsOrderForm">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="ts_reorder" value="1">
+                    <div id="tsOrderList" style="display:flex;flex-direction:column;gap:8px">
+                        <?php foreach ($tsCurrentOrder as $idx => $sk): ?>
+                        <div class="card" style="padding:12px;display:flex;align-items:center;gap:12px" data-key="<?= e($sk) ?>">
+                            <span style="font-size:18px;color:#64748b;font-weight:700"><?= $idx + 1 ?></span>
+                            <strong style="flex:1"><?= e($tsSectionNames[$sk] ?? $sk) ?></strong>
+                            <?php if ($idx > 0): ?>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tsMoveUp(this)" title="بالا">▲</button>
+                            <?php endif; ?>
+                            <?php if ($idx < count($tsCurrentOrder) - 1): ?>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tsMoveDown(this)" title="پایین">▼</button>
+                            <?php endif; ?>
+                            <input type="hidden" name="section_order[]" value="<?= e($sk) ?>">
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <p style="margin-top:12px"><button type="submit" class="btn btn-primary">ذخیره ترتیب</button></p>
+                </form>
+                <script>
+                function tsMoveUp(btn){
+                    var item = btn.closest('[data-key]');
+                    var prev = item.previousElementSibling;
+                    if (prev) {
+                        item.parentNode.insertBefore(item, prev);
+                        tsRefreshOrder();
+                    }
+                }
+                function tsMoveDown(btn){
+                    var item = btn.closest('[data-key]');
+                    var next = item.nextElementSibling;
+                    if (next) {
+                        item.parentNode.insertBefore(next, item);
+                        tsRefreshOrder();
+                    }
+                }
+                function tsRefreshOrder(){
+                    var list = document.getElementById('tsOrderList');
+                    var items = list.querySelectorAll('[data-key]');
+                    items.forEach(function(item, idx){
+                        // به‌روزرسانی شماره
+                        item.querySelector('span').textContent = idx + 1;
+                        // به‌روزرسانی input
+                        item.querySelector('input').value = item.getAttribute('data-key');
+                        // نمایش/مخفی کردن دکمه‌ها
+                        var upBtn = item.querySelector('[onclick*="tsMoveUp"]');
+                        var downBtn = item.querySelector('[onclick*="tsMoveDown"]');
+                        // ساده: همه دکمه‌ها را نگه دار، فقط ترتیب مهم است
+                    });
+                }
+                </script>
+            </section>
+                </div>
+            </div>
             <p class="muted">قالب HTML و CSS هر بخش سایت را اینجا ویرایش کنید.</p>
             <style>
             .ts-accordion{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
