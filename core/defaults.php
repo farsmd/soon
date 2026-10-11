@@ -249,6 +249,15 @@ HTML,
 </section>
 HTML,
         ],
+        'order_form' => [
+            'title'   => 'قالب ثبت سفارش',
+            'content' => <<<'HTML'
+<div class="site-order" id="site-order">
+<div class="so-head"><h2>{{form_title}}</h2><p class="so-price">{{form_subtitle}}</p></div>
+{{form_body}}
+</div>
+HTML,
+        ],
     ];
 }
 
