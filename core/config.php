@@ -2055,6 +2055,9 @@ function appearance_defaults(): array
         'hero_kicker' => '0', 'hero_align' => 'center', 'hero_parallax' => '1', 'hero_parallax_speed' => '35', 'hero_padding_top' => '88',
         'gallery_columns' => '4', 'gallery_lightbox' => '1',
         'hero_bg_image' => '', 'products_bg_image' => '', 'about_bg_image' => '', 'gallery_bg_image' => '', 'contact_bg_image' => '',
+        'pcard_bg' => 'rgba(255,255,255,.9)', 'pcard_blur' => '20', 'pcard_radius' => '25', 'pcard_padding' => '8',
+        'pcard_btn_bg' => '#d4af37', 'pcard_btn_hover' => '#b8941f', 'pcard_btn_text' => '#000000',
+        'pcard_img_radius' => '17',
         'hero_bg_overlay' => '0.5',
         'form_show_wire' => '1', 'form_show_endcap' => '1', 'form_show_note' => '1', 'form_show_lightcolor' => '1',
         'form_submit_bg' => '#0ea5e9', 'form_submit_hover' => '#0284c7', 'form_submit_text' => '#ffffff',
@@ -2121,6 +2124,15 @@ function appearance_css(): string
     $fieldBorder = appearance_get('form_field_border');
     if (!preg_match('/^#[0-9a-fA-F]{6}$/', $fieldBorder)) { $fieldBorder = '#cbd5e1'; }
     $fieldRadius = max(0, min(30, (int) appearance_get('form_field_radius')));
+    // کارت محصول
+    $pcardBg = appearance_get('pcard_bg'); if ($pcardBg === '') { $pcardBg = 'rgba(255,255,255,.9)'; }
+    $pcardBlur = max(0, min(40, (int) appearance_get('pcard_blur')));
+    $pcardRadius = max(0, min(40, (int) appearance_get('pcard_radius')));
+    $pcardPad = max(0, min(40, (int) appearance_get('pcard_padding')));
+    $pcardBtnBg = appearance_get('pcard_btn_bg'); if (!preg_match('/^#[0-9a-fA-F]{6}$/', $pcardBtnBg)) { $pcardBtnBg = '#d4af37'; }
+    $pcardBtnHover = appearance_get('pcard_btn_hover'); if (!preg_match('/^#[0-9a-fA-F]{6}$/', $pcardBtnHover)) { $pcardBtnHover = '#b8941f'; }
+    $pcardBtnText = appearance_get('pcard_btn_text'); if (!preg_match('/^#[0-9a-fA-F]{6}$/', $pcardBtnText)) { $pcardBtnText = '#000000'; }
+    $pcardImgRadius = max(0, min(40, (int) appearance_get('pcard_img_radius')));
 
     return <<<CSS
 /* === APPEARANCE-START === */
@@ -2175,10 +2187,11 @@ function appearance_css(): string
 #gallery-preview::before{background:radial-gradient(ellipse 70% 50% at 50% 20%,rgba(212,175,55,.08),transparent 60%)}
 #contact::before{background:radial-gradient(ellipse 80% 60% at 80% 20%,rgba(14,165,233,.06),transparent 60%),radial-gradient(ellipse 60% 50% at 15% 80%,rgba(212,175,55,.05),transparent 60%)}
 .onepage-section>*{position:relative;z-index:1}
-/* نسخه ۹٫۹۹٫۸۰: کارت محصول افقی (مثل فایل card) */
+.pc-btn:hover{background:$pcardBtnHover!important;transform:translateY(-2px)}
+/* نسخه ۹٫۹۹٫۹۵: کارت محصول (قابل تنظیم از استودیو طراحی) */
 .products-grid{display:grid!important;grid-template-columns:1fr!important;gap:24px!important}
-.product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:8px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
-.pc-media{min-width:0;aspect-ratio:1/1;overflow:hidden;border-radius:17px;background:#f1f5f9}
+.product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:$pcardPad!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:{$pcardRadius}px!important;background:$pcardBg!important;backdrop-filter:blur({$pcardBlur}px)!important;-webkit-backdrop-filter:blur({$pcardBlur}px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
+.pc-media{min-width:0;aspect-ratio:1/1;overflow:hidden;border-radius:{$pcardImgRadius}px!important;background:#f1f5f9}
 .pc-media img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s ease}
 .product-card:hover .pc-media img{transform:scale(1.03)}
 .pc-content{min-width:0;display:flex;flex-direction:column;justify-content:flex-start;padding:clamp(28px,4vw,48px) clamp(8px,2vw,24px) clamp(20px,3vw,32px) 0}
@@ -2189,7 +2202,7 @@ function appearance_css(): string
 .pc-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .pc-tag{display:inline-flex;align-items:center;min-height:31px;padding:6px 14px;border:1px solid rgba(15,23,42,.1);border-radius:999px;background:#f8fafc;color:#334155;font-size:.8rem;font-weight:600}
 .pc-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:24px}
-.pc-btn{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:0;border-radius:12px;background:#d4af37;color:#000;font-size:15px;font-weight:700;text-decoration:none;transition:.25s}
+.pc-btn{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:0;border-radius:12px;background:$pcardBtnBg!important;color:$pcardBtnText!important;font-size:15px;font-weight:700;text-decoration:none;transition:.25s}
 .pc-btn:hover{transform:translateY(-2px);box-shadow:0 11px 24px rgba(15,23,42,.2)}
 .pc-btn-outline{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:1px solid #d4af37;border-radius:12px;background:transparent;color:#0f172a;font-size:15px;font-weight:600;text-decoration:none;transition:.25s}
 .pc-btn-outline:hover{transform:translateY(-2px)}
@@ -2241,13 +2254,13 @@ function migrate_rebuild_appearance_v9971_if_needed(): void
     try {
         // نسخه ۹٫۹۹٫۸۳: بازسازی مجدد برای CSS کارت محصول
         $flag = get_setting('rebuild_appear_9971', '0');
-        if ($flag === '4') {
+        if ($flag === '5') {
             return;
         }
         if (function_exists('appearance_apply')) {
             appearance_apply();
         }
-        set_setting('rebuild_appear_9971', '4');
+        set_setting('rebuild_appear_9971', '5');
     } catch (Throwable $e) {
         error_log('rebuild appearance failed: ' . $e->getMessage());
     }

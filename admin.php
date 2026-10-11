@@ -1973,6 +1973,14 @@ if ($page === 'appearance') {
                         $raw = trim($raw);
                         // فقط مسیر نسبی مجاز
                         if ($raw !== '' && !preg_match('#^(uploads/|assets/)#', $raw)) { $raw = $def; }
+                    } elseif (in_array($k, ['pcard_btn_bg','pcard_btn_hover','pcard_btn_text'], true)) {
+                        $raw = trim($raw);
+                        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $raw)) { $raw = $def; }
+                    } elseif (in_array($k, ['pcard_blur','pcard_radius','pcard_padding','pcard_img_radius'], true)) {
+                        $raw = (string) max(0, min(40, (int) $raw));
+                    } elseif ($k === 'pcard_bg') {
+                        $raw = trim($raw);
+                        if ($raw === '') { $raw = $def; }
                     } elseif ($k === 'form_field_radius') {
                         $raw = (string) max(0, min(30, (int) $raw));
                     }
@@ -2958,6 +2966,7 @@ if ($page === 'design') {
                 <button type="button" class="appear-tab" data-tab="gallery">گالری</button>
                 <button type="button" class="appear-tab" data-tab="form">فرم سفارش</button>
                 <button type="button" class="appear-tab" data-tab="backgrounds">پس‌زمینه‌ها</button>
+                <button type="button" class="appear-tab" data-tab="pcard">کارت محصول</button>
                 <button type="button" class="appear-tab" data-tab="footer">فوتر</button>
             </div>
             <?php if ($appearMsg !== ''): ?><div class="alert success"><?= e($appearMsg) ?></div><?php endif; ?>
@@ -3106,6 +3115,33 @@ if ($page === 'design') {
                                 <input type="text" name="appear_gallery_bg_image" value="<?= e($appearVals['gallery_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
                             <label class="appear-field"><span>تماس</span>
                                 <input type="text" name="appear_contact_bg_image" value="<?= e($appearVals['contact_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
+                        </div>
+                    </div>
+                </div>
+                <!-- تب کارت محصول -->
+                <div class="appear-panel" data-panel="pcard">
+                    <div class="card appear-card">
+                        <h3>کارت محصول</h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>رنگ پس‌زمینه</span>
+                                <input type="text" name="appear_pcard_bg" value="<?= e($appearVals['pcard_bg']) ?>" dir="ltr" placeholder="rgba(255,255,255,.9)"></label>
+                            <label class="appear-field"><span>بلور <b class="appear-val"><?= e($appearVals['pcard_blur']) ?>px</b></span>
+                                <input type="range" name="appear_pcard_blur" min="0" max="40" value="<?= e($appearVals['pcard_blur']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                            <label class="appear-field"><span>گردی کارت <b class="appear-val"><?= e($appearVals['pcard_radius']) ?>px</b></span>
+                                <input type="range" name="appear_pcard_radius" min="0" max="40" value="<?= e($appearVals['pcard_radius']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                            <label class="appear-field"><span>پدینگ کارت <b class="appear-val"><?= e($appearVals['pcard_padding']) ?>px</b></span>
+                                <input type="range" name="appear_pcard_padding" min="0" max="40" value="<?= e($appearVals['pcard_padding']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                            <label class="appear-field"><span>گردی عکس <b class="appear-val"><?= e($appearVals['pcard_img_radius']) ?>px</b></span>
+                                <input type="range" name="appear_pcard_img_radius" min="0" max="40" value="<?= e($appearVals['pcard_img_radius']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                            <label class="appear-field"><span>رنگ دکمه</span>
+                                <input type="color" name="appear_pcard_btn_bg" value="<?= e($appearVals['pcard_btn_bg']) ?>">
+                                <code><?= e($appearVals['pcard_btn_bg']) ?></code></label>
+                            <label class="appear-field"><span>رنگ هاور دکمه</span>
+                                <input type="color" name="appear_pcard_btn_hover" value="<?= e($appearVals['pcard_btn_hover']) ?>">
+                                <code><?= e($appearVals['pcard_btn_hover']) ?></code></label>
+                            <label class="appear-field"><span>رنگ متن دکمه</span>
+                                <input type="color" name="appear_pcard_btn_text" value="<?= e($appearVals['pcard_btn_text']) ?>">
+                                <code><?= e($appearVals['pcard_btn_text']) ?></code></label>
                         </div>
                     </div>
                 </div>
