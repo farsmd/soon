@@ -2144,6 +2144,14 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۸۸: بکگراندهای زیبا برای سکشن‌های صفحه اصلی */
+.onepage-section{position:relative;overflow:hidden}
+.onepage-section::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0}
+#about::before{background:radial-gradient(ellipse 80% 60% at 20% 30%,rgba(212,175,55,.06),transparent 60%),radial-gradient(ellipse 60% 50% at 85% 70%,rgba(14,165,233,.05),transparent 60%)}
+#gallery-preview{background:linear-gradient(180deg,rgba(248,250,252,0) 0%,rgba(241,245,249,.6) 50%,rgba(248,250,252,0) 100%)}
+#gallery-preview::before{background:radial-gradient(ellipse 70% 50% at 50% 20%,rgba(212,175,55,.08),transparent 60%)}
+#contact::before{background:radial-gradient(ellipse 80% 60% at 80% 20%,rgba(14,165,233,.06),transparent 60%),radial-gradient(ellipse 60% 50% at 15% 80%,rgba(212,175,55,.05),transparent 60%)}
+.onepage-section>*{position:relative;z-index:1}
 /* نسخه ۹٫۹۹٫۸۰: کارت محصول افقی (مثل فایل card) */
 .products-grid{display:grid!important;grid-template-columns:1fr!important;gap:24px!important}
 .product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:8px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
