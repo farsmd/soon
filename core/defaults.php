@@ -3874,8 +3874,13 @@ textarea{min-height:120px;resize:vertical}
 .so-product{border:1px solid var(--surface-border);border-radius:var(--radius-sm);padding:16px;background:#fff;margin-bottom:12px}
 .so-product-name{font-weight:800;margin-bottom:8px;color:var(--text)}
 .so-price{color:var(--primary-dark);font-weight:700}
-.so-meta{font-size:12.5px;color:var(--muted)}
-.so-minbill{background:#fff3e2;border-radius:12px;padding:10px 16px;font-size:13px;color:var(--primary-dark);margin-top:10px}
+.so-meta{display:none;font-size:12.5px;color:var(--muted)}
+.so-minbill{display:none;background:#fff3e2;border-radius:12px;padding:10px 16px;font-size:13px;color:var(--primary-dark);margin-top:10px}
+.so-summary.open .so-meta{display:block}
+.so-summary.open .so-minbill{display:block}
+.so-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:2px 0 8px;min-height:36px}
+.so-toggle svg{transition:transform .2s ease;flex:none}
+.so-summary.open .so-toggle svg{transform:rotate(180deg)}
 .so-custom-fields{margin:14px 0;padding:16px;border:1.5px dashed rgba(255,154,60,.4);border-radius:var(--radius-sm);background:#fffaf2}
 .so-custom-fields h4{margin:0 0 10px;font-size:14px;color:var(--primary-dark)}
 .so-body{line-height:2}
