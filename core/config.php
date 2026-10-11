@@ -2327,6 +2327,26 @@ function migrate_order_links_v9967_if_needed(): void
         } catch (Throwable $e) {
             error_log('profile access migration failed: ' . $e->getMessage());
         }
+        // نسخه ۱۰٫۰: دسترسی استودیو قالب برای همه نقش‌ها
+        try {
+            $rolesRaw2 = get_setting('user_roles', '');
+            if ($rolesRaw2 !== '') {
+                $roles2 = json_decode($rolesRaw2, true);
+                if (is_array($roles2)) {
+                    $changed2 = false;
+                    foreach ($roles2 as &$r2) {
+                        if (!in_array('template_studio', (array)($r2['pages'] ?? []), true)) {
+                            $r2['pages'][] = 'template_studio';
+                            $changed2 = true;
+                        }
+                    }
+                    unset($r2);
+                    if ($changed2) {
+                        set_setting('user_roles', json_encode($roles2, JSON_UNESCAPED_UNICODE));
+                    }
+                }
+            }
+        } catch (Throwable $e) {}
         set_setting('order_links_9967', '1');
         // نسخه ۹٫۹۹٫۹۰: بررسی مجدد دکمه سفارش (مستقل از فلگ قبلی)
         try {

@@ -24,6 +24,7 @@ function admin_page_catalog(): array
             'design'    => 'قالب و استایل',
             'appearance' => 'استودیو طراحی',
             'templates' => 'قالب‌های نمایشی',
+            'template_studio' => 'استودیو قالب',
             'notifications' => 'اعلان‌ها',
         ],
         'کاتالوگ و مشتریان' => [

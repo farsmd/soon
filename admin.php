@@ -638,6 +638,7 @@ $navGroups = [
     ]],
     'design' => ['طراحی سایت', [
         ['admin.php?page=appearance', 'palette', 'استودیو طراحی', 'appearance'],
+        ['admin.php?page=template_studio', 'templates', 'استودیو قالب', 'template_studio'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=templates', 'templates', 'قالب‌های نمایشی', 'templates'],
         ['admin.php?page=design', 'droplet', 'قالب و استایل (قدیمی)', 'design'],
@@ -1908,6 +1909,39 @@ $templateTitles = [];
 foreach (all_templates() as $tplRow) {
     $templateTitles[(string) $tplRow['template_key']] = (string) $tplRow['title'];
 }
+
+// ---------- صفحه «استودیو قالب» ----------
+$templateStudioGroups = [
+    'سربرگ سایت' => [
+        ['key' => 'header', 'title' => 'هدر', 'desc' => 'HTML و CSS هدر سایت'],
+        ['key' => 'mobile_menu', 'title' => 'منوی همبرگری', 'desc' => 'منوی موبایل'],
+        ['key' => 'site_icon', 'title' => 'آیکون سایت', 'desc' => 'فاوآیکون'],
+    ],
+    'صفحه اصلی' => [
+        ['key' => 'hero', 'title' => 'هیرو', 'desc' => 'سکشن اول صفحه اصلی'],
+        ['key' => 'home_products', 'title' => 'محصولات', 'desc' => 'سکشن محصولات صفحه اصلی'],
+        ['key' => 'home_about', 'title' => 'درباره', 'desc' => 'سکشن درباره'],
+        ['key' => 'home_gallery', 'title' => 'گالری', 'desc' => 'پیش‌نمایش گالری'],
+        ['key' => 'home_contact', 'title' => 'تماس', 'desc' => 'سکشن تماس'],
+    ],
+    'پانوشت' => [
+        ['key' => 'footer', 'title' => 'فوتر', 'desc' => 'HTML و CSS فوتر'],
+        ['key' => 'footer_menus', 'title' => 'منوهای فوتر', 'desc' => 'لینک‌های فوتر'],
+        ['key' => 'floating_menu', 'title' => 'منوی شناور', 'desc' => 'منوی شناور موبایل'],
+    ],
+    'فروشگاه' => [
+        ['key' => 'catalog', 'title' => 'قالب کاتالوگ', 'desc' => 'صفحه لیست محصولات'],
+        ['key' => 'product_card', 'title' => 'کارت محصول', 'desc' => 'HTML کارت محصول'],
+        ['key' => 'product', 'title' => 'قالب محصول', 'desc' => 'صفحه جزئیات محصول'],
+        ['key' => 'order_form', 'title' => 'قالب ثبت سفارش', 'desc' => 'فرم سفارش'],
+    ],
+    'محتوا' => [
+        ['key' => 'blog', 'title' => 'قالب بلاگ', 'desc' => 'صفحه مقاله'],
+        ['key' => 'blog_card', 'title' => 'کارت بلاگ', 'desc' => 'کارت مقاله در لیست'],
+        ['key' => 'gallery', 'title' => 'قالب گالری', 'desc' => 'صفحه گالری'],
+        ['key' => 'business_card', 'title' => 'کارت ویزیت', 'desc' => 'قالب کارت ویزیت'],
+    ],
+];
 
 // ---------- داده‌های صفحه «قالب و استایل» ----------
 $designTab = 'templates';
@@ -3759,6 +3793,22 @@ if ($page === 'design') {
             <?php modules_render(); ?>
         <?php elseif ($page === 'templates'): ?>
             <?php templates_render(); ?>
+        <?php elseif ($page === 'template_studio'): ?>
+            <h1>استودیو قالب</h1>
+            <p class="muted">قالب HTML و CSS هر بخش سایت را اینجا ویرایش کنید.</p>
+            <?php foreach ($templateStudioGroups as $groupTitle => $items): ?>
+            <section class="card wide" style="margin-bottom:20px">
+                <h2><?= e($groupTitle) ?></h2>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+                    <?php foreach ($items as $it): ?>
+                    <a href="admin.php?page=templates&edit=<?= e($it['key']) ?>" class="card" style="padding:16px;text-decoration:none;display:block">
+                        <strong><?= e($it['title']) ?></strong>
+                        <p class="muted" style="margin:4px 0 0;font-size:13px"><?= e($it['desc']) ?></p>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+            <?php endforeach; ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
