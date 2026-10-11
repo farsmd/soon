@@ -1951,8 +1951,9 @@ if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isse
 if ($page === 'template_studio' && $tsEditKey !== '') {
     $tsEditContent = get_template_content($tsEditKey);
 }
-// مرتب‌سازی سکشن‌های صفحه اصلی
+// مرتب‌سازی سکشن‌های صفحه اصلی — مستقیم در جدول sections
 $tsOrderMsg = '';
+$tsSectionNames = ['hero' => 'هیرو', 'products' => 'محصولات', 'about' => 'درباره', 'gallery' => 'گالری', 'contact' => 'تماس'];
 if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ts_reorder'])) {
     if (!csrf_check()) {
         $tsOrderMsg = 'توکن امنیتی نامعتبر است.';
@@ -1960,17 +1961,41 @@ if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isse
         $newOrder = $_POST['section_order'] ?? [];
         $valid = ['hero','products','about','gallery','contact'];
         $filtered = array_values(array_intersect($newOrder, $valid));
-        // موارد جاافتاده را اضافه کن
         foreach ($valid as $v) {
             if (!in_array($v, $filtered, true)) { $filtered[] = $v; }
         }
-        set_setting('homepage_sections_order', json_encode($filtered, JSON_UNESCAPED_UNICODE));
-        $tsOrderMsg = 'ترتیب سکشن‌ها ذخیره شد.';
+        // به‌روزرسانی sort_order در جدول sections
+        try {
+            $allSections = get_sections(false);
+            $order = 10;
+            foreach ($filtered as $tplKey) {
+                foreach ($allSections as $sec) {
+                    if (section_template_key($sec) === $tplKey) {
+                        db()->prepare("UPDATE sections SET sort_order = ? WHERE id = ?")->execute([$order, $sec['id']]);
+                        $order += 10;
+                        break;
+                    }
+                }
+            }
+            $tsOrderMsg = 'ترتیب سکشن‌ها ذخیره شد.';
+        } catch (Throwable $e) {
+            $tsOrderMsg = 'خطا: ' . $e->getMessage();
+        }
     }
 }
-$tsCurrentOrder = json_decode((string) get_setting('homepage_sections_order', '["hero","products","about","gallery","contact"]'), true);
-if (!is_array($tsCurrentOrder)) { $tsCurrentOrder = ['hero','products','about','gallery','contact']; }
-$tsSectionNames = ['hero' => 'هیرو', 'products' => 'محصولات', 'about' => 'درباره', 'gallery' => 'گالری', 'contact' => 'تماس'];
+// خواندن ترتیب فعلی از دیتابیس
+$tsCurrentOrder = [];
+try {
+    foreach (get_sections(false) as $sec) {
+        $k = section_template_key($sec);
+        if (isset($tsSectionNames[$k]) && !in_array($k, $tsCurrentOrder, true)) {
+            $tsCurrentOrder[] = $k;
+        }
+    }
+} catch (Throwable $e) {}
+foreach (array_keys($tsSectionNames) as $k) {
+    if (!in_array($k, $tsCurrentOrder, true)) { $tsCurrentOrder[] = $k; }
+}
 $templateStudioGroups = [
     'سربرگ سایت' => [
         ['key' => 'header', 'title' => 'هدر', 'desc' => 'HTML و CSS هدر سایت'],

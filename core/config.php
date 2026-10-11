@@ -1833,11 +1833,6 @@ function is_valid_slug(string $slug): bool
 function onepage_sections_html(array $settings): string
 {
     $html = '';
-    // ترتیب سکشن‌ها از تنظیمات (قدم ۳ استودیو قالب)
-    $orderRaw = get_setting('homepage_sections_order', '["hero","products","about","gallery","contact"]');
-    $order = json_decode($orderRaw, true);
-    if (!is_array($order)) { $order = ['hero','products','about','gallery','contact']; }
-
     // تولید HTML هر سکشن
     $sections = [];
 
@@ -1886,8 +1881,8 @@ function onepage_sections_html(array $settings): string
         $sections['contact'] .= render_page_blocks((int) $contact['id']) . "\n";
         $sections['contact'] .= '</section>' . "\n";
     }
-    // خروجی به ترتیب تنظیم‌شده
-    foreach ($order as $key) {
+    // خروجی (ترتیب اصلی حفظ می‌شود)
+    foreach (['about', 'gallery', 'contact'] as $key) {
         if (isset($sections[$key])) {
             $html .= $sections[$key];
         }
