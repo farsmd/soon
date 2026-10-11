@@ -239,7 +239,7 @@ HTML,
             <div class="product-info">
                 <h1>{{product_name}}</h1>
                 {{#if product_description}}<div class="product-desc">{{product_description}}</div>{{/if}}
-                {{#if is_per_watt}}<p class="product-price-line">{{#if base_price_formatted}}از <strong>{{base_price_formatted}}</strong> تومان{{/if}}{{#if price_per_watt_formatted}} <span class="muted">— هر وات {{price_per_watt_formatted}} تومان + قیمت قاب</span>{{/if}}{{#if frame_options_line}}<br><span class="muted">قاب‌ها: {{frame_options_line}}</span>{{/if}}</p>{{else}}<p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_price_per_meter_formatted}} <span class="muted">| تخفیف همکار: {{partner_price_per_meter_formatted}} تومان</span>{{/if}}</p>{{/if}}
+                {{#if is_per_watt}}<p class="product-price-line">{{#if base_price_formatted}}از <strong>{{base_price_formatted}}</strong> تومان{{/if}}{{#if price_per_watt_formatted}} <span class="muted">— هر وات {{price_per_watt_formatted}} تومان + قیمت قاب</span>{{/if}}{{#if frame_options_line}}<br><span class="muted">قاب‌ها: {{frame_options_line}}</span>{{/if}}</p>{{else}}<p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_discount_percent}} <span class="muted">| تخفیف همکار: {{partner_discount_percent}}٪</span>{{/if}}</p>{{/if}}
                 {{product_specs}}
                 {{product_gallery}}
                 <p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>
@@ -4382,7 +4382,7 @@ function catalog_products_grid_html(array $products): string
             $html .= '<p class="pc-bio">' . e($p['short_desc']) . '</p>';
         }
         $html .= '<div class="pc-tags"><span class="pc-tag">' . e(format_price($p['price_per_meter'] ?? 0)) . ' تومان/متر</span></div>';
-        $html .= '<div class="pc-actions"><a class="pc-btn" href="/products?id=' . $pid . '">مشاهده محصول</a>';
+        $html .= '<div class="pc-actions"><a class="pc-btn" href="/products?id=' . $pid . '">مشاهده</a>';
         $html .= '<a class="pc-btn-outline" href="/order?product=' . $pid . '">ثبت سفارش</a></div>';
         $html .= '</div></article>';
     }

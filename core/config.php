@@ -2187,7 +2187,8 @@ function appearance_css(): string
 #gallery-preview::before{background:radial-gradient(ellipse 70% 50% at 50% 20%,rgba(212,175,55,.08),transparent 60%)}
 #contact::before{background:radial-gradient(ellipse 80% 60% at 80% 20%,rgba(14,165,233,.06),transparent 60%),radial-gradient(ellipse 60% 50% at 15% 80%,rgba(212,175,55,.05),transparent 60%)}
 .onepage-section>*{position:relative;z-index:1}
-.pc-btn:hover{background:$pcardBtnHover!important;transform:translateY(-2px)}
+.pc-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.12)!important}
+.pc-btn-outline:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(232,168,56,.45)!important}
 /* نسخه ۹٫۹۹٫۹۵: کارت محصول (قابل تنظیم از استودیو طراحی) */
 .products-grid{display:grid!important;grid-template-columns:1fr!important;gap:24px!important}
 .product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:$pcardPad!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:{$pcardRadius}px!important;background:$pcardBg!important;backdrop-filter:blur({$pcardBlur}px)!important;-webkit-backdrop-filter:blur({$pcardBlur}px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
@@ -2202,9 +2203,9 @@ function appearance_css(): string
 .pc-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .pc-tag{display:inline-flex;align-items:center;min-height:31px;padding:6px 14px;border:1px solid rgba(15,23,42,.1);border-radius:999px;background:#f8fafc;color:#334155;font-size:.8rem;font-weight:600}
 .pc-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:24px}
-.pc-btn{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:0;border-radius:12px;background:$pcardBtnBg!important;color:$pcardBtnText!important;font-size:15px;font-weight:700;text-decoration:none;transition:.25s}
+.pc-btn{min-height:52px;display:inline-flex;align-items:center;justify-content:center;padding:0 32px;border:0;border-radius:16px;background:#fff!important;color:#0f172a!important;font-size:16px;font-weight:700;text-decoration:none;transition:.25s;box-shadow:0 4px 16px rgba(15,23,42,.08)!important}
 .pc-btn:hover{transform:translateY(-2px);box-shadow:0 11px 24px rgba(15,23,42,.2)}
-.pc-btn-outline{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:1px solid #d4af37;border-radius:12px;background:transparent;color:#0f172a;font-size:15px;font-weight:600;text-decoration:none;transition:.25s}
+.pc-btn-outline{min-height:52px;display:inline-flex;align-items:center;justify-content:center;padding:0 32px;border:0;border-radius:16px;background:linear-gradient(135deg,#f5b942,#e8a838)!important;color:#fff!important;font-size:16px;font-weight:700;text-decoration:none;transition:.25s;box-shadow:0 8px 20px rgba(232,168,56,.35)!important}
 .pc-btn-outline:hover{transform:translateY(-2px)}
 @media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:1/1!important;border-radius:15px!important;width:100%!important;margin:0!important}.pc-content{padding:24px 16px 16px!important}}
 /* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
@@ -2254,13 +2255,13 @@ function migrate_rebuild_appearance_v9971_if_needed(): void
     try {
         // نسخه ۹٫۹۹٫۸۳: بازسازی مجدد برای CSS کارت محصول
         $flag = get_setting('rebuild_appear_9971', '0');
-        if ($flag === '7') {
+        if ($flag === '8') {
             return;
         }
         if (function_exists('appearance_apply')) {
             appearance_apply();
         }
-        set_setting('rebuild_appear_9971', '7');
+        set_setting('rebuild_appear_9971', '8');
     } catch (Throwable $e) {
         error_log('rebuild appearance failed: ' . $e->getMessage());
     }
