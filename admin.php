@@ -2000,13 +2000,13 @@ if ($page === 'template_studio' && $tsEditKey !== '') {
 }
 // مرتب‌سازی سکشن‌های صفحه اصلی — مستقیم در جدول sections
 $tsOrderMsg = '';
-$tsSectionNames = ['hero' => 'هیرو', 'products' => 'محصولات', 'about' => 'درباره', 'gallery' => 'گالری', 'contact' => 'تماس'];
+$tsSectionNames = ['slider' => 'اسلایدر (هیرو)', 'features' => 'ویژگی‌ها', 'content' => 'محتوای اصلی', 'contact' => 'فرم تماس'];
 if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ts_reorder'])) {
     if (!csrf_check()) {
         $tsOrderMsg = 'توکن امنیتی نامعتبر است.';
     } else {
         $newOrder = $_POST['section_order'] ?? [];
-        $valid = ['hero','products','about','gallery','contact'];
+        $valid = ['slider','features','content','contact'];
         $filtered = array_values(array_intersect($newOrder, $valid));
         foreach ($valid as $v) {
             if (!in_array($v, $filtered, true)) { $filtered[] = $v; }
@@ -2044,22 +2044,15 @@ foreach (array_keys($tsSectionNames) as $k) {
     if (!in_array($k, $tsCurrentOrder, true)) { $tsCurrentOrder[] = $k; }
 }
 $templateStudioGroups = [
-    'سربرگ سایت' => [
-        ['key' => 'header', 'title' => 'هدر', 'desc' => 'HTML و CSS هدر سایت'],
-        ['key' => 'mobile_menu', 'title' => 'منوی همبرگری', 'desc' => 'منوی موبایل'],
-        ['key' => 'site_icon', 'title' => 'آیکون سایت', 'desc' => 'فاوآیکون'],
+    'سربرگ و پانوشت' => [
+        ['key' => 'header', 'title' => 'هدر', 'desc' => 'HTML هدر سایت'],
+        ['key' => 'footer', 'title' => 'فوتر', 'desc' => 'HTML فوتر سایت'],
     ],
-    'صفحه اصلی' => [
-        ['key' => 'hero', 'title' => 'هیرو', 'desc' => 'سکشن اول صفحه اصلی'],
-        ['key' => 'home_products', 'title' => 'محصولات', 'desc' => 'سکشن محصولات صفحه اصلی'],
-        ['key' => 'home_about', 'title' => 'درباره', 'desc' => 'سکشن درباره'],
-        ['key' => 'home_gallery', 'title' => 'گالری', 'desc' => 'پیش‌نمایش گالری'],
-        ['key' => 'home_contact', 'title' => 'تماس', 'desc' => 'سکشن تماس'],
-    ],
-    'پانوشت' => [
-        ['key' => 'footer', 'title' => 'فوتر', 'desc' => 'HTML و CSS فوتر'],
-        ['key' => 'footer_menus', 'title' => 'منوهای فوتر', 'desc' => 'لینک‌های فوتر'],
-        ['key' => 'floating_menu', 'title' => 'منوی شناور', 'desc' => 'منوی شناور موبایل'],
+    'بخش‌های صفحه اصلی' => [
+        ['key' => 'slider', 'title' => 'اسلایدر (هیرو)', 'desc' => 'سکشن اول صفحه اصلی'],
+        ['key' => 'features', 'title' => 'ویژگی‌ها', 'desc' => 'سکشن ویژگی‌ها'],
+        ['key' => 'content', 'title' => 'محتوای اصلی', 'desc' => 'سکشن محتوای صفحه اصلی'],
+        ['key' => 'contact', 'title' => 'فرم تماس', 'desc' => 'سکشن فرم تماس'],
     ],
     'فروشگاه' => [
         ['key' => 'catalog', 'title' => 'قالب کاتالوگ', 'desc' => 'صفحه لیست محصولات'],
@@ -2068,10 +2061,11 @@ $templateStudioGroups = [
         ['key' => 'order_form', 'title' => 'قالب ثبت سفارش', 'desc' => 'فرم سفارش'],
     ],
     'محتوا' => [
+        ['key' => 'single', 'title' => 'صفحه تکی', 'desc' => 'قالب صفحه‌های تکی'],
+        ['key' => 'contact_page', 'title' => 'صفحه تماس', 'desc' => 'قالب صفحه تماس با ما'],
         ['key' => 'blog', 'title' => 'قالب بلاگ', 'desc' => 'صفحه مقاله'],
         ['key' => 'blog_card', 'title' => 'کارت بلاگ', 'desc' => 'کارت مقاله در لیست'],
         ['key' => 'gallery', 'title' => 'قالب گالری', 'desc' => 'صفحه گالری'],
-        ['key' => 'business_card', 'title' => 'کارت ویزیت', 'desc' => 'قالب کارت ویزیت'],
     ],
 ];
 
