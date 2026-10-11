@@ -1273,6 +1273,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('gallery lightbox migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۴۷: منوی تمام‌صفحه موبایل (یک بار) ---
+    try {
+        migrate_mobile_menu_v9947_if_needed();
+    } catch (Throwable $e) {
+        error_log('mobile menu migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1759,6 +1765,83 @@ function menu_items(): array
     return $items;
 }
 
+/** منوی تمام‌صفحه موبایل (۹٫۹۹٫۴۷) — مستقیم آخر body قرار می‌گیرد تا هدر با backdrop-filter آن را محدود نکند */
+function mobile_menu_html(): string
+{
+    $html = '<div class="mmenu" id="mmenu" aria-hidden="true">';
+    $html .= '<button type="button" class="mmenu-close" aria-label="بستن منو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
+    $html .= '<nav class="mmenu-inner" aria-label="منوی موبایل">';
+    foreach (menu_items() as $item) {
+        $html .= '<a class="mlink" href="' . e($item['url']) . '">' . e($item['title']) . '</a>';
+    }
+    $html .= '<div class="mmenu-foot">' . e((string) get_setting('site_title', '')) . '</div>';
+    $html .= '</nav></div>';
+    return $html;
+}
+
+/** استایل منوی تمام‌صفحه موبایل (۹٫۹۹٫۴۷) */
+function mobile_menu_css(): string
+{
+    return <<<'CSS'
+/* ---------- منوی تمام‌صفحه موبایل (۹٫۹۹٫۴۷) ---------- */
+.mmenu{display:none}
+@media(max-width:768px){
+  .main-nav .nav-list{display:none}
+  .nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border-radius:14px;cursor:pointer;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff}
+  .nav-toggle svg{width:22px;height:22px;display:block}
+  .mmenu{display:block;position:fixed;inset:0;z-index:9999;visibility:hidden;opacity:0;transition:opacity .35s ease,visibility .35s;
+    background:rgba(8,10,14,.93);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+  .mmenu.open{visibility:visible;opacity:1}
+  .mmenu-close{position:absolute;top:18px;inset-inline-start:18px;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff}
+  .mmenu-close svg{width:22px;height:22px;display:block}
+  .mmenu-inner{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:84px 24px 40px;overflow-y:auto}
+  .mmenu a.mlink{color:#fff;font-size:clamp(24px,6.5vw,32px);font-weight:800;text-decoration:none;padding:10px 28px;border-radius:16px;line-height:1.8;
+    opacity:0;transform:translateY(28px);transition:opacity .45s ease,transform .45s ease,background .25s}
+  .mmenu a.mlink:hover{background:rgba(232,198,106,.12)}
+  .mmenu.open a.mlink{opacity:1;transform:none}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(1){transition-delay:.05s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(2){transition-delay:.1s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(3){transition-delay:.15s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(4){transition-delay:.2s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(5){transition-delay:.25s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(6){transition-delay:.3s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(7){transition-delay:.35s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(8){transition-delay:.4s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(9){transition-delay:.45s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(10){transition-delay:.5s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(11){transition-delay:.55s}
+  .mmenu.open .mmenu-inner a.mlink:nth-child(12){transition-delay:.6s}
+  .mmenu-foot{margin-top:28px;color:rgba(255,255,255,.4);font-size:13px;opacity:0;transition:opacity .5s ease .45s}
+  .mmenu.open .mmenu-foot{opacity:1}
+  body.mmenu-open{overflow:hidden}
+}
+@media (prefers-reduced-motion:reduce){
+  .mmenu,.mmenu a.mlink,.mmenu-foot{transition:none}
+  .mmenu a.mlink{opacity:1;transform:none}
+}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۴۷: افزودن استایل منوی تمام‌صفحه موبایل به CSS زنده */
+function migrate_mobile_menu_v9947_if_needed(): void
+{
+    try {
+        if (get_setting('mobile_menu_9947', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '.mmenu') === false) {
+            $css .= "\n" . mobile_menu_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('mobile_menu_9947', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
 /**
  * HTML منوی سایت (برای پلیس‌هولدر {{menu}}) + دکمه تغییر تم.
  * در موبایل با دکمه همبرگری (aria-expanded/aria-controls) باز و بسته می‌شود؛ اسکریپتش در اسکلت صفحه است.
@@ -1770,7 +1853,7 @@ function menu_html(string $class = 'main-nav'): string
         return $cache[$class];
     }
     $html = '<nav class="' . e($class) . '" aria-label="منوی اصلی">';
-    $html .= '<button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-list" aria-label="نمایش یا پنهان کردن منو"><span aria-hidden="true">☰</span></button>';
+    $html .= '<button type="button" class="nav-toggle" aria-expanded="false" aria-controls="mmenu" aria-label="باز کردن منو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>';
     $html .= '<div class="nav-list" id="nav-list">';
     foreach (menu_items() as $item) {
         $html .= '<a href="' . e($item['url']) . '">' . e($item['title']) . '</a>';
@@ -2962,16 +3045,15 @@ function skeleton_foot(): string
 <script>
 (function(){
     var navToggle=document.querySelector('.nav-toggle');
-    if(navToggle){
-        var nav=navToggle.parentNode;
-        var list=nav?nav.querySelector('.nav-list'):null;
-        function closeNav(){if(list){list.classList.remove('open');}navToggle.setAttribute('aria-expanded','false');}
-        navToggle.addEventListener('click',function(){
-            var open=list?list.classList.toggle('open'):false;
-            navToggle.setAttribute('aria-expanded',open?'true':'false');
-        });
-        if(list){list.addEventListener('click',function(ev){if(ev.target&&ev.target.tagName==='A'){closeNav();}});}
-        document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&list&&list.classList.contains('open')){closeNav();navToggle.focus();}});
+    var mmenu=document.getElementById('mmenu');
+    if(navToggle&&mmenu){
+        function openM(){mmenu.classList.add('open');mmenu.setAttribute('aria-hidden','false');document.body.classList.add('mmenu-open');navToggle.setAttribute('aria-expanded','true');}
+        function closeM(){mmenu.classList.remove('open');mmenu.setAttribute('aria-hidden','true');document.body.classList.remove('mmenu-open');navToggle.setAttribute('aria-expanded','false');}
+        navToggle.addEventListener('click',function(){mmenu.classList.contains('open')?closeM():openM();});
+        var mClose=mmenu.querySelector('.mmenu-close');
+        if(mClose){mClose.addEventListener('click',function(){closeM();navToggle.focus();});}
+        mmenu.addEventListener('click',function(ev){if(ev.target&&ev.target.closest('a.mlink')){closeM();}});
+        document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&mmenu.classList.contains('open')){closeM();navToggle.focus();}});
     }
     // باز/بسته کردن منوی شناور پایین
     var tabbarToggle=document.querySelector('.tabbar-toggle');
@@ -3020,6 +3102,7 @@ function skeleton_foot(): string
 </body>
 </html>
 HTML;
+    $html = str_replace('</body>', mobile_menu_html() . "\n</body>", $html);
     // اسکریپت ردیابی کلیک بازدیدکننده (فقط وقتی لاگ بازدید فعال است)
     $track = tracking_script_html();
     if ($track !== '') {
