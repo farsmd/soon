@@ -1926,7 +1926,7 @@ if ($page === 'appearance') {
     $appearMsg = '';
     $appearErr = '';
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['csrf'])) {
-        if (!hash_equals($_SESSION['csrf_token'] ?? '', (string) $_POST['csrf'])) {
+        if (!hash_equals($_SESSION['csrf'] ?? '', (string) $_POST['csrf'])) {
             $appearErr = 'توکن امنیتی نامعتبر است. صفحه را رفرش کنید.';
         } else {
             if (isset($_POST['appear_reset'])) {
