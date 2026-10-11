@@ -1321,6 +1321,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('appearance migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۵۷: دسترسی ظاهری (یک بار) ---
+    try {
+        migrate_appearance_access_v9957_if_needed();
+    } catch (Throwable $e) {
+        error_log('appearance access migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2081,6 +2087,39 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۵۷: دسترسی پیش‌فرض صفحه تنظیمات ظاهری به همه نقش‌ها */
+function migrate_appearance_access_v9957_if_needed(): void
+{
+    try {
+        if (get_setting('appearance_access_9957', '0') === '1') {
+            return;
+        }
+        $raw = trim((string) get_setting('user_roles', ''));
+        if ($raw !== '') {
+            $roles = json_decode($raw, true);
+            if (is_array($roles)) {
+                $changed = false;
+                foreach ($roles as &$r) {
+                    if (!isset($r['pages']) || !is_array($r['pages'])) {
+                        $r['pages'] = [];
+                    }
+                    if (!in_array('appearance', $r['pages'], true)) {
+                        $r['pages'][] = 'appearance';
+                        $changed = true;
+                    }
+                }
+                unset($r);
+                if ($changed) {
+                    set_setting('user_roles', json_encode($roles, JSON_UNESCAPED_UNICODE));
+                }
+            }
+        }
+        set_setting('appearance_access_9957', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۵۶: افزودن بلاک ظاهری اولیه */

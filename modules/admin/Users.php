@@ -22,6 +22,7 @@ function admin_page_catalog(): array
             'messages'  => 'پیام‌های تماس',
             'partners'  => 'درخواست‌های همکاری',
             'design'    => 'قالب و استایل',
+            'appearance' => 'تنظیمات ظاهری',
             'templates' => 'قالب‌های نمایشی',
             'notifications' => 'اعلان‌ها',
         ],
