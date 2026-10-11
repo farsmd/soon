@@ -2144,6 +2144,12 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۷۹: کارت محصول مدرن (مثل دیزاین کارت) */
+.product-card{background:rgba(255,255,255,.85)!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;overflow:hidden;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 20px 50px -20px rgba(15,23,42,.15)!important;transition:transform .35s ease,box-shadow .35s ease!important}
+.product-card:hover{transform:translateY(-6px)!important;box-shadow:0 30px 60px -20px rgba(15,23,42,.25)!important}
+.product-card .product-media{border-radius:17px!important;margin:16px 16px 0 16px!important;overflow:hidden!important}
+.product-card .product-media img{transition:transform .35s ease!important}
+.product-card:hover .product-media img{transform:scale(1.03)!important}
 /* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
 .so-summary{position:fixed!important;bottom:0!important;left:0!important;right:0!important;z-index:50!important;border-radius:20px 20px 0 0!important;margin:0!important;max-width:680px;margin-left:auto!important;margin-right:auto!important}
 body{padding-bottom:140px!important}
