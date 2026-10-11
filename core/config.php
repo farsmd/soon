@@ -2146,7 +2146,7 @@ function appearance_css(): string
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
 /* نسخه ۹٫۹۹٫۸۰: کارت محصول افقی (مثل فایل card) */
 .products-grid{display:grid;grid-template-columns:1fr;gap:24px!important}
-.product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(26px,4vw,54px)!important;padding:16px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
+.product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(20px,3vw,40px)!important;padding:20px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
 .pc-media{min-width:0;aspect-ratio:1/1;overflow:hidden;border-radius:17px;background:#f1f5f9}
 .pc-media img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s ease}
 .product-card:hover .pc-media img{transform:scale(1.03)}
@@ -2158,9 +2158,9 @@ function appearance_css(): string
 .pc-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .pc-tag{display:inline-flex;align-items:center;min-height:31px;padding:6px 14px;border:1px solid rgba(15,23,42,.1);border-radius:999px;background:#f8fafc;color:#334155;font-size:.8rem;font-weight:600}
 .pc-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:24px}
-.pc-btn{min-height:47px;display:inline-flex;align-items:center;padding:0 23px;border:0;border-radius:999px;background:#0f172a;color:#fff;font-size:.94rem;font-weight:700;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease}
+.pc-btn{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:0;border-radius:12px;background:#d4af37;color:#000;font-size:15px;font-weight:700;text-decoration:none;transition:.25s}
 .pc-btn:hover{transform:translateY(-2px);box-shadow:0 11px 24px rgba(15,23,42,.2)}
-.pc-btn-outline{min-height:47px;display:inline-flex;align-items:center;padding:0 23px;border:1px solid rgba(15,23,42,.15);border-radius:999px;background:transparent;color:#0f172a;font-size:.94rem;font-weight:600;text-decoration:none;transition:transform .2s ease}
+.pc-btn-outline{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:1px solid #d4af37;border-radius:12px;background:transparent;color:#0f172a;font-size:15px;font-weight:600;text-decoration:none;transition:.25s}
 .pc-btn-outline:hover{transform:translateY(-2px)}
 @media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:1/1!important;border-radius:15px!important;max-width:280px;margin:0 auto}.pc-content{padding:24px 16px 16px!important}}
 /* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
