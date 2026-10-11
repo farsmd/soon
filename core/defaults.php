@@ -4368,16 +4368,22 @@ function catalog_products_grid_html(array $products): string
         $pid = (int) $p['id'];
         $img = uploaded_image_url($p['image'] ?? '');
         $html .= '<article class="product-card">';
+        $html .= '<div class="pc-media">';
         if ($img !== '') {
             $html .= '<a href="/products?id=' . $pid . '"><img src="' . e($img) . '" alt="' . e($p['name']) . '" loading="lazy" decoding="async"></a>';
         }
-        $html .= '<div class="product-card-body">';
-        if (!empty($p['category_title'])) {
-            $html .= '<span class="cat">' . e($p['category_title']) . '</span>';
-        }
+        $html .= '</div>';
+        $html .= '<div class="pc-content">';
         $html .= '<h3><a href="/products?id=' . $pid . '">' . e($p['name']) . '</a></h3>';
-        $html .= '<p class="price">قیمت متری: <strong>' . e(format_price($p['price_per_meter'] ?? 0)) . '</strong> تومان</p>';
-        $html .= '<a class="btn small" href="/products?id=' . $pid . '">مشاهده و برآورد قیمت</a>';
+        if (!empty($p['category_title'])) {
+            $html .= '<p class="pc-role">' . e($p['category_title']) . '</p>';
+        }
+        if (!empty($p['short_desc'])) {
+            $html .= '<p class="pc-bio">' . e($p['short_desc']) . '</p>';
+        }
+        $html .= '<div class="pc-tags"><span class="pc-tag">' . e(format_price($p['price_per_meter'] ?? 0)) . ' تومان/متر</span></div>';
+        $html .= '<div class="pc-actions"><a class="pc-btn" href="/products?id=' . $pid . '">مشاهده محصول</a>';
+        $html .= '<a class="pc-btn-outline" href="/order?product=' . $pid . '">ثبت سفارش</a></div>';
         $html .= '</div></article>';
     }
     $html .= '</div>';
