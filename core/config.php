@@ -1836,7 +1836,9 @@ function onepage_sections_html(array $settings): string
     // درباره ما (محتوای صفحه about — از پنل قابل ویرایش)
     $about = get_page_by_slug('about', true);
     if ($about !== null) {
-        $html .= '<section id="about" class="onepage-section" aria-label="' . e((string) $about['title']) . '">' . "\n";
+        $aboutBg = trim((string) appearance_get('about_bg_image'));
+        $aboutBgHtml = $aboutBg !== '' ? '<div class="section-bg-img" style="background-image:url(\'' . e($aboutBg) . '\')"></div>' . "\n" : '';
+        $html .= '<section id="about" class="onepage-section" aria-label="' . e((string) $about['title']) . '">' . "\n" . $aboutBgHtml;
         $html .= render_db_template('single', $settings, null, $about) . "\n";
         $html .= render_page_blocks((int) $about['id']) . "\n";
         $html .= '</section>' . "\n";
@@ -1849,7 +1851,9 @@ function onepage_sections_html(array $settings): string
     }
     if (!empty($figs)) {
         $preview = array_slice($figs, 0, 8);
-        $html .= '<section id="gallery-preview" class="onepage-section" aria-label="گالری پروژه‌ها">' . "\n";
+        $galBg = trim((string) appearance_get('gallery_bg_image'));
+        $galBgHtml = $galBg !== '' ? '<div class="section-bg-img" style="background-image:url(\'' . e($galBg) . '\')"></div>' . "\n" : '';
+        $html .= '<section id="gallery-preview" class="onepage-section" aria-label="گالری پروژه‌ها">' . "\n" . $galBgHtml;
         $html .= '<div class="container"><h2 class="section-title">گالری پروژه‌ها</h2>';
         $html .= '<div class="onepage-gallery-grid">';
         foreach ($preview as $f) {
@@ -1867,7 +1871,9 @@ function onepage_sections_html(array $settings): string
     // تماس با ما (محتوای صفحه contact + فرم — از پنل قابل ویرایش)
     $contact = get_page_by_slug('contact', true);
     if ($contact !== null) {
-        $html .= '<section id="contact" class="onepage-section" aria-label="' . e((string) $contact['title']) . '">' . "\n";
+        $conBg = trim((string) appearance_get('contact_bg_image'));
+        $conBgHtml = $conBg !== '' ? '<div class="section-bg-img" style="background-image:url(\'' . e($conBg) . '\')"></div>' . "\n" : '';
+        $html .= '<section id="contact" class="onepage-section" aria-label="' . e((string) $contact['title']) . '">' . "\n" . $conBgHtml;
         $html .= render_db_template('contact_page', $settings, null, $contact) . "\n";
         $html .= render_page_blocks((int) $contact['id']) . "\n";
         $html .= '</section>' . "\n";
@@ -2048,6 +2054,8 @@ function appearance_defaults(): array
         'footer_bg' => '#0a0c12', 'footer_opacity' => '100', 'footer_blur' => '0',
         'hero_kicker' => '0', 'hero_align' => 'center', 'hero_parallax' => '1', 'hero_parallax_speed' => '35', 'hero_padding_top' => '88',
         'gallery_columns' => '4', 'gallery_lightbox' => '1',
+        'hero_bg_image' => '', 'products_bg_image' => '', 'about_bg_image' => '', 'gallery_bg_image' => '', 'contact_bg_image' => '',
+        'hero_bg_overlay' => '0.5',
         'form_show_wire' => '1', 'form_show_endcap' => '1', 'form_show_note' => '1', 'form_show_lightcolor' => '1',
         'form_submit_bg' => '#0ea5e9', 'form_submit_hover' => '#0284c7', 'form_submit_text' => '#ffffff',
         'form_field_bg' => '#ffffff', 'form_field_border' => '#cbd5e1', 'form_field_radius' => '12',
@@ -2144,6 +2152,13 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۸۹: بکگراند عکس سکشن‌ها */
+.hero-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
+.section-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.12;z-index:0;pointer-events:none}
+#products{position:relative}
+#about{position:relative}
+#gallery-preview{position:relative}
+#contact{position:relative}
 /* نسخه ۹٫۹۹٫۸۸: بکگراندهای زیبا برای سکشن‌های صفحه اصلی */
 .onepage-section{position:relative;overflow:hidden}
 .onepage-section::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0}

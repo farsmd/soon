@@ -1966,6 +1966,10 @@ if ($page === 'appearance') {
                     } elseif (in_array($k, ['form_submit_bg','form_submit_hover','form_submit_text','form_field_bg','form_field_border'], true)) {
                         $raw = trim($raw);
                         if (!preg_match('/^#[0-9a-fA-F]{6}$/', $raw)) { $raw = $def; }
+                    } elseif (in_array($k, ['hero_bg_image','products_bg_image','about_bg_image','gallery_bg_image','contact_bg_image'], true)) {
+                        $raw = trim($raw);
+                        // فقط مسیر نسبی مجاز
+                        if ($raw !== '' && !preg_match('#^(uploads/|assets/)#', $raw)) { $raw = $def; }
                     } elseif ($k === 'form_field_radius') {
                         $raw = (string) max(0, min(30, (int) $raw));
                     }
@@ -2950,6 +2954,7 @@ if ($page === 'design') {
                 <button type="button" class="appear-tab" data-tab="menus">منوها</button>
                 <button type="button" class="appear-tab" data-tab="gallery">گالری</button>
                 <button type="button" class="appear-tab" data-tab="form">فرم سفارش</button>
+                <button type="button" class="appear-tab" data-tab="backgrounds">پس‌زمینه‌ها</button>
                 <button type="button" class="appear-tab" data-tab="footer">فوتر</button>
             </div>
             <?php if ($appearMsg !== ''): ?><div class="alert success"><?= e($appearMsg) ?></div><?php endif; ?>
@@ -3079,6 +3084,25 @@ if ($page === 'design') {
                                 <code><?= e($appearVals['form_field_border']) ?></code></label>
                             <label class="appear-field"><span>گردی فیلدها <b class="appear-val"><?= e($appearVals['form_field_radius']) ?>px</b></span>
                                 <input type="range" name="appear_form_field_radius" min="0" max="30" value="<?= e($appearVals['form_field_radius']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                        </div>
+                    </div>
+                </div>
+                <!-- تب پس‌زمینه‌ها -->
+                <div class="appear-panel" data-panel="backgrounds">
+                    <div class="card appear-card">
+                        <h3>پس‌زمینه‌های صفحه اصلی</h3>
+                        <p class="muted">آدرس عکس بکگراند هر سکشن (مثلاً uploads/gallery/bg.jpg). خالی = بدون عکس.</p>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>هیرو</span>
+                                <input type="text" name="appear_hero_bg_image" value="<?= e($appearVals['hero_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
+                            <label class="appear-field"><span>محصولات</span>
+                                <input type="text" name="appear_products_bg_image" value="<?= e($appearVals['products_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
+                            <label class="appear-field"><span>درباره ما</span>
+                                <input type="text" name="appear_about_bg_image" value="<?= e($appearVals['about_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
+                            <label class="appear-field"><span>گالری</span>
+                                <input type="text" name="appear_gallery_bg_image" value="<?= e($appearVals['gallery_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
+                            <label class="appear-field"><span>تماس</span>
+                                <input type="text" name="appear_contact_bg_image" value="<?= e($appearVals['contact_bg_image']) ?>" dir="ltr" placeholder="uploads/gallery/..."></label>
                         </div>
                     </div>
                 </div>
