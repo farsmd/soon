@@ -2042,6 +2042,8 @@ function appearance_defaults(): array
         'footer_bg' => '#0a0c12', 'footer_opacity' => '100', 'footer_blur' => '0',
         'hero_kicker' => '0', 'hero_align' => 'center', 'hero_parallax' => '1', 'hero_parallax_speed' => '35', 'hero_padding_top' => '88',
         'gallery_columns' => '4', 'gallery_lightbox' => '1',
+        'form_show_wire' => '1', 'form_show_endcap' => '1', 'form_show_note' => '1', 'form_show_lightcolor' => '1',
+        'form_submit_bg' => '#0ea5e9',
     ];
 }
 
@@ -2093,6 +2095,8 @@ function appearance_css(): string
     $heroAlign = in_array(appearance_get('hero_align'), ['right','center','left'], true) ? appearance_get('hero_align') : 'center';
     $heroPad = max(0, min(200, (int) appearance_get('hero_padding_top')));
     $gCols = in_array(appearance_get('gallery_columns'), ['2','3','4'], true) ? appearance_get('gallery_columns') : '4';
+    $submitBg = appearance_get('form_submit_bg');
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $submitBg)) { $submitBg = '#0ea5e9'; }
 
     return <<<CSS
 /* === APPEARANCE-START === */
@@ -2122,6 +2126,12 @@ function appearance_css(): string
 .so-form .so-chip.selected{background:#0ea5e9!important;border-color:#0ea5e9!important;color:#fff!important}
 .so-form h2,.so-form h3{color:#0f172a!important}
 .so-form .so-price{color:#0f172a!important}
+/* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
+.so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نمایش/عدم نمایش فیلدهای فرم از استودیو طراحی */
+#so-form[data-fw="0"] .so-field:has(input[data-wire]){display:none!important}
+#so-form[data-fe="0"] .so-field:has(input[name*="[endcap]"]){display:none!important}
+#so-form[data-fn="0"] .so-field:has(textarea[name*="[note]"]){display:none!important}
 /* نسخه ۹٫۹۹٫۶۴-۶۵: کاهش فاصله‌های خالی صفحه محصول */
 .product-section{padding-top:16px!important;padding-bottom:16px!important}
 .product-section .container{padding-top:0!important}

@@ -4954,7 +4954,11 @@ function site_order_form_html(array $product): string
     if ((string) ($state['err'] ?? '') !== '') {
         $html .= '<div class="alert error" role="alert">' . e((string) $state['err']) . '</div>';
     }
-    $html .= '<form method="post" action="/products?id=' . $pid . '#site-order" id="so-form">';
+    $fw = (function_exists('appearance_get') && appearance_get('form_show_wire') === '0') ? '0' : '1';
+    $fe = (function_exists('appearance_get') && appearance_get('form_show_endcap') === '0') ? '0' : '1';
+    $fn = (function_exists('appearance_get') && appearance_get('form_show_note') === '0') ? '0' : '1';
+    $fl = (function_exists('appearance_get') && appearance_get('form_show_lightcolor') === '0') ? '0' : '1';
+    $html .= '<form method="post" action="/order?product=' . $pid . '#site-order" id="so-form" data-fw="' . $fw . '" data-fe="' . $fe . '" data-fn="' . $fn . '" data-fl="' . $fl . '">';
     $html .= '<input type="hidden" name="site_order" value="1"><input type="hidden" name="product_id" value="' . $pid . '"><input type="hidden" name="csrf" value="' . e((string) ($_SESSION['csrf'] ?? '')) . '">';
     $html .= '<div class="hp-field" aria-hidden="true"><label>این فیلد را خالی بگذارید<input type="text" name="website2" tabindex="-1" autocomplete="off"></label></div>';
 

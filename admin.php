@@ -1961,6 +1961,11 @@ if ($page === 'appearance') {
                         $raw = in_array($raw, ['2','3','4'], true) ? $raw : '4';
                     } elseif ($k === 'header_logo_pos') {
                         $raw = in_array($raw, ['right','left'], true) ? $raw : 'right';
+                    } elseif (in_array($k, ['form_show_wire','form_show_endcap','form_show_note','form_show_lightcolor'], true)) {
+                        $raw = ($raw === '1') ? '1' : '0';
+                    } elseif ($k === 'form_submit_bg') {
+                        $raw = trim($raw);
+                        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $raw)) { $raw = $def; }
                     }
                     set_setting('appear_' . $k, $raw);
                 }
@@ -2942,6 +2947,7 @@ if ($page === 'design') {
                 <button type="button" class="appear-tab" data-tab="hero">هیرو</button>
                 <button type="button" class="appear-tab" data-tab="menus">منوها</button>
                 <button type="button" class="appear-tab" data-tab="gallery">گالری</button>
+                <button type="button" class="appear-tab" data-tab="form">فرم سفارش</button>
                 <button type="button" class="appear-tab" data-tab="footer">فوتر</button>
             </div>
             <?php if ($appearMsg !== ''): ?><div class="alert success"><?= e($appearMsg) ?></div><?php endif; ?>
@@ -3026,6 +3032,37 @@ if ($page === 'design') {
                                     <option value="1" <?= $appearVals['gallery_lightbox']==='1'?'selected':'' ?>>روشن</option>
                                     <option value="0" <?= $appearVals['gallery_lightbox']!=='1'?'selected':'' ?>>خاموش</option>
                                 </select></label>
+                        </div>
+                    </div>
+                </div>
+                <!-- تب فرم سفارش -->
+                <div class="appear-panel" data-panel="form">
+                    <div class="card appear-card">
+                        <h3>فرم سفارش</h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>طول سیم</span>
+                                <select name="appear_form_show_wire">
+                                    <option value="1" <?= $appearVals['form_show_wire']==='1'?'selected':'' ?>>نمایش</option>
+                                    <option value="0" <?= $appearVals['form_show_wire']!=='1'?'selected':'' ?>>عدم نمایش</option>
+                                </select></label>
+                            <label class="appear-field"><span>درپوش</span>
+                                <select name="appear_form_show_endcap">
+                                    <option value="1" <?= $appearVals['form_show_endcap']==='1'?'selected':'' ?>>نمایش</option>
+                                    <option value="0" <?= $appearVals['form_show_endcap']!=='1'?'selected':'' ?>>عدم نمایش</option>
+                                </select></label>
+                            <label class="appear-field"><span>یادداشت ردیف</span>
+                                <select name="appear_form_show_note">
+                                    <option value="1" <?= $appearVals['form_show_note']==='1'?'selected':'' ?>>نمایش</option>
+                                    <option value="0" <?= $appearVals['form_show_note']!=='1'?'selected':'' ?>>عدم نمایش</option>
+                                </select></label>
+                            <label class="appear-field"><span>رنگ نور</span>
+                                <select name="appear_form_show_lightcolor">
+                                    <option value="1" <?= $appearVals['form_show_lightcolor']==='1'?'selected':'' ?>>نمایش</option>
+                                    <option value="0" <?= $appearVals['form_show_lightcolor']!=='1'?'selected':'' ?>>عدم نمایش</option>
+                                </select></label>
+                            <label class="appear-field"><span>رنگ دکمه ثبت</span>
+                                <input type="color" name="appear_form_submit_bg" value="<?= e($appearVals['form_submit_bg']) ?>">
+                                <code><?= e($appearVals['form_submit_bg']) ?></code></label>
                         </div>
                     </div>
                 </div>
