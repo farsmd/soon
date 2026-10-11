@@ -1279,6 +1279,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('mobile menu migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۴۸: استایل پایه لایت‌باکس (یک بار) ---
+    try {
+        migrate_lightbox_base_v9948_if_needed();
+    } catch (Throwable $e) {
+        error_log('lightbox base migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1822,6 +1828,28 @@ function mobile_menu_css(): string
   .mmenu a.mlink{opacity:1;transform:none}
 }
 CSS;
+}
+
+
+/** مایگریشن نسخه ۹٫۹۹٫۴۸: استایل پایه کامل لایت‌باکس (.glb) — در سید ناقص بود */
+function migrate_lightbox_base_v9948_if_needed(): void
+{
+    try {
+        if (get_setting('lightbox_base_9948', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, '.glb[hidden]') === false) {
+            $css .= "\n/* استایل پایه لایت‌باکس (۹٫۹۹٫۴۸) */\n"
+                . ".glb{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center}\n"
+                . ".glb[hidden]{display:none!important}\n"
+                . ".glb-backdrop{position:absolute;inset:0;background:rgba(3,4,10,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('lightbox_base_9948', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۴۷: افزودن استایل منوی تمام‌صفحه موبایل به CSS زنده */
@@ -2970,7 +2998,6 @@ function tabbar_html(): string
          'icon' => $svg('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>')],
     ];
     $out = '<nav class="ll-tabbar" aria-label="ناوبری موبایل">';
-    $out .= '<button type="button" class="tabbar-toggle" aria-label="باز یا بسته کردن منو"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>';
     foreach ($items as $it) {
         $on = ($active === $it['key']) ? ' on' : '';
         $aria = ($active === $it['key']) ? ' aria-current="page"' : '';
@@ -3044,6 +3071,7 @@ function skeleton_foot(): string
     $html = <<<'HTML'
 <script>
 (function(){
+    document.addEventListener('DOMContentLoaded',function(){
     var navToggle=document.querySelector('.nav-toggle');
     var mmenu=document.getElementById('mmenu');
     if(navToggle&&mmenu){
@@ -3055,14 +3083,7 @@ function skeleton_foot(): string
         mmenu.addEventListener('click',function(ev){if(ev.target&&ev.target.closest('a.mlink')){closeM();}});
         document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&mmenu.classList.contains('open')){closeM();navToggle.focus();}});
     }
-    // باز/بسته کردن منوی شناور پایین
-    var tabbarToggle=document.querySelector('.tabbar-toggle');
-    var tabbar=document.querySelector('.ll-tabbar');
-    if(tabbarToggle&&tabbar){
-        tabbarToggle.addEventListener('click',function(){
-            tabbar.classList.toggle('collapsed');
-        });
-    }
+    });
     // تم سایت فقط از تنظیمات پیش‌فرض پنل اعمال می‌شود
     var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var sliders=document.querySelectorAll('[data-slider]');

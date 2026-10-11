@@ -2548,6 +2548,9 @@ textarea{min-height:120px;resize:vertical}
 .ll-404 .btn{margin-top:18px}
 
 /* ---------- لایت‌باکس گالری ---------- */
+.glb{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center}
+.glb[hidden]{display:none!important}
+.glb-backdrop{position:absolute;inset:0;background:rgba(3,4,10,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .ll-gallery{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center}
 .ll-lightbox{position:fixed;inset:0;z-index:2000;background:rgba(5,5,7,.94);backdrop-filter:blur(10px);
     display:flex;align-items:center;justify-content:center;flex-direction:column}
