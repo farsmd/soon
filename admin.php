@@ -4064,8 +4064,14 @@ if ($page === 'design') {
                         fetch('admin.php?ts_preview=1', {method:'POST', body:fd})
                             .then(function(r){ return r.json(); })
                             .then(function(d){
-                                var doc = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + (d.html || '') + '</body></html>';
-                                document.getElementById('tsPreviewFrame').srcdoc = doc;
+                                // دریافت CSS اصلی سایت برای رندر صحیح
+                                fetch('../style.php').then(function(r){ return r.text(); }).then(function(siteCss){
+                                    var doc = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + siteCss + '</style><style>' + css + '</style></head><body>' + (d.html || '') + '</body></html>';
+                                    document.getElementById('tsPreviewFrame').srcdoc = doc;
+                                }).catch(function(){
+                                    var docFallback = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + (d.html || '') + '</body></html>';
+                                    document.getElementById('tsPreviewFrame').srcdoc = docFallback;
+                                });
                             })
                             .catch(function(){
                                 // fallback: نمایش خام
