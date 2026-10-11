@@ -1285,6 +1285,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('lightbox base migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۴۹: هدر موبایل شفاف (یک بار) ---
+    try {
+        migrate_mobile_header_v9949_if_needed();
+    } catch (Throwable $e) {
+        error_log('mobile header migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1831,6 +1837,40 @@ CSS;
 }
 
 
+/** استایل هدر موبایل شفاف (۹٫۹۹٫۴۹) — همبرگر استایل‌شده، تایتیل وسط، لوگو راست */
+function mobile_header_css(): string
+{
+    return <<<'CSS'
+/* ---------- هدر موبایل شفاف (۹٫۹۹٫۴۹) ---------- */
+@media(max-width:768px){
+  .site-header{background:transparent;border-bottom:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .header-inner{position:relative}
+  .main-nav .nav-list{display:none}
+  .nav-toggle{display:inline-flex;background:none;border:none;padding:10px;margin:0;cursor:pointer;color:#fff}
+  .nav-toggle svg{width:26px;height:26px;display:block}
+  .logo span.site-title,.logo span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:19px;font-weight:900;white-space:nowrap}
+}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۴۹: استایل هدر موبایل شفاف */
+function migrate_mobile_header_v9949_if_needed(): void
+{
+    try {
+        if (get_setting('mobile_header_9949', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, 'هدر موبایل شفاف') === false) {
+            $css .= "\n" . mobile_header_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('mobile_header_9949', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
 /** مایگریشن نسخه ۹٫۹۹٫۴۸: استایل پایه کامل لایت‌باکس (.glb) — در سید ناقص بود */
 function migrate_lightbox_base_v9948_if_needed(): void
 {
@@ -1881,7 +1921,7 @@ function menu_html(string $class = 'main-nav'): string
         return $cache[$class];
     }
     $html = '<nav class="' . e($class) . '" aria-label="منوی اصلی">';
-    $html .= '<button type="button" class="nav-toggle" aria-expanded="false" aria-controls="mmenu" aria-label="باز کردن منو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>';
+    $html .= '<button type="button" class="nav-toggle" aria-expanded="false" aria-controls="mmenu" aria-label="باز کردن منو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h12M4 12h7M4 17h14"/></svg></button>';
     $html .= '<div class="nav-list" id="nav-list">';
     foreach (menu_items() as $item) {
         $html .= '<a href="' . e($item['url']) . '">' . e($item['title']) . '</a>';

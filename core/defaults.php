@@ -1068,6 +1068,7 @@ html[data-theme="light"] .catalog-nav a.active{background:#c9a227;color:#fff}
 CSS;
     $out = $css . "\n" . (function_exists('acc_gallery_css') ? acc_gallery_css() : '');
     $out .= "\n" . (function_exists('mobile_menu_css') ? mobile_menu_css() : '');
+    $out .= "\n" . (function_exists('mobile_header_css') ? mobile_header_css() : '');
     return $out;
 }
 
