@@ -1309,6 +1309,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('qr fix migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۵۵: پارالاکس (یک بار) ---
+    try {
+        migrate_parallax_v9955_if_needed();
+    } catch (Throwable $e) {
+        error_log('parallax migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1982,6 +1988,39 @@ function migrate_mobile_header_v9949_if_needed(): void
     }
 }
 
+/** پارالاکس هیرو (۹٫۹۹٫۵۵) — افکت اصلی سایت */
+function parallax_css(): string
+{
+    return <<<'CSS'
+/* ---------- پارالاکس هیرو (۹٫۹۹٫۵۵) ---------- */
+.cinematic-hero{position:relative}
+.hero-media{will-change:transform}
+.hero-inner{will-change:transform;position:relative;z-index:2}
+.hero-scroll{transition:opacity .3s}
+@media (prefers-reduced-motion:reduce){
+  .hero-media,.hero-inner{will-change:auto}
+}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۵۵: استایل پارالاکس */
+function migrate_parallax_v9955_if_needed(): void
+{
+    try {
+        if (get_setting('parallax_9955', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, 'پارالاکس هیرو') === false) {
+            $css .= "\n" . parallax_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('parallax_9955', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
 /** استایل کامل لایت‌باکس (۹٫۹۹٫۵۳) — جایگزین قوانین ناقص */
 function lightbox_full_css(): string
 {
@@ -2027,24 +2066,31 @@ CSS;
 /** مایگریشن نسخه ۹٫۹۹٫۵۴: فیکس QR (مسیر عکس + چیدمان) */
 function migrate_qr_fix_v9954_if_needed(): void
 {
+    // نسخه مقاوم (۹٫۹۹٫۵۵): CSS و قالب مستقل — خطای یکی دیگری را متوقف نکند
+    if (get_setting('qr_fix_9954', '0') === '1') {
+        return;
+    }
+    // ۱) استایل چیدمان (اول)
     try {
-        if (get_setting('qr_fix_9954', '0') === '1') {
-            return;
-        }
-        $tpl = get_template_content('contact_page');
-        if ($tpl !== '' && strpos($tpl, 'src="qr-card.png"') !== false) {
-            $tpl = str_replace('src="qr-card.png"', 'src="assets/icons/qr-card.png"', $tpl);
-            set_template_content('contact_page', $tpl);
-        }
         $css = (string) get_setting('site_css', '');
         if ($css !== '' && strpos($css, 'کارت QR (۹٫۹۹٫۵۴)') === false) {
             $css .= "\n" . qr_card_css() . "\n";
             set_setting('site_css', $css);
         }
-        set_setting('qr_fix_9954', '1');
     } catch (Throwable $e) {
-        // سکوت
+        error_log('qr css failed: ' . $e->getMessage());
     }
+    // ۲) اصلاح مسیر عکس در قالب
+    try {
+        $tpl = get_template_content('contact_page');
+        if ($tpl !== '' && strpos($tpl, 'src="qr-card.png"') !== false) {
+            $tpl = str_replace('src="qr-card.png"', 'src="assets/icons/qr-card.png"', $tpl);
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'contact_page'")->execute([':c' => $tpl]);
+        }
+    } catch (Throwable $e) {
+        error_log('qr template failed: ' . $e->getMessage());
+    }
+    try { set_setting('qr_fix_9954', '1'); } catch (Throwable $e) {}
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۵۳: استایل کامل لایت‌باکس */
@@ -3317,6 +3363,28 @@ function skeleton_foot(): string
         mmenu.addEventListener('click',function(ev){if(ev.target&&ev.target.closest('a.mlink')){closeM();}});
         document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&mmenu.classList.contains('open')){closeM();navToggle.focus();}});
     }
+    });
+    // پارالاکس هیرو (۹٫۹۹٫۵۵) — افکت اصلی سایت
+    document.addEventListener('DOMContentLoaded',function(){
+        var hero=document.querySelector('.cinematic-hero');
+        if(!hero) return;
+        if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var media=hero.querySelector('.hero-media');
+        var inner=hero.querySelector('.hero-inner');
+        var hint=hero.querySelector('.hero-scroll');
+        var ticking=false;
+        function update(){
+            ticking=false;
+            var r=hero.getBoundingClientRect();
+            if(r.bottom<0||r.top>window.innerHeight) return;
+            var y=window.scrollY||window.pageYOffset;
+            if(media) media.style.transform='translate3d(0,'+(y*0.35)+'px,0) scale(1.06)';
+            if(inner) inner.style.transform='translate3d(0,'+(y*0.12)+'px,0)';
+            if(hint) hint.style.opacity=Math.max(0,1-y/280);
+        }
+        function onScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(update); } }
+        window.addEventListener('scroll',onScroll,{passive:true});
+        update();
     });
     // تم سایت فقط از تنظیمات پیش‌فرض پنل اعمال می‌شود
     var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;

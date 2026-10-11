@@ -1072,6 +1072,7 @@ CSS;
     $out .= "\n" . (function_exists('onepage_css') ? onepage_css() : '');
     $out .= "\n" . (function_exists('lightbox_full_css') ? lightbox_full_css() : '');
     $out .= "\n" . (function_exists('qr_card_css') ? qr_card_css() : '');
+    $out .= "\n" . (function_exists('parallax_css') ? parallax_css() : '');
     return $out;
 }
 
