@@ -56,7 +56,11 @@ $submittedOk = !empty($state['submitted']) && !empty($state['ok']);
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Vazirmatn', Tahoma, sans-serif; background: #f8fafc; color: #0f172a; padding: 20px; line-height: 1.9; }
-.container { max-width: 600px; margin: 0 auto; }
+.container { max-width: 680px; margin: 0 auto; padding: 0 12px; }
+@media (max-width: 640px) {
+    body { padding: 12px 8px; }
+    .container { padding: 0 4px; }
+}
 h1 { text-align: center; margin-bottom: 24px; color: #0f172a; font-size: 24px; }
 .form-group { margin-bottom: 20px; }
 label { display: block; margin-bottom: 8px; font-weight: bold; }
@@ -76,7 +80,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37
 </head>
 <body>
 <div class="container">
-    <h1>ثبت سفارش</h1>
+    <!-- h1 حذف شد — فرم عنوان خودش را دارد -->
     <?php if ($orderProduct !== null): ?>
     <?= site_order_form_html($orderProduct) ?>
     <?php else: ?>

@@ -2144,6 +2144,9 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
+/* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
+.so-summary{position:fixed!important;bottom:0!important;left:0!important;right:0!important;z-index:50!important;border-radius:20px 20px 0 0!important;margin:0!important;max-width:680px;margin-left:auto!important;margin-right:auto!important}
+body{padding-bottom:140px!important}
 /* نسخه ۹٫۹۹٫۷۲: جزئیات فرم سفارش */
 .so-form button[type="submit"]:hover,.so-form .so-submit:hover{background:$submitHover!important;border-color:$submitHover!important}
 .so-form button[type="submit"],.so-form .so-submit{color:$submitText!important}
