@@ -1911,6 +1911,40 @@ foreach (all_templates() as $tplRow) {
 }
 
 // ---------- صفحه «استودیو قالب» ----------
+// ذخیره ویرایش قالب
+$tsMsg = '';
+$tsEditKey = trim((string) ($_GET['ts_edit'] ?? ''));
+$tsEditContent = '';
+if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ts_save'])) {
+    if (!csrf_check()) {
+        $tsMsg = 'توکن امنیتی نامعتبر است.';
+    } else {
+        $saveKey = trim((string) ($_POST['ts_key'] ?? ''));
+        $saveHtml = (string) ($_POST['ts_html'] ?? '');
+        if ($saveKey !== '' && preg_match('/^[a-z_]+$/', $saveKey)) {
+            try {
+                $exists = db()->prepare("SELECT COUNT(*) FROM site_templates WHERE template_key = ?")->execute([$saveKey]);
+                // استفاده از REPLACE
+                db()->prepare("INSERT INTO site_templates (template_key, content, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(template_key) DO UPDATE SET content = excluded.content, updated_at = datetime('now')")->execute([$saveKey, $saveHtml]);
+                $tsMsg = 'قالب «' . $saveKey . '» ذخیره شد.';
+                $tsEditKey = $saveKey;
+            } catch (Throwable $e) {
+                // SQLite ممکن است ON CONFLICT را متفاوت بخواهد — روش جایگزین
+                try {
+                    db()->prepare("DELETE FROM site_templates WHERE template_key = ?")->execute([$saveKey]);
+                    db()->prepare("INSERT INTO site_templates (template_key, content, updated_at) VALUES (?, ?, datetime('now'))")->execute([$saveKey, $saveHtml]);
+                    $tsMsg = 'قالب «' . $saveKey . '» ذخیره شد.';
+                    $tsEditKey = $saveKey;
+                } catch (Throwable $e2) {
+                    $tsMsg = 'خطا در ذخیره: ' . $e2->getMessage();
+                }
+            }
+        }
+    }
+}
+if ($page === 'template_studio' && $tsEditKey !== '') {
+    $tsEditContent = get_template_content($tsEditKey);
+}
 $templateStudioGroups = [
     'سربرگ سایت' => [
         ['key' => 'header', 'title' => 'هدر', 'desc' => 'HTML و CSS هدر سایت'],
@@ -3795,13 +3829,33 @@ if ($page === 'design') {
             <?php templates_render(); ?>
         <?php elseif ($page === 'template_studio'): ?>
             <h1>استودیو قالب</h1>
+            <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>
+            <?php if ($tsEditKey !== ''): ?>
+            <!-- ویرایشگر -->
+            <p><a href="admin.php?page=template_studio" class="btn btn-secondary">← بازگشت به لیست</a></p>
+            <section class="card wide">
+                <h2>ویرایش: <?= e($tsEditKey) ?></h2>
+                <form method="post">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="ts_save" value="1">
+                    <input type="hidden" name="ts_key" value="<?= e($tsEditKey) ?>">
+                    <label>HTML
+                        <textarea name="ts_html" rows="25" dir="ltr" style="font-family:monospace;width:100%"><?= e($tsEditContent) ?></textarea>
+                    </label>
+                    <p style="margin-top:12px">
+                        <button type="submit" class="btn btn-primary">ذخیره</button>
+                        <a href="<?= e(site_base_url()) ?>" target="_blank" class="btn btn-secondary">پیش‌نمایش سایت</a>
+                    </p>
+                </form>
+            </section>
+            <?php else: ?>
             <p class="muted">قالب HTML و CSS هر بخش سایت را اینجا ویرایش کنید.</p>
             <?php foreach ($templateStudioGroups as $groupTitle => $items): ?>
             <section class="card wide" style="margin-bottom:20px">
                 <h2><?= e($groupTitle) ?></h2>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
                     <?php foreach ($items as $it): ?>
-                    <a href="admin.php?page=templates&edit=<?= e($it['key']) ?>" class="card" style="padding:16px;text-decoration:none;display:block">
+                    <a href="admin.php?page=template_studio&ts_edit=<?= e($it['key']) ?>" class="card" style="padding:16px;text-decoration:none;display:block">
                         <strong><?= e($it['title']) ?></strong>
                         <p class="muted" style="margin:4px 0 0;font-size:13px"><?= e($it['desc']) ?></p>
                     </a>
@@ -3809,6 +3863,7 @@ if ($page === 'design') {
                 </div>
             </section>
             <?php endforeach; ?>
+            <?php endif; ?>
         <?php elseif ($page === 'api'): ?>
             <?php api_render(); ?>
         <?php elseif ($page === 'logs'): ?>
