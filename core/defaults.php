@@ -4393,9 +4393,10 @@ function catalog_products_grid_html(array $products): string
     if ($products === []) {
         return '<div class="empty-state"><p>هنوز محصولی در این بخش ثبت نشده است.</p></div>';
     }
-    // قالب کارت محصول از دیتابیس (استودیو قالب) یا پیش‌فرض
+    // قالب کارت محصول از دیتابیس (استودیو قالب) یا پیش‌فرض؛
+    // اگر قالب دیتابیس خراب/ناسازگار است (product_name ندارد)، از پیش‌فرض استفاده کن (۱۰٫۲۳)
     $cardTpl = function_exists('get_template_content') ? get_template_content('product_card') : '';
-    if ($cardTpl === '') {
+    if ($cardTpl === '' || strpos($cardTpl, '{{product_name}}') === false) {
         $cardTpl = product_card_default_template();
     }
     $html = '<div class="products-grid">';

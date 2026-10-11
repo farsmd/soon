@@ -1355,6 +1355,7 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     try {
         migrate_order_links_v9967_if_needed();
         migrate_menus_v1018_if_needed();
+        migrate_product_card_v1023_if_needed();
     } catch (Throwable $e) {
         error_log('order links migration failed: ' . $e->getMessage());
     }
@@ -2069,6 +2070,33 @@ function footer_menu_html(string $loc): string
     return $out;
 }
 
+/** مایگریشن نسخه ۱۰٫۲۳: سید/ترمیم قالب کارت محصول */
+function migrate_product_card_v1023_if_needed(): void
+{
+    try {
+        if (get_setting('product_card_1023', '0') === '1') {
+            return;
+        }
+        if (function_exists('product_card_default_template')) {
+            $def = product_card_default_template();
+            $row = get_template_row('product_card');
+            if ($row === null) {
+                // سید جاافتاده ۱۰٫۳: INSERT آن ستون title نداشت و با NOT NULL شکست می‌خورد
+                db()->prepare("INSERT INTO site_templates (template_key, title, content, updated_at) VALUES ('product_card', 'کارت محصول', :c, datetime('now'))")->execute([':c' => $def]);
+            } else {
+                $tpl = (string) ($row['content'] ?? '');
+                // قالب کارت محصول باید product_name داشته باشد؛ اگر محتوای سکشن داخلش است، خراب است
+                if (strpos($tpl, '{{product_name}}') === false || strpos($tpl, 'section_heading') !== false) {
+                    db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product_card'")->execute([':c' => $def]);
+                }
+            }
+        }
+        set_setting('product_card_1023', '1');
+    } catch (Throwable $e) {
+        error_log('product card v1023 migration failed: ' . $e->getMessage());
+    }
+}
+
 /** مایگریشن نسخه ۱۰٫۱۸: مدیریت یکپارچه منوها */
 function migrate_menus_v1018_if_needed(): void
 {
@@ -2575,11 +2603,11 @@ function migrate_order_links_v9967_if_needed(): void
                 }
             }
         } catch (Throwable $e) {}
-        // نسخه ۱۰٫۳: سید قالب کارت محصول
+        // نسخه ۱۰٫۳: سید قالب کارت محصول (ترمیم‌شده در ۱۰٫۲۳: ستون title الزامی است)
         try {
             $exists = db()->query("SELECT COUNT(*) FROM site_templates WHERE template_key = 'product_card'")->fetchColumn();
             if (!$exists && function_exists('product_card_default_template')) {
-                db()->prepare("INSERT INTO site_templates (template_key, content, updated_at) VALUES ('product_card', ?, datetime('now'))")->execute([product_card_default_template()]);
+                db()->prepare("INSERT INTO site_templates (template_key, title, content, updated_at) VALUES ('product_card', 'کارت محصول', ?, datetime('now'))")->execute([product_card_default_template()]);
             }
         } catch (Throwable $e) {}
         // نسخه ۱۰٫۱۰: اصلاح قالب catalog (رفع نمایش placeholder خام در /products)
