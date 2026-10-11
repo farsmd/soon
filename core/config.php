@@ -1357,6 +1357,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('order links migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۷۱: بازسازی CSS (یک بار) ---
+    try {
+        migrate_rebuild_appearance_v9971_if_needed();
+    } catch (Throwable $e) {
+        error_log('rebuild appearance migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2160,6 +2166,22 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۷۱: بازسازی CSS ظاهری (تم فرم) */
+function migrate_rebuild_appearance_v9971_if_needed(): void
+{
+    try {
+        if (get_setting('rebuild_appear_9971', '0') === '1') {
+            return;
+        }
+        if (function_exists('appearance_apply')) {
+            appearance_apply();
+        }
+        set_setting('rebuild_appear_9971', '1');
+    } catch (Throwable $e) {
+        error_log('rebuild appearance failed: ' . $e->getMessage());
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۶۷: لینک ثبت سفارش به /order */
