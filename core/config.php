@@ -2362,6 +2362,13 @@ function migrate_order_links_v9967_if_needed(): void
                 }
             }
         } catch (Throwable $e) {}
+        // نسخه ۱۰٫۳: سید قالب کارت محصول
+        try {
+            $exists = db()->query("SELECT COUNT(*) FROM site_templates WHERE template_key = 'product_card'")->fetchColumn();
+            if (!$exists && function_exists('product_card_default_template')) {
+                db()->prepare("INSERT INTO site_templates (template_key, content, updated_at) VALUES ('product_card', ?, datetime('now'))")->execute([product_card_default_template()]);
+            }
+        } catch (Throwable $e) {}
         set_setting('order_links_9967', '1');
         // نسخه ۹٫۹۹٫۹۰: بررسی مجدد دکمه سفارش (مستقل از فلگ قبلی)
         try {

@@ -4363,31 +4363,65 @@ function catalog_products_grid_html(array $products): string
     if ($products === []) {
         return '<div class="empty-state"><p>هنوز محصولی در این بخش ثبت نشده است.</p></div>';
     }
+    // قالب کارت محصول از دیتابیس (استودیو قالب) یا پیش‌فرض
+    $cardTpl = function_exists('get_template_content') ? get_template_content('product_card') : '';
+    if ($cardTpl === '') {
+        $cardTpl = product_card_default_template();
+    }
     $html = '<div class="products-grid">';
     foreach ($products as $p) {
         $pid = (int) $p['id'];
         $img = uploaded_image_url($p['image'] ?? '');
-        $html .= '<article class="product-card">';
-        $html .= '<div class="pc-media">';
-        if ($img !== '') {
-            $html .= '<a href="/products?id=' . $pid . '"><img src="' . e($img) . '" alt="' . e($p['name']) . '" loading="lazy" decoding="async"></a>';
+        $replacements = [
+            '{{product_id}}' => (string) $pid,
+            '{{product_name}}' => e((string) ($p['name'] ?? '')),
+            '{{product_image}}' => e($img),
+            '{{category_title}}' => e((string) ($p['category_title'] ?? '')),
+            '{{short_desc}}' => e((string) ($p['short_desc'] ?? '')),
+            '{{price}}' => e(format_price($p['price_per_meter'] ?? 0)),
+            '{{product_url}}' => '/products?id=' . $pid,
+            '{{order_url}}' => '/order?product=' . $pid,
+        ];
+        $cardHtml = str_replace(array_keys($replacements), array_values($replacements), $cardTpl);
+        // حذف بلوک‌های شرطی خالی
+        if ($img === '') {
+            $cardHtml = preg_replace('/\{\{#if product_image\}\}.*?\{\{\/if\}\}/s', '', $cardHtml);
+        } else {
+            $cardHtml = str_replace(['{{#if product_image}}', '{{/if}}'], '', $cardHtml);
         }
-        $html .= '</div>';
-        $html .= '<div class="pc-content">';
-        $html .= '<h3><a href="/products?id=' . $pid . '">' . e($p['name']) . '</a></h3>';
-        if (!empty($p['category_title'])) {
-            $html .= '<p class="pc-role">' . e($p['category_title']) . '</p>';
+        if (empty($p['category_title'])) {
+            $cardHtml = preg_replace('/\{\{#if category_title\}\}.*?\{\{\/if\}\}/s', '', $cardHtml);
+        } else {
+            $cardHtml = str_replace(['{{#if category_title}}', '{{/if}}'], '', $cardHtml);
         }
-        if (!empty($p['short_desc'])) {
-            $html .= '<p class="pc-bio">' . e($p['short_desc']) . '</p>';
+        if (empty($p['short_desc'])) {
+            $cardHtml = preg_replace('/\{\{#if short_desc\}\}.*?\{\{\/if\}\}/s', '', $cardHtml);
+        } else {
+            $cardHtml = str_replace(['{{#if short_desc}}', '{{/if}}'], '', $cardHtml);
         }
-        $html .= '<div class="pc-tags"><span class="pc-tag">' . e(format_price($p['price_per_meter'] ?? 0)) . ' تومان/متر</span></div>';
-        $html .= '<div class="pc-actions"><a class="pc-btn" href="/products?id=' . $pid . '">مشاهده</a>';
-        $html .= '<a class="pc-btn-outline" href="/order?product=' . $pid . '">ثبت سفارش</a></div>';
-        $html .= '</div></article>';
+        $html .= $cardHtml;
     }
     $html .= '</div>';
     return $html;
+}
+
+/** قالب پیش‌فرض کارت محصول */
+function product_card_default_template(): string
+{
+    return <<<'HTML'
+<article class="product-card">
+<div class="pc-media">
+{{#if product_image}}<a href="{{product_url}}"><img src="{{product_image}}" alt="{{product_name}}" loading="lazy" decoding="async"></a>{{/if}}
+</div>
+<div class="pc-content">
+<h3><a href="{{product_url}}">{{product_name}}</a></h3>
+{{#if category_title}}<p class="pc-role">{{category_title}}</p>{{/if}}
+{{#if short_desc}}<p class="pc-bio">{{short_desc}}</p>{{/if}}
+<div class="pc-tags"><span class="pc-tag">{{price}} تومان/متر</span></div>
+<div class="pc-actions"><a class="pc-btn" href="{{product_url}}">مشاهده</a><a class="pc-btn-outline" href="{{order_url}}">ثبت سفارش</a></div>
+</div>
+</article>
+HTML;
 }
 
 /** جدول مشخصات محصول از ویژگی‌های ارائه‌شده (گزینه پیش‌فرض / مقدار عددی / متن) */
