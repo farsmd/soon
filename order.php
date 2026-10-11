@@ -54,9 +54,9 @@ $submittedOk = !empty($state['submitted']) && !empty($state['ok']);
 <link rel="canonical" href="<?= e(site_base_url() . '/order') ?>">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Vazirmatn', Tahoma, sans-serif; background: #0f0f0f; color: #fff; padding: 20px; line-height: 1.9; }
+body { font-family: 'Vazirmatn', Tahoma, sans-serif; background: #f8fafc; color: #0f172a; padding: 20px; line-height: 1.9; }
 .container { max-width: 600px; margin: 0 auto; }
-h1 { text-align: center; margin-bottom: 24px; color: #d4af37; font-size: 24px; }
+h1 { text-align: center; margin-bottom: 24px; color: #0f172a; font-size: 24px; }
 .form-group { margin-bottom: 20px; }
 label { display: block; margin-bottom: 8px; font-weight: bold; }
 input, select, textarea { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #1a1a1a; color: #fff; font-size: 16px; font-family: inherit; }
