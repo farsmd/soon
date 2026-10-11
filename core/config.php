@@ -4274,7 +4274,9 @@ function compute_order_totals(array $lines, bool $isPartner): array
         $wireSteps = $wireStepCm > 0 ? max(0, (int) round(($wireCm - $wireDefaultCm) / $wireStepCm)) : 0;
         $wireExtra = $wireSteps * $wireStepPrice * $qty;
         $lineSubtotal = (int) round($billableM * $unit * $qty);
-        $lineTotal = $lineSubtotal + $wireExtra;
+        $hasEndcap = !empty($ln['has_endcap']);
+        $endcapTotal = $hasEndcap ? (int) order_setting('endcap_price', 60000) * $qty : 0;
+        $lineTotal = $lineSubtotal + $wireExtra + $endcapTotal;
         $out[] = [
             'product_id' => (int) $product['id'],
             'length_cm' => $lengthCm,
@@ -4285,7 +4287,7 @@ function compute_order_totals(array $lines, bool $isPartner): array
             'wire_length_cm' => $wireCm,
             'wire_steps' => $wireSteps,
             'wire_extra_total' => $wireExtra,
-            'has_endcap' => !empty($ln['has_endcap']),
+            'has_endcap' => $hasEndcap,
             'note' => trim((string) ($ln['note'] ?? '')),
             'line_subtotal' => $lineSubtotal,
             'line_total' => $lineTotal,
@@ -4799,7 +4801,9 @@ function seed_order_rules_if_needed(PDO $pdo): void
         'wire_default_cm' => '20',
         'wire_step_cm' => '5',
         'wire_price_per_step' => '0',
-        'wire_max_cm' => '100',
+        'wire_min_cm' => '20',
+        'wire_max_cm' => '200',
+        'endcap_price' => '60000',
         'order_line_note' => '1',
         'remnant_min_cm' => '20',
         'default_prep_days' => '3',

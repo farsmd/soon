@@ -44,7 +44,9 @@ function orders_handle_post(string $action): void
                 'wire_default_cm'  => ['min' => 0, 'max' => 500, 'float' => false],
                 'wire_step_cm'     => ['min' => 1, 'max' => 100, 'float' => false],
                 'wire_price_per_step' => ['min' => 0, 'max' => 100000000, 'float' => false],
+                'wire_min_cm'      => ['min' => 0, 'max' => 1000, 'float' => false],
                 'wire_max_cm'      => ['min' => 0, 'max' => 1000, 'float' => false],
+                'endcap_price'     => ['min' => 0, 'max' => 100000000, 'float' => false],
                 'remnant_min_cm'   => ['min' => 0, 'max' => 500, 'float' => false],
                 'cut_kerf_mm'      => ['min' => 0, 'max' => 100, 'float' => true],
                 'default_prep_days' => ['min' => 0, 'max' => 365, 'float' => false],
@@ -52,8 +54,12 @@ function orders_handle_post(string $action): void
                 'next_order_no'    => ['min' => 1, 'max' => 1000000000, 'float' => false],
             ];
             // سازگاری طول پیش‌فرض و سقف سیم — قبل از ذخیره بررسی می‌شود تا مقدار ناسازگار ذخیره نشود
+            $newMin = trim((string) ($_POST['wire_min_cm'] ?? '')) !== '' ? (int) $_POST['wire_min_cm'] : (int) order_setting('wire_min_cm', 20);
             $newDef = trim((string) ($_POST['wire_default_cm'] ?? '')) !== '' ? (int) $_POST['wire_default_cm'] : (int) order_setting('wire_default_cm', 20);
-            $newMax = trim((string) ($_POST['wire_max_cm'] ?? '')) !== '' ? (int) $_POST['wire_max_cm'] : (int) order_setting('wire_max_cm', 100);
+            $newMax = trim((string) ($_POST['wire_max_cm'] ?? '')) !== '' ? (int) $_POST['wire_max_cm'] : (int) order_setting('wire_max_cm', 200);
+            if ($newMin > $newDef) {
+                throw new RuntimeException('حداقل طول سیم نمی‌تواند از طول پیش‌فرض بیشتر باشد.');
+            }
             if ($newDef > $newMax) {
                 throw new RuntimeException('طول پیش‌فرض سیم نمی‌تواند از حداکثر طول سیم بیشتر باشد؛ اول حداکثر را بالا ببرید.');
             }
@@ -502,7 +508,9 @@ function orders_load_data(string $page): array
             'wire_default_cm' => order_setting('wire_default_cm', 20),
             'wire_step_cm' => order_setting('wire_step_cm', 5),
             'wire_price_per_step' => order_setting('wire_price_per_step', 0),
-            'wire_max_cm' => order_setting('wire_max_cm', 100),
+            'wire_min_cm' => order_setting('wire_min_cm', 20),
+            'wire_max_cm' => order_setting('wire_max_cm', 200),
+            'endcap_price' => order_setting('endcap_price', 60000),
             'order_line_note' => order_setting('order_line_note', '1'),
             'remnant_min_cm' => order_setting('remnant_min_cm', 20),
             'cut_kerf_mm' => order_setting('cut_kerf_mm', 5),
@@ -1228,7 +1236,9 @@ function orders_render_rules(array $d): void
             <label>طول پیش‌فرض سیم هر چراغ (سانت)<input type="number" name="wire_default_cm" min="0" step="1" value="<?= e($s['wire_default_cm']) ?>"></label>
             <label>گام تنظیم سیم (سانت)<input type="number" name="wire_step_cm" min="1" step="1" value="<?= e($s['wire_step_cm']) ?>"></label>
             <label>قیمت هر گام سیم (تومان)<input type="number" name="wire_price_per_step" min="0" step="any" value="<?= e($s['wire_price_per_step']) ?>"></label>
-            <label>حداکثر طول سیم هر چراغ (سانت)<input type="number" name="wire_max_cm" min="0" step="1" value="<?= e($s['wire_max_cm']) ?>"></label>
+            <label>حداقل طول سیم (سانت)<input type="number" name="wire_min_cm" min="0" step="1" value="<?= e($s['wire_min_cm']) ?>"></label>
+            <label>حداکثر طول سیم (سانت)<input type="number" name="wire_max_cm" min="0" step="1" value="<?= e($s['wire_max_cm']) ?>"></label>
+            <label>قیمت هر جفت درپوش (تومان)<input type="number" name="endcap_price" min="0" step="any" value="<?= e($s['endcap_price']) ?>"></label>
             <label>حداقل طول پرت برگشتی به انبار (سانت)<input type="number" name="remnant_min_cm" min="0" step="1" value="<?= e($s['remnant_min_cm']) ?>"></label>
             <label>پرت تیغ اره در هر برش (میلی‌متر)<input type="number" name="cut_kerf_mm" min="0" max="100" step="any" value="<?= e($s['cut_kerf_mm']) ?>"></label>
             <label>زمان آماده‌سازی پیش‌فرض (روز)<input type="number" name="default_prep_days" min="0" step="1" value="<?= e($s['default_prep_days']) ?>"></label>
