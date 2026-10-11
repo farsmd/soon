@@ -4832,9 +4832,10 @@ CSS;
 /** فرم «ثبت سفارش» زیر صفحه محصول (فقط وقتی orders_public=1) — چندردیفی، نسخه ۸٫۲٫۳ */
 function site_order_form_html(array $product): string
 {
-    if (order_setting('orders_public', '1') !== '1' || (int) ($product['id'] ?? 0) <= 0) {
+    if (order_setting('orders_public', '1') !== '1') {
         return '';
     }
+    $pid = (int) ($product['id'] ?? 0);
     $state = site_order_state();
     if (defined('CMS_SESSION_STARTED') && empty($_SESSION['csrf'])) {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
@@ -4944,7 +4945,8 @@ function site_order_form_html(array $product): string
     $html = '<div class="site-order" id="site-order">';
     $html .= '<div class="so-head"><div class="so-product">';
     // عکس محصول حذف شد (نسخه ۹٫۹۹٫۷۴) — فرم تمیز
-    $html .= '<div><h2>ثبت سفارش</h2><div class="so-product-name">' . e((string) ($product['name'] ?? '')) . '</div></div></div>';
+    $prodName = ($pid > 0) ? '<div class="so-product-name">' . e((string) ($product['name'] ?? '')) . '</div>' : '';
+    $html .= '<div><h2>ثبت سفارش</h2>' . $prodName . '</div></div>';
     $html .= '<p class="so-price">ثبت چند چراغ با ابعاد مختلف در یک سفارش</p></div>';
     if ((string) ($state['msg'] ?? '') !== '') {
         $html .= '<div class="alert ok" role="status">' . e((string) $state['msg']) . '</div>';

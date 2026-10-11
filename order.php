@@ -33,8 +33,9 @@ if ($preselectProduct > 0) {
         if ((int)$p['id'] === $preselectProduct) { $orderProduct = $p; break; }
     }
 }
-if ($orderProduct === null && !empty($products)) {
-    $orderProduct = $products[0];
+// محصول پیش‌فرض انتخاب نمی‌شود — کاربر از لیست فرم انتخاب می‌کند
+if ($orderProduct === null) {
+    $orderProduct = ['id' => 0, 'name' => ''];
 }
 
 $siteName = get_setting('site_name', 'لاینر لایت');
