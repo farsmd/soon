@@ -2107,11 +2107,15 @@ function appearance_css(): string
   .hero-inner{padding-top:{$heroPad}px!important}
 }
 .onepage-gallery-grid{grid-template-columns:repeat($gCols,1fr)}
-/* نسخه ۹٫۹۹٫۶۴: کاهش فاصله‌های خالی صفحه محصول */
-.product-section{padding-top:24px!important}
-.product-layout{gap:20px!important;margin-bottom:16px!important}
-.product-info h1{margin-bottom:12px!important}
-.product-desc{margin-bottom:12px!important}
+/* نسخه ۹٫۹۹٫۶۴-۶۵: کاهش فاصله‌های خالی صفحه محصول */
+.product-section{padding-top:16px!important;padding-bottom:16px!important}
+.product-section .container{padding-top:0!important}
+.product-layout{gap:16px!important;margin-bottom:12px!important}
+.product-info h1{margin-bottom:8px!important;margin-top:0!important}
+.product-desc{margin-bottom:8px!important}
+.product-desc p{margin:0 0 8px!important}
+.product-price-line{margin:8px 0!important}
+.product-breadcrumb{margin-bottom:12px!important}
 /* === APPEARANCE-END === */
 CSS;
 }
@@ -2137,13 +2141,14 @@ function appearance_apply(): void
 function migrate_remove_estimator_v9963_if_needed(): void
 {
     try {
-        if (get_setting('remove_estimator_9963', '0') === '1') {
-            return;
-        }
+        // همیشه اجرا شود (نه فقط یک بار) تا اگر قبلاً شکست خورده، الان درست شود
         $tpl = get_template_content('product');
-        if ($tpl !== '' && strpos($tpl, '{{estimator}}') !== false) {
-            $tpl = str_replace('{{estimator}}', '', $tpl);
-            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $tpl]);
+        if ($tpl !== '') {
+            // حذف با regex (با یا بدون فاصله)
+            $newTpl = preg_replace('/\{\{\s*estimator\s*\}\}/', '', $tpl);
+            if ($newTpl !== $tpl) {
+                db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
+            }
         }
         set_setting('remove_estimator_9963', '1');
     } catch (Throwable $e) {
