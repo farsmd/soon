@@ -21,7 +21,7 @@ function admin_page_catalog(): array
             'sections'  => 'بخش‌های صفحه اصلی',
             'messages'  => 'پیام‌های تماس',
             'partners'  => 'درخواست‌های همکاری',
-            'design'    => 'قالب و استایل',
+
             'appearance' => 'استودیو طراحی',
             'templates' => 'قالب‌های نمایشی',
             'template_studio' => 'استودیو قالب',

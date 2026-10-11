@@ -550,8 +550,9 @@ if (!is_logged_in()) {
 
 $page  = (string) ($_GET['page'] ?? 'dashboard');
 // نام قدیمی صفحه «قالب‌ها» به صفحه جدید «قالب و استایل» نگاشت می‌شود (قالب‌ها دیگر فایلی نیستند)
-if ($page === 'templates') {
-    $page = 'design';
+if ($page === 'design') {
+    header('Location: admin.php?page=template_studio');
+    exit;
 }
 
 // ---------- گارد سطح دسترسی (نسخه ۸٫۷٫۰) ----------
@@ -641,7 +642,7 @@ $navGroups = [
         ['admin.php?page=template_studio', 'templates', 'استودیو قالب', 'template_studio'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=templates', 'templates', 'قالب‌های نمایشی', 'templates'],
-        ['admin.php?page=design', 'droplet', 'قالب و استایل (قدیمی)', 'design'],
+
     ]],
     'customers' => ['مشتریان', [
         ['admin.php?page=customers', 'users', 'مشتری‌ها', 'customers'],
