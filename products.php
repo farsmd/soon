@@ -195,20 +195,29 @@ $catalogSeo = [
 echo skeleton_head($settings, $title, $desc, $catalogSeo);
 echo render_db_template('header', $settings) . "\n";
 echo '<main id="main">' . "\n";
-// قالب catalog باید پلیس‌هولدر گرید محصولات را داشته باشد؛
-// اگر قالب دیتابیس خراب یا ناسازگار است (هر نسخه‌ای)، از قالب داخلی سالم استفاده می‌شود
-// تا بازدیدکننده هیچ‌وقت placeholder خام نبیند (۱۰٫۲۰)
+// قالب catalog باید پلیس‌هولدر گرید محصولات را داشته باشد و خروجی نهایی نباید
+// placeholder خام داشته باشد؛ در غیر این صورت از قالب داخلی سالم استفاده می‌شود
+// تا بازدیدکننده هیچ‌وقت قالب خام نبیند (۱۰٫۲۲)
 $catalogTpl = get_template_content('catalog');
-if (strpos($catalogTpl, '{{products_grid}}') === false) {
-    $catalogTpl = '<section class="content-section catalog-section">' . "\n" .
+$catalogCtx = template_context('catalog', $settings, null, null, $extra);
+$useCatalogFallback = (strpos($catalogTpl, '{{products_grid}}') === false);
+$catalogHtml = $useCatalogFallback ? '' : tpl_render($catalogTpl, $catalogCtx);
+if (!$useCatalogFallback && preg_match('/\\{\\{\\s*[#\\/]?[a-z_]/i', $catalogHtml)) {
+    $useCatalogFallback = true; // قالب ناسازگار: placeholder خام در خروجی
+}
+if ($useCatalogFallback) {
+    $catalogHtml = tpl_render(
+        '<section class="content-section catalog-section">' . "\n" .
         '    <div class="container">' . "\n" .
         '        <h1>{{catalog_title}}</h1>' . "\n" .
         '        {{categories_nav}}' . "\n" .
         '        {{products_grid}}' . "\n" .
         '    </div>' . "\n" .
-        '</section>';
+        '</section>',
+        $catalogCtx
+    );
 }
-echo tpl_render($catalogTpl, template_context('catalog', $settings, null, null, $extra)) . "\n";
+echo $catalogHtml . "\n";
 echo '</main>' . "\n";
 echo render_db_template('footer', $settings) . "\n";
 echo skeleton_foot();
