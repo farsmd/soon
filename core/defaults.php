@@ -29,7 +29,6 @@ HTML,
     <canvas class="hero-canvas" aria-hidden="true"></canvas>
     <div class="hero-shade"></div>
     <div class="container hero-inner">
-        <p class="hero-kicker">استودیو تخصصی نور خطی</p>
         <h1>{{section_heading}}</h1>
         <div class="lead">{{section_body}}</div>
         <div class="hero-ctas">

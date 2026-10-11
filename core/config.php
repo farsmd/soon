@@ -1327,6 +1327,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('appearance access migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۶۰: حذف kicker (یک بار) ---
+    try {
+        migrate_remove_kicker_v9960_if_needed();
+    } catch (Throwable $e) {
+        error_log('remove kicker migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2087,6 +2093,25 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۶۰: حذف بج hero-kicker از قالب اسلایدر */
+function migrate_remove_kicker_v9960_if_needed(): void
+{
+    try {
+        if (get_setting('remove_kicker_9960', '0') === '1') {
+            return;
+        }
+        $tpl = get_template_content('slider');
+        if ($tpl !== '' && strpos($tpl, 'hero-kicker') !== false) {
+            // حذف خط <p class="hero-kicker">...</p>
+            $tpl = preg_replace('/<p class="hero-kicker">.*?<\/p>\s*/s', '', $tpl);
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'slider'")->execute([':c' => $tpl]);
+        }
+        set_setting('remove_kicker_9960', '1');
+    } catch (Throwable $e) {
+        error_log('remove kicker failed: ' . $e->getMessage());
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۵۷: دسترسی پیش‌فرض صفحه تنظیمات ظاهری به همه نقش‌ها */
