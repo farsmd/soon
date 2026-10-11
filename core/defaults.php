@@ -258,6 +258,35 @@ HTML,
 </div>
 HTML,
         ],
+        'blog' => [
+            'title'   => 'قالب بلاگ',
+            'content' => <<<'HTML'
+<article class="blog-post">
+<h1>{{post_title}}</h1>
+<div class="post-meta">{{post_date}}</div>
+<div class="post-content">{{post_content}}</div>
+</article>
+HTML,
+        ],
+        'blog_card' => [
+            'title'   => 'کارت بلاگ',
+            'content' => <<<'HTML'
+<article class="blog-card">
+{{#if post_image}}<a href="{{post_url}}"><img src="{{post_image}}" alt="{{post_title}}"></a>{{/if}}
+<h3><a href="{{post_url}}">{{post_title}}</a></h3>
+<p>{{post_excerpt}}</p>
+<a href="{{post_url}}">ادامه مطلب</a>
+</article>
+HTML,
+        ],
+        'gallery' => [
+            'title'   => 'قالب گالری',
+            'content' => <<<'HTML'
+<div class="gallery-grid">
+{{gallery_items}}
+</div>
+HTML,
+        ],
     ];
 }
 
