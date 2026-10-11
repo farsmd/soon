@@ -2246,6 +2246,16 @@ function migrate_order_links_v9967_if_needed(): void
                 db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
             }
         }
+        // نسخه ۹٫۹۹٫۸۴: اطمینان از دکمه ثبت سفارش در قالب محصول
+        $tpl = get_template_content('product');
+        if ($tpl !== '' && strpos($tpl, '/order?product=') === false) {
+            // دکمه را قبل از بستن section اضافه کن
+            $btn = '<p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
+            $newTpl = str_replace('{{product_gallery}}', '{{product_gallery}}' . "\n" . '                ' . $btn, $tpl);
+            if ($newTpl !== $tpl) {
+                db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
+            }
+        }
         set_setting('order_links_9967', '1');
     } catch (Throwable $e) {
         error_log('order links failed: ' . $e->getMessage());
