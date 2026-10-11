@@ -2147,10 +2147,10 @@ function appearance_css(): string
 /* نسخه ۹٫۹۹٫۸۰: کارت محصول افقی (مثل فایل card) */
 .products-grid{display:grid;grid-template-columns:1fr;gap:24px!important}
 .product-card{display:grid!important;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr)!important;gap:clamp(26px,4vw,54px)!important;padding:16px!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:25px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 34px 80px -36px rgba(15,23,42,.2)!important}
-.pc-media{min-width:0;aspect-ratio:4/5;overflow:hidden;border-radius:17px;background:#f1f5f9}
+.pc-media{min-width:0;aspect-ratio:1/1;overflow:hidden;border-radius:17px;background:#f1f5f9}
 .pc-media img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s ease}
 .product-card:hover .pc-media img{transform:scale(1.03)}
-.pc-content{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:clamp(20px,3vw,40px) 0}
+.pc-content{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:clamp(28px,4vw,48px) clamp(8px,2vw,24px) clamp(28px,4vw,48px) 0}
 .pc-content h3{margin:0;font-size:clamp(1.5rem,3vw,2.2rem);line-height:1.2;font-weight:700;letter-spacing:-.02em}
 .pc-content h3 a{color:#0f172a;text-decoration:none}
 .pc-role{margin:10px 0 0;color:#64748b;font-size:1rem;font-weight:500}
@@ -2162,7 +2162,7 @@ function appearance_css(): string
 .pc-btn:hover{transform:translateY(-2px);box-shadow:0 11px 24px rgba(15,23,42,.2)}
 .pc-btn-outline{min-height:47px;display:inline-flex;align-items:center;padding:0 23px;border:1px solid rgba(15,23,42,.15);border-radius:999px;background:transparent;color:#0f172a;font-size:.94rem;font-weight:600;text-decoration:none;transition:transform .2s ease}
 .pc-btn-outline:hover{transform:translateY(-2px)}
-@media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:16/10!important;border-radius:15px!important}.pc-content{padding:24px 12px 16px!important}}
+@media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:1/1!important;border-radius:15px!important;max-width:280px;margin:0 auto}.pc-content{padding:24px 16px 16px!important}}
 /* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
 .so-summary{position:fixed!important;bottom:0!important;left:0!important;right:0!important;z-index:50!important;border-radius:20px 20px 0 0!important;margin:0!important;max-width:680px;margin-left:auto!important;margin-right:auto!important}
 body{padding-bottom:140px!important}
