@@ -2113,6 +2113,15 @@ function appearance_css(): string
   .hero-inner{padding-top:{$heroPad}px!important}
 }
 .onepage-gallery-grid{grid-template-columns:repeat($gCols,1fr)}
+/* نسخه ۹٫۹۹٫۶۹: فرم سفارش هم‌تم با صفحه اصلی (روشن/شیشه‌ای) */
+.so-form{background:rgba(255,255,255,.72)!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:20px!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;box-shadow:0 8px 32px rgba(15,23,42,.08)!important;color:#0f172a!important}
+.so-form .so-label{color:#475569!important}
+.so-form input,.so-form select,.so-form textarea{background:#fff!important;border:1px solid #cbd5e1!important;color:#0f172a!important;border-radius:12px!important}
+.so-form .so-chip{background:#fff!important;border:1px solid #cbd5e1!important;color:#475569!important;border-radius:999px!important}
+.so-form .so-chip:hover{border-color:#0ea5e9!important;color:#0ea5e9!important}
+.so-form .so-chip.selected{background:#0ea5e9!important;border-color:#0ea5e9!important;color:#fff!important}
+.so-form h2,.so-form h3{color:#0f172a!important}
+.so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۶۴-۶۵: کاهش فاصله‌های خالی صفحه محصول */
 .product-section{padding-top:16px!important;padding-bottom:16px!important}
 .product-section .container{padding-top:0!important}
