@@ -2065,6 +2065,7 @@ function appearance_defaults(): array
         'gallery_columns' => '4', 'gallery_lightbox' => '1',
         'hero_bg_image' => '', 'products_bg_image' => '', 'about_bg_image' => '', 'gallery_bg_image' => '', 'contact_bg_image' => '',
         'homepage_sections_order' => '["hero","products","about","gallery","contact"]',
+        'tabbar_menu' => '[{"key":"home","label":"خانه","url":"/","icon":"home"},{"key":"order","label":"ثبت سفارش","url":"/order","icon":"order"},{"key":"about","label":"درباره ما","url":"/about","icon":"about"},{"key":"contact","label":"تماس با ما","url":"/contact","icon":"contact"}]',
         'pcard_bg' => 'rgba(255,255,255,.9)', 'pcard_blur' => '20', 'pcard_radius' => '25', 'pcard_padding' => '8',
         'pcard_btn_bg' => '#d4af37', 'pcard_btn_hover' => '#b8941f', 'pcard_btn_text' => '#000000',
         'pcard_img_radius' => '17',
@@ -3821,16 +3822,35 @@ function tabbar_html(): string
     $svg = function (string $body): string {
         return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' . $body . '</g></svg>';
     };
-    $items = [
-        ['key' => 'home',    'url' => '/',         'label' => 'خانه',
-         'icon' => $svg('<path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>')],
-        ['key' => 'order',   'url' => '/order', 'label' => 'ثبت سفارش',
-         'icon' => $svg('<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/>')],
-        ['key' => 'about',   'url' => '/about',    'label' => 'درباره ما',
-         'icon' => $svg('<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>')],
-        ['key' => 'contact', 'url' => '/contact',  'label' => 'تماس با ما',
-         'icon' => $svg('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>')],
+    // آیتم‌های منوی شناور از تنظیمات (قابل ویرایش از پنل)
+    $menuJson = get_setting('tabbar_menu', '[]');
+    $menuData = json_decode($menuJson, true);
+    if (!is_array($menuData) || empty($menuData)) {
+        // fallback به پیش‌فرض
+        $menuData = [
+            ['key' => 'home', 'label' => 'خانه', 'url' => '/', 'icon' => 'home'],
+            ['key' => 'order', 'label' => 'ثبت سفارش', 'url' => '/order', 'icon' => 'order'],
+            ['key' => 'about', 'label' => 'درباره ما', 'url' => '/about', 'icon' => 'about'],
+            ['key' => 'contact', 'label' => 'تماس با ما', 'url' => '/contact', 'icon' => 'contact'],
+        ];
+    }
+    // نگاشت آیکون‌ها
+    $icons = [
+        'home' => '<path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>',
+        'order' => '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/>',
+        'about' => '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+        'contact' => '<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>',
     ];
+    $items = [];
+    foreach ($menuData as $m) {
+        $iconKey = $m['icon'] ?? 'home';
+        $items[] = [
+            'key' => $m['key'] ?? '',
+            'url' => $m['url'] ?? '/',
+            'label' => $m['label'] ?? '',
+            'icon' => $svg($icons[$iconKey] ?? $icons['home']),
+        ];
+    }
     $out = '<nav class="ll-tabbar" aria-label="ناوبری موبایل">';
     foreach ($items as $it) {
         $on = ($active === $it['key']) ? ' on' : '';

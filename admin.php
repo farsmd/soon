@@ -1958,6 +1958,36 @@ if (isset($_GET['ts_preview']) && $_GET['ts_preview'] === '1') {
     exit;
 }
 
+// ---------- ویرایش منوی شناور ----------
+$menuMsg = '';
+if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['menu_save'])) {
+    if (!csrf_check()) {
+        $menuMsg = 'توکن امنیتی نامعتبر است.';
+    } else {
+        $menuItems = [];
+        $labels = $_POST['menu_label'] ?? [];
+        $urls = $_POST['menu_url'] ?? [];
+        $icons = $_POST['menu_icon'] ?? [];
+        $keys = $_POST['menu_key'] ?? [];
+        for ($i = 0; $i < count($labels); $i++) {
+            $label = trim((string) ($labels[$i] ?? ''));
+            $url = trim((string) ($urls[$i] ?? ''));
+            if ($label !== '' && $url !== '') {
+                $menuItems[] = [
+                    'key' => trim((string) ($keys[$i] ?? 'item' . $i)),
+                    'label' => $label,
+                    'url' => $url,
+                    'icon' => trim((string) ($icons[$i] ?? 'home')),
+                ];
+            }
+        }
+        set_setting('tabbar_menu', json_encode($menuItems, JSON_UNESCAPED_UNICODE));
+        $menuMsg = 'منوی شناور ذخیره شد.';
+    }
+}
+$tabbarMenu = json_decode((string) get_setting('tabbar_menu', '[]'), true);
+if (!is_array($tabbarMenu)) { $tabbarMenu = []; }
+
 // ---------- صفحه «استودیو قالب» ----------
 // ذخیره ویرایش قالب
 $tsMsg = '';
@@ -4120,6 +4150,54 @@ if ($page === 'design') {
                 </script>
             </section>
             <?php else: ?>
+            <!-- ویرایش منوی شناور -->
+            <div class="ts-accordion" style="margin-bottom:20px">
+                <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
+                    <h3>منوی شناور (موبایل)</h3>
+                    <span class="ts-acc-icon">▼</span>
+                </div>
+                <div class="ts-acc-body">
+                    <?php if ($menuMsg): ?><div class="alert alert-ok"><?= e($menuMsg) ?></div><?php endif; ?>
+                    <form method="post" id="menuForm">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="menu_save" value="1">
+                        <div id="menuItems" style="display:flex;flex-direction:column;gap:8px">
+                            <?php foreach ($tabbarMenu as $idx => $mi): ?>
+                            <div class="card" style="padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" data-menu-idx="<?= $idx ?>">
+                                <input type="hidden" name="menu_key[]" value="<?= e($mi['key'] ?? '') ?>">
+                                <label style="flex:1;min-width:120px">عنوان<input type="text" name="menu_label[]" value="<?= e($mi['label'] ?? '') ?>" style="width:100%"></label>
+                                <label style="flex:1;min-width:120px">لینک<input type="text" name="menu_url[]" value="<?= e($mi['url'] ?? '') ?>" dir="ltr" style="width:100%"></label>
+                                <label>آیکون
+                                    <select name="menu_icon[]">
+                                        <?php foreach (['home'=>'خانه','order'=>'سفارش','about'=>'درباره','contact'=>'تماس'] as $ik => $in): ?>
+                                        <option value="<?= $ik ?>" <?= ($mi['icon'] ?? '') === $ik ? 'selected' : '' ?>><?= e($in) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('[data-menu-idx]').remove()">حذف</button>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <p style="margin-top:12px">
+                            <button type="button" class="btn btn-secondary" onclick="addMenuItem()">+ افزودن آیتم</button>
+                            <button type="submit" class="btn btn-primary">ذخیره منو</button>
+                        </p>
+                    </form>
+                    <script>
+                    function addMenuItem(){
+                        var div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.cssText = 'padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+                        div.innerHTML = '<input type="hidden" name="menu_key[]" value="item'+Date.now()+'">'+
+                            '<label style="flex:1;min-width:120px">عنوان<input type="text" name="menu_label[]" style="width:100%"></label>'+
+                            '<label style="flex:1;min-width:120px">لینک<input type="text" name="menu_url[]" dir="ltr" style="width:100%" placeholder="/page"></label>'+
+                            '<label>آیکون<select name="menu_icon[]"><option value="home">خانه</option><option value="order">سفارش</option><option value="about">درباره</option><option value="contact">تماس</option></select></label>'+
+                            '<button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()">حذف</button>';
+                        document.getElementById('menuItems').appendChild(div);
+                    }
+                    </script>
+                </div>
+            </div>
             <!-- ترتیب سکشن‌های صفحه اصلی (جمع‌شونده) -->
             <div class="ts-accordion" style="margin-bottom:20px">
                 <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
