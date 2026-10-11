@@ -4943,9 +4943,7 @@ function site_order_form_html(array $product): string
 
     $html = '<div class="site-order" id="site-order">';
     $html .= '<div class="so-head"><div class="so-product">';
-    if ($img !== '') {
-        $html .= '<img class="so-thumb" src="' . e($img) . '" alt="" loading="lazy" decoding="async">';
-    }
+    // عکس محصول حذف شد (نسخه ۹٫۹۹٫۷۴) — فرم تمیز
     $html .= '<div><h2>ثبت سفارش</h2><div class="so-product-name">' . e((string) ($product['name'] ?? '')) . '</div></div></div>';
     $html .= '<p class="so-price">ثبت چند چراغ با ابعاد مختلف در یک سفارش</p></div>';
     if ((string) ($state['msg'] ?? '') !== '') {
