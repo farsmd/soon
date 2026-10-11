@@ -2152,8 +2152,14 @@ function appearance_css(): string
 .so-form .so-price{color:#0f172a!important}
 /* نسخه ۹٫۹۹٫۷۰: رنگ دکمه ثبت سفارش از استودیو طراحی */
 .so-form .so-submit,.so-form button[type="submit"]{background:$submitBg!important;border-color:$submitBg!important}
-/* نسخه ۹٫۹۹٫۹۰: فاصله بالای صفحه محصول کمتر */
-.product-layout{padding-top:40px!important}
+/* نسخه ۹٫۹۹٫۹۲: فاصله‌های صفحه محصول */
+.product-layout{padding-top:16px!important;padding-bottom:16px!important}
+.product-layout .breadcrumb{margin-bottom:8px!important}
+.product-gallery{margin-bottom:12px!important}
+/* دکمه سفارش وسط‌چین در صفحه محصول */
+.product-layout .btn-primary{display:block!important;margin:16px auto!important;text-align:center!important;max-width:320px}
+/* توضیحات محصول در کادر با پدینگ ۵px */
+.product-desc{background:rgba(255,255,255,.7)!important;border:1px solid rgba(15,23,42,.08)!important;border-radius:12px!important;padding:5px!important;backdrop-filter:blur(10px)!important}
 /* نسخه ۹٫۹۹٫۸۹: بکگراند عکس سکشن‌ها */
 .hero-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
 .section-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.12;z-index:0;pointer-events:none}
