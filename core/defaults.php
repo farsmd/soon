@@ -245,7 +245,6 @@ HTML,
                 <p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>
             </div>
         </div>
-        {{estimator}}
     </div>
 </section>
 HTML,

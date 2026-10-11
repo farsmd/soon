@@ -1345,6 +1345,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('product order btn migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۶۳: حذف برآورد (یک بار) ---
+    try {
+        migrate_remove_estimator_v9963_if_needed();
+    } catch (Throwable $e) {
+        error_log('remove estimator migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2120,6 +2126,24 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۶۳: حذف برآورد از صفحه محصول */
+function migrate_remove_estimator_v9963_if_needed(): void
+{
+    try {
+        if (get_setting('remove_estimator_9963', '0') === '1') {
+            return;
+        }
+        $tpl = get_template_content('product');
+        if ($tpl !== '' && strpos($tpl, '{{estimator}}') !== false) {
+            $tpl = str_replace('{{estimator}}', '', $tpl);
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $tpl]);
+        }
+        set_setting('remove_estimator_9963', '1');
+    } catch (Throwable $e) {
+        error_log('remove estimator failed: ' . $e->getMessage());
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۶۲: دکمه سفارش در صفحه محصول */
