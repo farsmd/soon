@@ -1070,6 +1070,7 @@ CSS;
     $out .= "\n" . (function_exists('mobile_menu_css') ? mobile_menu_css() : '');
     $out .= "\n" . (function_exists('mobile_header_css') ? mobile_header_css() : '');
     $out .= "\n" . (function_exists('onepage_css') ? onepage_css() : '');
+    $out .= "\n" . (function_exists('lightbox_full_css') ? lightbox_full_css() : '');
     return $out;
 }
 

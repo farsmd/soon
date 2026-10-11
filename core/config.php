@@ -1297,6 +1297,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('onepage migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۵۳: لایت‌باکس کامل (یک بار) ---
+    try {
+        migrate_lightbox_full_v9953_if_needed();
+    } catch (Throwable $e) {
+        error_log('lightbox full migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1941,7 +1947,7 @@ function mobile_header_css(): string
     return <<<'CSS'
 /* ---------- هدر موبایل شفاف (۹٫۹۹٫۴۹) ---------- */
 @media(max-width:768px){
-  .site-header{background:transparent;border-bottom:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .site-header{background:rgba(10,12,18,.14);border-bottom:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   .header-inner{position:relative}
   .main-nav .nav-list{display:none}
   .nav-toggle{display:inline-flex;background:none;border:none;padding:10px;margin:0;cursor:pointer;color:#fff}
@@ -1965,6 +1971,53 @@ function migrate_mobile_header_v9949_if_needed(): void
             set_setting('site_css', $css);
         }
         set_setting('mobile_header_9949', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
+/** استایل کامل لایت‌باکس (۹٫۹۹٫۵۳) — جایگزین قوانین ناقص */
+function lightbox_full_css(): string
+{
+    return <<<'CSS'
+/* ---------- لایت‌باکس کامل (۹٫۹۹٫۵۳) ---------- */
+.glb{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center}
+.glb[hidden]{display:none!important}
+.glb-backdrop{position:absolute;inset:0;background:rgba(3,4,10,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.glb-stage{position:relative;max-width:min(92vw,1000px);max-height:84vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.glb-img{max-width:min(92vw,1000px);max-height:76vh;width:auto;height:auto;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.6);background:#0a0d1d;object-fit:contain}
+.glb-meta{display:flex;align-items:center;gap:14px;margin-top:14px;color:rgba(255,255,255,.75);font-size:14px}
+.glb-count{font-weight:700;color:#e8c66a;white-space:nowrap}
+.glb-cap{max-width:60ch;text-align:center}
+.glb-close,.glb-prev,.glb-next{position:absolute;width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,217,160,.3);
+  background:rgba(0,0,0,.55);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:.25s;z-index:2;padding:0}
+.glb-close:hover,.glb-prev:hover,.glb-next:hover{border-color:#e8c66a;background:rgba(255,217,160,.15)}
+.glb-close{top:-58px;left:0}
+.glb-prev{right:-58px;top:38%;transform:translateY(-50%)}
+.glb-next{left:-58px;top:38%;transform:translateY(-50%)}
+.glb-close svg,.glb-prev svg,.glb-next svg{width:20px;height:20px;display:block}
+@media(max-width:768px){
+  .glb-close{top:-52px}
+  .glb-prev{right:6px}
+  .glb-next{left:6px}
+}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۵۳: استایل کامل لایت‌باکس */
+function migrate_lightbox_full_v9953_if_needed(): void
+{
+    try {
+        if (get_setting('lightbox_full_9953', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, 'لایت‌باکس کامل') === false) {
+            $css .= "\n" . lightbox_full_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('lightbox_full_9953', '1');
     } catch (Throwable $e) {
         // سکوت
     }
