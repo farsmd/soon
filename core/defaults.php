@@ -3881,13 +3881,14 @@ textarea{min-height:120px;resize:vertical}
 .so-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:2px 0 8px;min-height:36px}
 .so-toggle svg{transition:transform .2s ease;flex:none}
 .so-summary.open .so-toggle svg{transform:rotate(180deg)}
-/* پنل سفارش فشرده: حالت بسته در یک خط */
-.so-summary:not(.open){display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px}
-.so-summary:not(.open) .so-toggle{width:auto;flex:none;min-height:40px;padding:6px 14px;margin:0;background:rgba(0,0,0,.06);border-radius:999px;font-size:12.5px}
-.so-summary:not(.open) .so-toggle svg{width:14px;height:14px}
-.so-summary:not(.open) .so-sum-total{flex:1;min-width:0;border:0;margin:0;padding:0;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
-.so-summary:not(.open) .so-sum-total strong{font-size:15px}
-.so-summary:not(.open) .so-submit{width:auto;flex:none;margin:0;padding:10px 20px;min-height:42px;font-size:14px;border-radius:999px}
+/* پنل سفارش شیشه‌ای: دو ردیف، قیمت بالا */
+.so-summary{background:rgba(255,255,255,.38);-webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.65);box-shadow:0 8px 32px rgba(31,38,135,.12), inset 0 1px 0 rgba(255,255,255,.6)}
+.so-summary:not(.open){display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 16px;border-radius:22px}
+.so-summary:not(.open) .so-sum-total{order:1;flex:1 1 100%;border:0;margin:0;padding:0 0 2px;display:flex;align-items:baseline;justify-content:center;gap:8px;font-size:13px;font-weight:700;white-space:nowrap}
+.so-summary:not(.open) .so-sum-total strong{font-size:22px}
+.so-summary:not(.open) .so-toggle{order:2;flex:1 1 0;min-height:46px;margin:0;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);border-radius:16px;font-size:13.5px;font-weight:700;color:var(--text);padding:10px 8px;width:auto}
+.so-summary:not(.open) .so-toggle svg{width:15px;height:15px}
+.so-summary:not(.open) .so-submit{order:3;flex:1 1 0;margin:0;min-height:46px;padding:10px 8px;font-size:15px;border-radius:16px;width:auto}
 .so-custom-fields{margin:14px 0;padding:16px;border:1.5px dashed rgba(255,154,60,.4);border-radius:var(--radius-sm);background:#fffaf2}
 .so-custom-fields h4{margin:0 0 10px;font-size:14px;color:var(--primary-dark)}
 .so-body{line-height:2}
