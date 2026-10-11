@@ -154,10 +154,7 @@ if ($productId > 0) {
     echo render_db_template('header', $settings) . "\n";
     echo '<main id="main">' . "\n";
     echo render_db_template('product', $settings, null, null, $extra) . "\n";
-    $orderFormHtml = site_order_form_html($product);
-    if ($orderFormHtml !== '') {
-        echo '<section class="content-section"><div class="container">' . "\n" . $orderFormHtml . "\n" . '</div></section>' . "\n";
-    }
+    // فرم سفارش فقط در صفحه جداگانه /order (نسخه ۹٫۹۹٫۶۸)
     echo '</main>' . "\n";
     echo render_db_template('footer', $settings) . "\n";
     echo skeleton_foot();
