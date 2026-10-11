@@ -3935,10 +3935,16 @@ if ($page === 'design') {
                     <?= csrf_field() ?>
                     <input type="hidden" name="ts_reorder" value="1">
                     <div id="tsOrderList" style="display:flex;flex-direction:column;gap:8px">
-                        <?php foreach ($tsCurrentOrder as $sk): ?>
-                        <div class="card" style="padding:12px;display:flex;align-items:center;gap:12px;cursor:move" draggable="true" data-key="<?= e($sk) ?>">
-                            <span style="font-size:20px">⋮⋮</span>
-                            <strong><?= e($tsSectionNames[$sk] ?? $sk) ?></strong>
+                        <?php foreach ($tsCurrentOrder as $idx => $sk): ?>
+                        <div class="card" style="padding:12px;display:flex;align-items:center;gap:12px" data-key="<?= e($sk) ?>">
+                            <span style="font-size:18px;color:#64748b;font-weight:700"><?= $idx + 1 ?></span>
+                            <strong style="flex:1"><?= e($tsSectionNames[$sk] ?? $sk) ?></strong>
+                            <?php if ($idx > 0): ?>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tsMoveUp(this)" title="بالا">▲</button>
+                            <?php endif; ?>
+                            <?php if ($idx < count($tsCurrentOrder) - 1): ?>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="tsMoveDown(this)" title="پایین">▼</button>
+                            <?php endif; ?>
                             <input type="hidden" name="section_order[]" value="<?= e($sk) ?>">
                         </div>
                         <?php endforeach; ?>
@@ -3946,28 +3952,36 @@ if ($page === 'design') {
                     <p style="margin-top:12px"><button type="submit" class="btn btn-primary">ذخیره ترتیب</button></p>
                 </form>
                 <script>
-                (function(){
+                function tsMoveUp(btn){
+                    var item = btn.closest('[data-key]');
+                    var prev = item.previousElementSibling;
+                    if (prev) {
+                        item.parentNode.insertBefore(item, prev);
+                        tsRefreshOrder();
+                    }
+                }
+                function tsMoveDown(btn){
+                    var item = btn.closest('[data-key]');
+                    var next = item.nextElementSibling;
+                    if (next) {
+                        item.parentNode.insertBefore(next, item);
+                        tsRefreshOrder();
+                    }
+                }
+                function tsRefreshOrder(){
                     var list = document.getElementById('tsOrderList');
-                    var dragEl = null;
-                    list.querySelectorAll('[draggable]').forEach(function(el){
-                        el.addEventListener('dragstart', function(){ dragEl = el; el.style.opacity = '0.5'; });
-                        el.addEventListener('dragend', function(){ el.style.opacity = ''; });
-                        el.addEventListener('dragover', function(e){ e.preventDefault(); });
-                        el.addEventListener('drop', function(e){
-                            e.preventDefault();
-                            if (dragEl && dragEl !== el) {
-                                var items = Array.from(list.children);
-                                var di = items.indexOf(dragEl), ti = items.indexOf(el);
-                                if (di < ti) { list.insertBefore(dragEl, el.nextSibling); }
-                                else { list.insertBefore(dragEl, el); }
-                                // به‌روزرسانی inputها
-                                list.querySelectorAll('[data-key]').forEach(function(item){
-                                    item.querySelector('input').value = item.getAttribute('data-key');
-                                });
-                            }
-                        });
+                    var items = list.querySelectorAll('[data-key]');
+                    items.forEach(function(item, idx){
+                        // به‌روزرسانی شماره
+                        item.querySelector('span').textContent = idx + 1;
+                        // به‌روزرسانی input
+                        item.querySelector('input').value = item.getAttribute('data-key');
+                        // نمایش/مخفی کردن دکمه‌ها
+                        var upBtn = item.querySelector('[onclick*="tsMoveUp"]');
+                        var downBtn = item.querySelector('[onclick*="tsMoveDown"]');
+                        // ساده: همه دکمه‌ها را نگه دار، فقط ترتیب مهم است
                     });
-                })();
+                }
                 </script>
             </section>
             <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>

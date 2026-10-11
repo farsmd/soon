@@ -91,6 +91,7 @@ if ($productId > 0) {
         'category_title'      => (string) ($product['category_title'] ?? ''),
         'price_per_meter_formatted'         => format_price($retailBase),
         'partner_price_per_meter_formatted' => $partnerBase != $retailBase ? format_price($partnerBase) : '',
+        'partner_discount_percent' => ($retailBase > 0 && $partnerBase < $retailBase) ? (string) round((($retailBase - $partnerBase) / $retailBase) * 100) : '',
         'is_per_watt'            => $isPerWatt ? '1' : '',
         'base_price_formatted'   => $basePriceFmt,
         'price_per_watt_formatted' => $ppwFmt,
@@ -194,7 +195,20 @@ $catalogSeo = [
 echo skeleton_head($settings, $title, $desc, $catalogSeo);
 echo render_db_template('header', $settings) . "\n";
 echo '<main id="main">' . "\n";
-echo render_db_template('catalog', $settings, null, null, $extra) . "\n";
+// اگر قالب catalog خراب است (حاوی placeholderهای سکشن)، از قالب صحیح استفاده کن
+$catalogTpl = get_template_content('catalog');
+if (strpos($catalogTpl, 'section_heading') !== false) {
+    $catalogTpl = '<section class="content-section catalog-section">' . "\n" .
+        '    <div class="container">' . "\n" .
+        '        <h1>{{catalog_title}}</h1>' . "\n" .
+        '        {{categories_nav}}' . "\n" .
+        '        {{products_grid}}' . "\n" .
+        '    </div>' . "\n" .
+        '</section>';
+    echo tpl_render($catalogTpl, template_context('catalog', $settings, null, null, $extra)) . "\n";
+} else {
+    echo render_db_template('catalog', $settings, null, null, $extra) . "\n";
+}
 echo '</main>' . "\n";
 echo render_db_template('footer', $settings) . "\n";
 echo skeleton_foot();
