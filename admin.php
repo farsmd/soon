@@ -138,6 +138,12 @@ function check_csrf(): void
     exit;
 }
 
+/** بررسی توکن CSRF با خروجی بولین (برای نمایش خطای درون‌صفحه‌ای به‌جای ریدایرکت) */
+function csrf_check(): bool
+{
+    return hash_equals((string) ($_SESSION['csrf'] ?? ''), (string) ($_POST['csrf'] ?? ''));
+}
+
 function redirect_admin(string $url = 'admin.php'): void
 {
     // لاگ فعالیت مدیریت: هر اکشن موفق POST که با ریدایرکت تمام می‌شود همین‌جا ثبت می‌شود
