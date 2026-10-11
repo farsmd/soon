@@ -1849,6 +1849,7 @@ function mobile_header_css(): string
   .nav-toggle{display:inline-flex;background:none;border:none;padding:10px;margin:0;cursor:pointer;color:#fff}
   .nav-toggle svg{width:26px;height:26px;display:block}
   .logo span.site-title,.logo span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:19px;font-weight:900;white-space:nowrap}
+  html[data-theme="light"] .nav-toggle,html[data-theme="white"] .nav-toggle{color:#1a1d26}
 }
 CSS;
 }
