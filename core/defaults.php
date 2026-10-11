@@ -122,19 +122,11 @@ HTML,
         </div>
         <div>
             <p class="f-title">دسترسی سریع</p>
-            <nav class="f-links" aria-label="دسترسی سریع">
-                <a href="/">خانه</a>
-                <a href="/products">محصولات</a>
-                <a href="/gallery">گالری پروژه‌ها</a>
-                <a href="/about">درباره ما</a>
-            </nav>
+            <nav class="f-links" aria-label="دسترسی سریع">{{footer_menu_1}}</nav>
         </div>
         <div>
             <p class="f-title">سفارش و کاتالوگ</p>
-            <nav class="f-links" aria-label="سفارش و کاتالوگ">
-                <a href="/order">ثبت سفارش</a>
-                <a href="/catalog/linerlight-catalog.pdf">دانلود کاتالوگ (PDF)</a>
-            </nav>
+            <nav class="f-links" aria-label="سفارش و کاتالوگ">{{footer_menu_2}}</nav>
         </div>
     </div>
     <div class="container f-bottom">

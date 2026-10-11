@@ -581,6 +581,7 @@ $pageTitles = [
     'gallery'    => 'مدیریت گالری',
     'design'     => 'قالب و استایل',
     'appearance' => 'تنظیمات ظاهری',
+    'menus'      => 'مدیریت منوها',
     'messages'   => 'پیام‌های تماس',
     'partners'   => 'درخواست‌های همکاری',
     'customers'  => 'مشتری‌ها',
@@ -639,6 +640,7 @@ $navGroups = [
     ]],
     'design' => ['طراحی سایت', [
         ['admin.php?page=appearance', 'palette', 'استودیو طراحی', 'appearance'],
+        ['admin.php?page=menus', 'list', 'مدیریت منوها', 'menus'],
         ['admin.php?page=template_studio', 'templates', 'استودیو قالب', 'template_studio'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
         ['admin.php?page=templates', 'templates', 'قالب‌های نمایشی', 'templates'],
@@ -1958,35 +1960,50 @@ if (isset($_GET['ts_preview']) && $_GET['ts_preview'] === '1') {
     exit;
 }
 
-// ---------- ویرایش منوی شناور ----------
-$menuMsg = '';
-if ($page === 'template_studio' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['menu_save'])) {
+// ---------- مدیریت یکپارچه منوها (۱۰٫۱۸) ----------
+$menusMsg = '';
+if ($page === 'menus' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['menus_save'])) {
     if (!csrf_check()) {
-        $menuMsg = 'توکن امنیتی نامعتبر است.';
+        $menusMsg = 'توکن امنیتی نامعتبر است.';
     } else {
-        $menuItems = [];
-        $labels = $_POST['menu_label'] ?? [];
-        $urls = $_POST['menu_url'] ?? [];
-        $icons = $_POST['menu_icon'] ?? [];
-        $keys = $_POST['menu_key'] ?? [];
-        for ($i = 0; $i < count($labels); $i++) {
-            $label = trim((string) ($labels[$i] ?? ''));
-            $url = trim((string) ($urls[$i] ?? ''));
-            if ($label !== '' && $url !== '') {
-                $menuItems[] = [
-                    'key' => trim((string) ($keys[$i] ?? 'item' . $i)),
-                    'label' => $label,
-                    'url' => $url,
-                    'icon' => trim((string) ($icons[$i] ?? 'home')),
-                ];
+        $locs = site_menu_locations();
+        $menus = site_menus();
+        $resetLoc = trim((string) ($_POST['menus_reset'] ?? ''));
+        if ($resetLoc !== '' && isset($locs[$resetLoc])) {
+            $menus[$resetLoc] = site_menu_default($resetLoc);
+            $menusMsg = '«' . $locs[$resetLoc] . '» به حالت پیش‌فرض برگشت.';
+        } else {
+            foreach (array_keys($locs) as $loc) {
+                $items = [];
+                $labels  = (array) ($_POST["m_{$loc}_label"] ?? []);
+                $urls    = (array) ($_POST["m_{$loc}_url"] ?? []);
+                $icons   = (array) ($_POST["m_{$loc}_icon"] ?? []);
+                $keys    = (array) ($_POST["m_{$loc}_key"] ?? []);
+                $enabled = array_flip(array_map('strval', (array) ($_POST["m_{$loc}_enabled"] ?? [])));
+                $n = count($labels);
+                for ($i = 0; $i < $n; $i++) {
+                    $label = trim((string) ($labels[$i] ?? ''));
+                    $url = trim((string) ($urls[$i] ?? ''));
+                    if ($label === '' || $url === '') {
+                        continue;
+                    }
+                    $items[] = [
+                        'key'     => trim((string) ($keys[$i] ?? 'item' . $i)),
+                        'label'   => $label,
+                        'url'     => $url,
+                        'icon'    => trim((string) ($icons[$i] ?? 'home')),
+                        'enabled' => isset($enabled[(string) $i]),
+                    ];
+                }
+                $menus[$loc] = $items;
             }
+            $menusMsg = 'منوها ذخیره شد.';
         }
-        set_setting('tabbar_menu', json_encode($menuItems, JSON_UNESCAPED_UNICODE));
-        $menuMsg = 'منوی شناور ذخیره شد.';
+        set_setting('site_menus', json_encode($menus, JSON_UNESCAPED_UNICODE));
     }
 }
-$tabbarMenu = json_decode((string) get_setting('tabbar_menu', '[]'), true);
-if (!is_array($tabbarMenu)) { $tabbarMenu = []; }
+$siteMenus = site_menus();
+$siteMenuIcons = site_menu_icons();
 
 // ---------- صفحه «استودیو قالب» ----------
 // ذخیره ویرایش قالب
@@ -3949,6 +3966,104 @@ if ($page === 'design') {
             <?php modules_render(); ?>
         <?php elseif ($page === 'templates'): ?>
             <?php templates_render(); ?>
+        <?php elseif ($page === 'menus'): ?>
+            <h1>مدیریت منوها</h1>
+            <p class="muted">آیتم‌های همه منوهای سایت را از اینجا ویرایش کنید: عنوان، لینک، ترتیب، فعال/غیرفعال. منوی تمام‌صفحه موبایل همان آیتم‌های «منوی اصلی هدر» را نشان می‌دهد.</p>
+            <?php if ($menusMsg): ?><div class="alert alert-ok"><?= e($menusMsg) ?></div><?php endif; ?>
+            <form method="post" id="menusForm">
+                <?= csrf_field() ?>
+                <input type="hidden" name="menus_save" value="1">
+                <input type="hidden" name="menus_reset" id="menusReset" value="">
+                <?php foreach (site_menu_locations() as $loc => $locTitle): ?>
+                <div class="ts-accordion" style="margin-bottom:16px">
+                    <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
+                        <h3><?= e($locTitle) ?> <span class="muted" style="font-weight:400;font-size:12px">(<?= count($siteMenus[$loc] ?? []) ?> آیتم)</span></h3>
+                        <span class="ts-acc-icon">▼</span>
+                    </div>
+                    <div class="ts-acc-body">
+                        <div id="menuList_<?= $loc ?>" style="display:flex;flex-direction:column;gap:8px">
+                            <?php foreach (($siteMenus[$loc] ?? []) as $idx => $mi): ?>
+                            <div class="card menu-row" style="padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <input type="hidden" name="m_<?= $loc ?>_key[]" value="<?= e($mi['key'] ?? 'item' . $idx) ?>">
+                                <label title="فعال/غیرفعال" style="display:flex;align-items:center;gap:4px;font-size:12px;color:#64748b">
+                                    <input type="checkbox" name="m_<?= $loc ?>_enabled[]" value="<?= $idx ?>" data-en <?= !empty($mi['enabled']) ? 'checked' : '' ?>> فعال
+                                </label>
+                                <label style="flex:2;min-width:140px">عنوان<input type="text" name="m_<?= $loc ?>_label[]" value="<?= e($mi['label'] ?? '') ?>" style="width:100%"></label>
+                                <label style="flex:2;min-width:140px">لینک<input type="text" name="m_<?= $loc ?>_url[]" value="<?= e($mi['url'] ?? '') ?>" dir="ltr" style="width:100%"></label>
+                                <?php if ($loc === 'tabbar'): ?>
+                                <label>آیکون
+                                    <select name="m_<?= $loc ?>_icon[]">
+                                        <?php foreach ($siteMenuIcons as $ik => $idata): ?>
+                                        <option value="<?= $ik ?>" <?= ($mi['icon'] ?? '') === $ik ? 'selected' : '' ?>><?= e($idata['label']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <?php else: ?>
+                                <input type="hidden" name="m_<?= $loc ?>_icon[]" value="home">
+                                <?php endif; ?>
+                                <span style="display:flex;gap:4px">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="menuMoveUp(this)" title="بالا">▲</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="menuMoveDown(this)" title="پایین">▼</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('.menu-row').remove()" title="حذف">✕</button>
+                                </span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                            <button type="button" class="btn btn-secondary" onclick="menuAddItem('<?= $loc ?>')">+ افزودن آیتم</button>
+                            <button type="button" class="btn btn-secondary" onclick="menuReset('<?= $loc ?>','<?= e($locTitle) ?>')">بازنشانی به پیش‌فرض</button>
+                        </p>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+                <p><button type="submit" class="btn btn-primary">ذخیره همه منوها</button></p>
+            </form>
+            <script>
+            var menuIconOptions = <?= json_encode(array_map(function($v,$k){ return ['k'=>$k,'t'=>$v['label']]; }, $siteMenuIcons, array_keys($siteMenuIcons)), JSON_UNESCAPED_UNICODE) ?>;
+            function menuAddItem(loc){
+                var list = document.getElementById('menuList_'+loc);
+                var div = document.createElement('div');
+                div.className = 'card menu-row';
+                div.style.cssText = 'padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+                var iconHtml = (loc === 'tabbar')
+                    ? '<label>آیکون<select name="m_'+loc+'_icon[]">'+menuIconOptions.map(function(o){return '<option value="'+o.k+'">'+o.t+'</option>';}).join('')+'</select></label>'
+                    : '<input type="hidden" name="m_'+loc+'_icon[]" value="home">';
+                div.innerHTML =
+                    '<input type="hidden" name="m_'+loc+'_key[]" value="item'+Date.now()+'">'+
+                    '<label title="فعال/غیرفعال" style="display:flex;align-items:center;gap:4px;font-size:12px;color:#64748b"><input type="checkbox" name="m_'+loc+'_enabled[]" value="0" data-en checked> فعال</label>'+
+                    '<label style="flex:2;min-width:140px">عنوان<input type="text" name="m_'+loc+'_label[]" style="width:100%"></label>'+
+                    '<label style="flex:2;min-width:140px">لینک<input type="text" name="m_'+loc+'_url[]" dir="ltr" style="width:100%" placeholder="/page"></label>'+
+                    iconHtml+
+                    '<span style="display:flex;gap:4px">'+
+                    '<button type="button" class="btn btn-secondary btn-sm" onclick="menuMoveUp(this)" title="بالا">▲</button>'+
+                    '<button type="button" class="btn btn-secondary btn-sm" onclick="menuMoveDown(this)" title="پایین">▼</button>'+
+                    '<button type="button" class="btn btn-secondary btn-sm" onclick="this.closest(\'.menu-row\').remove()" title="حذف">✕</button></span>';
+                list.appendChild(div);
+            }
+            function menuMoveUp(btn){
+                var row = btn.closest('.menu-row');
+                var prev = row.previousElementSibling;
+                if (prev) row.parentElement.insertBefore(row, prev);
+            }
+            function menuMoveDown(btn){
+                var row = btn.closest('.menu-row');
+                var next = row.nextElementSibling;
+                if (next) row.parentElement.insertBefore(next, row);
+            }
+            function menuReset(loc, title){
+                if (!confirm('«'+title+'» به حالت پیش‌فرض برگردد؟')) return;
+                document.getElementById('menusReset').value = loc;
+                document.getElementById('menusForm').submit();
+            }
+            document.getElementById('menusForm').addEventListener('submit', function(){
+                document.querySelectorAll('[id^="menuList_"]').forEach(function(list){
+                    list.querySelectorAll('.menu-row').forEach(function(row, i){
+                        var cb = row.querySelector('input[type=checkbox][data-en]');
+                        if (cb) cb.value = i;
+                    });
+                });
+            });
+            </script>
         <?php elseif ($page === 'template_studio'): ?>
             <h1>استودیو قالب</h1>
             <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>
@@ -4150,53 +4265,11 @@ if ($page === 'design') {
                 </script>
             </section>
             <?php else: ?>
-            <!-- ویرایش منوی شناور -->
-            <div class="ts-accordion" style="margin-bottom:20px">
-                <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
-                    <h3>منوی شناور (موبایل)</h3>
-                    <span class="ts-acc-icon">▼</span>
-                </div>
-                <div class="ts-acc-body">
-                    <?php if ($menuMsg): ?><div class="alert alert-ok"><?= e($menuMsg) ?></div><?php endif; ?>
-                    <form method="post" id="menuForm">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="menu_save" value="1">
-                        <div id="menuItems" style="display:flex;flex-direction:column;gap:8px">
-                            <?php foreach ($tabbarMenu as $idx => $mi): ?>
-                            <div class="card" style="padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" data-menu-idx="<?= $idx ?>">
-                                <input type="hidden" name="menu_key[]" value="<?= e($mi['key'] ?? '') ?>">
-                                <label style="flex:1;min-width:120px">عنوان<input type="text" name="menu_label[]" value="<?= e($mi['label'] ?? '') ?>" style="width:100%"></label>
-                                <label style="flex:1;min-width:120px">لینک<input type="text" name="menu_url[]" value="<?= e($mi['url'] ?? '') ?>" dir="ltr" style="width:100%"></label>
-                                <label>آیکون
-                                    <select name="menu_icon[]">
-                                        <?php foreach (['home'=>'خانه','order'=>'سفارش','about'=>'درباره','contact'=>'تماس'] as $ik => $in): ?>
-                                        <option value="<?= $ik ?>" <?= ($mi['icon'] ?? '') === $ik ? 'selected' : '' ?>><?= e($in) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </label>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('[data-menu-idx]').remove()">حذف</button>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <p style="margin-top:12px">
-                            <button type="button" class="btn btn-secondary" onclick="addMenuItem()">+ افزودن آیتم</button>
-                            <button type="submit" class="btn btn-primary">ذخیره منو</button>
-                        </p>
-                    </form>
-                    <script>
-                    function addMenuItem(){
-                        var div = document.createElement('div');
-                        div.className = 'card';
-                        div.style.cssText = 'padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
-                        div.innerHTML = '<input type="hidden" name="menu_key[]" value="item'+Date.now()+'">'+
-                            '<label style="flex:1;min-width:120px">عنوان<input type="text" name="menu_label[]" style="width:100%"></label>'+
-                            '<label style="flex:1;min-width:120px">لینک<input type="text" name="menu_url[]" dir="ltr" style="width:100%" placeholder="/page"></label>'+
-                            '<label>آیکون<select name="menu_icon[]"><option value="home">خانه</option><option value="order">سفارش</option><option value="about">درباره</option><option value="contact">تماس</option></select></label>'+
-                            '<button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()">حذف</button>';
-                        document.getElementById('menuItems').appendChild(div);
-                    }
-                    </script>
-                </div>
+            <!-- مدیریت منوها به صفحه «مدیریت منوها» منتقل شد (۱۰٫۱۸) -->
+            <div class="card" style="margin-bottom:20px">
+                <h3>مدیریت منوها</h3>
+                <p class="muted">ویرایش آیتم‌های همه منوهای سایت (هدر، منوی شناور، فوتر) به صفحه «مدیریت منوها» منتقل شد.</p>
+                <p><a href="admin.php?page=menus" class="btn btn-primary">رفتن به مدیریت منوها</a></p>
             </div>
             <!-- ترتیب سکشن‌های صفحه اصلی (جمع‌شونده) -->
             <div class="ts-accordion" style="margin-bottom:20px">

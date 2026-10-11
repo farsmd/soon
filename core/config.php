@@ -1354,6 +1354,7 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     // --- نسخه ۹٫۹۹٫۶۷: لینک‌های سفارش (همیشه) ---
     try {
         migrate_order_links_v9967_if_needed();
+        migrate_menus_v1018_if_needed();
     } catch (Throwable $e) {
         error_log('order links migration failed: ' . $e->getMessage());
     }
@@ -1928,6 +1929,222 @@ function migrate_onepage_v9951_if_needed(): void
     }
 }
 
+/** ---------- مدیریت یکپارچه منوها (۱۰٫۱۸) ---------- */
+/** موقعیت‌های منوی سایت */
+function site_menu_locations(): array
+{
+    return [
+        'header'   => 'منوی اصلی هدر',
+        'tabbar'   => 'منوی شناور موبایل',
+        'footer_1' => 'فوتر — ستون اول (دسترسی سریع)',
+        'footer_2' => 'فوتر — ستون دوم (سفارش و کاتالوگ)',
+    ];
+}
+
+/** آیکون‌های SVG واقعی منوی شناور */
+function site_menu_icons(): array
+{
+    return [
+        'home'    => ['label' => 'خانه', 'body' => '<path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>'],
+        'order'   => ['label' => 'سفارش', 'body' => '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/>'],
+        'box'     => ['label' => 'محصولات', 'body' => '<path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/>'],
+        'user'    => ['label' => 'درباره', 'body' => '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>'],
+        'phone'   => ['label' => 'تماس', 'body' => '<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>'],
+        'image'   => ['label' => 'گالری', 'body' => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'],
+        'article' => ['label' => 'مقالات', 'body' => '<path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-4 0V9"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/>'],
+        'tag'     => ['label' => 'پیشنهاد', 'body' => '<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.83z"/><circle cx="7" cy="7" r="1.2"/>'],
+    ];
+}
+
+function site_menu_icon_svg(string $key): string
+{
+    $icons = site_menu_icons();
+    $body = $icons[$key]['body'] ?? $icons['home']['body'];
+    return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' . $body . '</g></svg>';
+}
+
+/** پیش‌فرض هر موقعیت منو */
+function site_menu_default(string $loc): array
+{
+    if ($loc === 'header') {
+        $out = [];
+        foreach (menu_items() as $it) {
+            $t = trim((string) ($it['title'] ?? ''));
+            $u = trim((string) ($it['url'] ?? ''));
+            if ($t !== '' && $u !== '') {
+                $out[] = ['label' => $t, 'url' => $u, 'enabled' => true];
+            }
+        }
+        return $out;
+    }
+    if ($loc === 'tabbar') {
+        return [
+            ['key' => 'home', 'label' => 'خانه', 'url' => '/', 'icon' => 'home', 'enabled' => true],
+            ['key' => 'order', 'label' => 'ثبت سفارش', 'url' => '/order', 'icon' => 'order', 'enabled' => true],
+            ['key' => 'about', 'label' => 'درباره ما', 'url' => '/#about', 'icon' => 'user', 'enabled' => true],
+            ['key' => 'contact', 'label' => 'تماس با ما', 'url' => '/#contact', 'icon' => 'phone', 'enabled' => true],
+        ];
+    }
+    if ($loc === 'footer_1') {
+        return [
+            ['label' => 'خانه', 'url' => '/', 'enabled' => true],
+            ['label' => 'محصولات', 'url' => '/products', 'enabled' => true],
+            ['label' => 'گالری پروژه‌ها', 'url' => '/gallery', 'enabled' => true],
+            ['label' => 'درباره ما', 'url' => '/#about', 'enabled' => true],
+        ];
+    }
+    if ($loc === 'footer_2') {
+        return [
+            ['label' => 'ثبت سفارش', 'url' => '/order', 'enabled' => true],
+            ['label' => 'دانلود کاتالوگ (PDF)', 'url' => '/catalog/linerlight-catalog.pdf', 'enabled' => true],
+        ];
+    }
+    return [];
+}
+
+/** همه منوها: تنظیم ذخیره‌شده + پیش‌فرض برای موقعیت‌های خالی */
+function site_menus(): array
+{
+    $menus = [];
+    $raw = get_setting('site_menus', '');
+    if ($raw !== '') {
+        $d = json_decode($raw, true);
+        if (is_array($d)) {
+            $menus = $d;
+        }
+    }
+    foreach (site_menu_locations() as $loc => $_) {
+        if (empty($menus[$loc]) || !is_array($menus[$loc])) {
+            $menus[$loc] = site_menu_default($loc);
+        }
+    }
+    return $menus;
+}
+
+/** آیتم‌های فعال یک موقعیت (با fallback امن به پیش‌فرض کارخانه‌ای) */
+function site_menu_items(string $loc): array
+{
+    $menus = site_menus();
+    $out = [];
+    foreach ((array) ($menus[$loc] ?? []) as $it) {
+        if (!is_array($it)) {
+            continue;
+        }
+        if (array_key_exists('enabled', $it) && !(bool) $it['enabled']) {
+            continue;
+        }
+        $label = trim((string) ($it['label'] ?? $it['title'] ?? ''));
+        $url = trim((string) ($it['url'] ?? ''));
+        if ($label === '' || $url === '') {
+            continue;
+        }
+        $out[] = [
+            'label' => $label,
+            'url'   => $url,
+            'icon'  => (string) ($it['icon'] ?? 'home'),
+            'key'   => (string) ($it['key'] ?? ''),
+        ];
+    }
+    if ($out === []) {
+        // fallback امن: ناوبری هیچ‌وقت خالی نماند
+        foreach (site_menu_default($loc) as $it) {
+            $out[] = [
+                'label' => (string) ($it['label'] ?? ''),
+                'url'   => (string) ($it['url'] ?? ''),
+                'icon'  => (string) ($it['icon'] ?? 'home'),
+                'key'   => (string) ($it['key'] ?? ''),
+            ];
+        }
+    }
+    return $out;
+}
+
+/** HTML لینک‌های یک ستون فوتر */
+function footer_menu_html(string $loc): string
+{
+    $out = '';
+    foreach (site_menu_items($loc) as $it) {
+        $out .= '<a href="' . e($it['url']) . '">' . e($it['label']) . '</a>';
+    }
+    return $out;
+}
+
+/** مایگریشن نسخه ۱۰٫۱۸: مدیریت یکپارچه منوها */
+function migrate_menus_v1018_if_needed(): void
+{
+    try {
+        if (get_setting('menus_1018', '0') === '1') {
+            return;
+        }
+        // ۱) ساخت site_menus از وضعیت فعلی سایت
+        $raw = get_setting('site_menus', '');
+        $menus = [];
+        if ($raw !== '') {
+            $d = json_decode($raw, true);
+            if (is_array($d)) {
+                $menus = $d;
+            }
+        }
+        // منوی شناور ذخیره‌شده در ۱۰٫۱۷ حفظ شود
+        $oldTabbar = json_decode((string) get_setting('tabbar_menu', '[]'), true);
+        if (empty($menus['tabbar']) && is_array($oldTabbar) && $oldTabbar !== []) {
+            $menus['tabbar'] = $oldTabbar;
+        }
+        foreach (array_keys(site_menu_locations()) as $loc) {
+            if (empty($menus[$loc]) || !is_array($menus[$loc])) {
+                $menus[$loc] = site_menu_default($loc);
+            }
+        }
+        set_setting('site_menus', json_encode($menus, JSON_UNESCAPED_UNICODE));
+        // ۲) فوتر: فقط اگر دقیقاً نسخه کارخانه‌ای است، لینک‌های هاردکد → پلیس‌هولدر
+        $ftpl = get_template_content('footer');
+        if ($ftpl !== '' && strpos($ftpl, 'footer_menu_1') === false) {
+            $new = $ftpl;
+            if (strpos($ftpl, '<a href="/">خانه</a>') !== false) {
+                $new = preg_replace(
+                    '/<nav class="f-links" aria-label="دسترسی سریع">.*?<\/nav>/s',
+                    '<nav class="f-links" aria-label="دسترسی سریع">{{footer_menu_1}}</nav>',
+                    $new
+                );
+            }
+            if (strpos($ftpl, '/catalog/linerlight-catalog.pdf') !== false) {
+                $new = preg_replace(
+                    '/<nav class="f-links" aria-label="سفارش و کاتالوگ">.*?<\/nav>/s',
+                    '<nav class="f-links" aria-label="سفارش و کاتالوگ">{{footer_menu_2}}</nav>',
+                    $new
+                );
+            }
+            if (is_string($new) && $new !== $ftpl) {
+                db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'footer'")->execute([':c' => $new]);
+            }
+        }
+        // ۳) دسترسی صفحه «مدیریت منوها» برای همه نقش‌ها
+        try {
+            $rolesRaw = get_setting('user_roles', '');
+            if ($rolesRaw !== '') {
+                $roles = json_decode($rolesRaw, true);
+                if (is_array($roles)) {
+                    $changed = false;
+                    foreach ($roles as &$r) {
+                        if (!in_array('menus', (array) ($r['pages'] ?? []), true)) {
+                            $r['pages'][] = 'menus';
+                            $changed = true;
+                        }
+                    }
+                    unset($r);
+                    if ($changed) {
+                        set_setting('user_roles', json_encode($roles, JSON_UNESCAPED_UNICODE));
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+        }
+        set_setting('menus_1018', '1');
+    } catch (Throwable $e) {
+        error_log('menus v1018 migration failed: ' . $e->getMessage());
+    }
+}
+
 function menu_items(): array
 {
     $items = [['title' => 'خانه', 'url' => pretty_url('index.php')]];
@@ -1962,8 +2179,8 @@ function mobile_menu_html(): string
     $html = '<div class="mmenu" id="mmenu" aria-hidden="true">';
     $html .= '<button type="button" class="mmenu-close" aria-label="بستن منو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
     $html .= '<nav class="mmenu-inner" aria-label="منوی موبایل">';
-    foreach (menu_items() as $item) {
-        $html .= '<a class="mlink" href="' . e($item['url']) . '">' . e($item['title']) . '</a>';
+    foreach (site_menu_items('header') as $item) {
+        $html .= '<a class="mlink" href="' . e($item['url']) . '">' . e($item['label']) . '</a>';
     }
     $html .= '<div class="mmenu-foot">' . e((string) get_setting('site_title', '')) . '</div>';
     $html .= '</nav></div>';
@@ -2716,8 +2933,8 @@ function menu_html(string $class = 'main-nav'): string
     $html = '<nav class="' . e($class) . '" aria-label="منوی اصلی">';
     $html .= '<button type="button" class="nav-toggle" aria-expanded="false" aria-controls="mmenu" aria-label="باز کردن منو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h12M4 12h7M4 17h14"/></svg></button>';
     $html .= '<div class="nav-list" id="nav-list">';
-    foreach (menu_items() as $item) {
-        $html .= '<a href="' . e($item['url']) . '">' . e($item['title']) . '</a>';
+    foreach (site_menu_items('header') as $item) {
+        $html .= '<a href="' . e($item['url']) . '">' . e($item['label']) . '</a>';
     }
     // انتخاب تم فقط از پنل مدیریت (تنظیمات ظاهری ← تم پیش‌فرض)
     $html .= '</div></nav>';
@@ -3348,6 +3565,8 @@ function template_context(string $key, array $settings, ?array $section = null, 
         'seo_description'   => (string) ($settings['seo_description'] ?? '') !== '' ? (string) $settings['seo_description'] : $siteDesc,
         'current_year'      => date('Y'),
         'menu'              => menu_html(),
+        'footer_menu_1'     => footer_menu_html('footer_1'),
+        'footer_menu_2'     => footer_menu_html('footer_2'),
         'section_title'     => (string) ($section['title'] ?? ''),
         'section_heading'   => $heading,
         'section_body'      => $body,
@@ -3822,25 +4041,13 @@ function tabbar_html(): string
     $svg = function (string $body): string {
         return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' . $body . '</g></svg>';
     };
-    // آیتم‌های منوی شناور از تنظیمات (قابل ویرایش از پنل)
-    $menuJson = get_setting('tabbar_menu', '[]');
-    $menuData = json_decode($menuJson, true);
-    if (!is_array($menuData) || empty($menuData)) {
-        // fallback به پیش‌فرض
-        $menuData = [
-            ['key' => 'home', 'label' => 'خانه', 'url' => '/', 'icon' => 'home'],
-            ['key' => 'order', 'label' => 'ثبت سفارش', 'url' => '/order', 'icon' => 'order'],
-            ['key' => 'about', 'label' => 'درباره ما', 'url' => '/about', 'icon' => 'about'],
-            ['key' => 'contact', 'label' => 'تماس با ما', 'url' => '/contact', 'icon' => 'contact'],
-        ];
-    }
+    // آیتم‌های منوی شناور از مدیریت یکپارچه منوها (۱۰٫۱۸)
+    $menuData = site_menu_items('tabbar');
     // نگاشت آیکون‌ها
-    $icons = [
-        'home' => '<path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>',
-        'order' => '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/>',
-        'about' => '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-        'contact' => '<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>',
-    ];
+    $icons = [];
+    foreach (site_menu_icons() as $ik => $idata) {
+        $icons[$ik] = $idata['body'];
+    }
     $items = [];
     foreach ($menuData as $m) {
         $iconKey = $m['icon'] ?? 'home';
