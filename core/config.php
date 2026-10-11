@@ -2193,7 +2193,7 @@ function appearance_css(): string
 .pc-btn:hover{transform:translateY(-2px);box-shadow:0 11px 24px rgba(15,23,42,.2)}
 .pc-btn-outline{min-height:47px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:1px solid #d4af37;border-radius:12px;background:transparent;color:#0f172a;font-size:15px;font-weight:600;text-decoration:none;transition:.25s}
 .pc-btn-outline:hover{transform:translateY(-2px)}
-@media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:1/1!important;border-radius:15px!important;max-width:280px;margin:0 auto}.pc-content{padding:24px 16px 16px!important}}
+@media (max-width:640px){.product-card{grid-template-columns:1fr!important;gap:0!important;padding:12px!important;border-radius:23px!important}.pc-media{aspect-ratio:1/1!important;border-radius:15px!important;width:100%!important;margin:0!important}.pc-content{padding:24px 16px 16px!important}}
 /* نسخه ۹٫۹۹٫۷۶: پنل جزئیات سفارش — چسبیده به پایین، بدون هم‌پوشانی */
 .so-summary{position:fixed!important;bottom:0!important;left:0!important;right:0!important;z-index:50!important;border-radius:20px 20px 0 0!important;margin:0!important;max-width:680px;margin-left:auto!important;margin-right:auto!important}
 body{padding-bottom:140px!important}
@@ -2241,13 +2241,13 @@ function migrate_rebuild_appearance_v9971_if_needed(): void
     try {
         // نسخه ۹٫۹۹٫۸۳: بازسازی مجدد برای CSS کارت محصول
         $flag = get_setting('rebuild_appear_9971', '0');
-        if ($flag === '3') {
+        if ($flag === '4') {
             return;
         }
         if (function_exists('appearance_apply')) {
             appearance_apply();
         }
-        set_setting('rebuild_appear_9971', '3');
+        set_setting('rebuild_appear_9971', '4');
     } catch (Throwable $e) {
         error_log('rebuild appearance failed: ' . $e->getMessage());
     }
