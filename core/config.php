@@ -1291,6 +1291,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('mobile header migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۵۱: تک‌صفحه‌ای (یک بار) ---
+    try {
+        migrate_onepage_v9951_if_needed();
+    } catch (Throwable $e) {
+        error_log('onepage migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -1757,6 +1763,90 @@ function is_valid_slug(string $slug): bool
 /**
  * آیتم‌های منوی سایت: همیشه لینک خانه + صفحه‌هایی که show_in_menu دارند.
  */
+/** سکشن‌های تک‌صفحه‌ای (۹٫۹۹٫۵۱): درباره ما + پیش‌نمایش گالری + تماس — روی صفحه اصلی */
+function onepage_sections_html(array $settings): string
+{
+    $html = '';
+    // درباره ما (محتوای صفحه about — از پنل قابل ویرایش)
+    $about = get_page_by_slug('about', true);
+    if ($about !== null) {
+        $html .= '<section id="about" class="onepage-section" aria-label="' . e((string) $about['title']) . '">' . "\n";
+        $html .= render_db_template('single', $settings, null, $about) . "\n";
+        $html .= render_page_blocks((int) $about['id']) . "\n";
+        $html .= '</section>' . "\n";
+    }
+    // پیش‌نمایش گالری (۸ عکس اول + لینک مشاهده همه)
+    try {
+        $figs = gallery_get_figures(db());
+    } catch (Throwable $e) {
+        $figs = [];
+    }
+    if (!empty($figs)) {
+        $preview = array_slice($figs, 0, 8);
+        $html .= '<section id="gallery-preview" class="onepage-section" aria-label="گالری پروژه‌ها">' . "\n";
+        $html .= '<div class="container"><h2 class="section-title">گالری پروژه‌ها</h2>';
+        $html .= '<div class="onepage-gallery-grid">';
+        foreach ($preview as $f) {
+            $src = e((string) ($f['src'] ?? ''));
+            $cap = e((string) ($f['caption'] ?? ''));
+            if ($src === '') continue;
+            $html .= '<a class="onepage-gitem" href="' . e(pretty_url('page.php?slug=gallery')) . '" aria-label="' . $cap . '">';
+            $html .= '<img src="' . $src . '" alt="' . $cap . '" loading="lazy">';
+            $html .= '</a>';
+        }
+        $html .= '</div>';
+        $html .= '<div class="onepage-more"><a class="btn" href="' . e(pretty_url('page.php?slug=gallery')) . '">مشاهده همه عکس‌ها</a></div>';
+        $html .= '</div></section>' . "\n";
+    }
+    // تماس با ما (محتوای صفحه contact + فرم — از پنل قابل ویرایش)
+    $contact = get_page_by_slug('contact', true);
+    if ($contact !== null) {
+        $html .= '<section id="contact" class="onepage-section" aria-label="' . e((string) $contact['title']) . '">' . "\n";
+        $html .= render_db_template('contact_page', $settings, null, $contact) . "\n";
+        $html .= render_page_blocks((int) $contact['id']) . "\n";
+        $html .= '</section>' . "\n";
+    }
+    return $html;
+}
+
+/** استایل تک‌صفحه‌ای (۹٫۹۹٫۵۱) */
+function onepage_css(): string
+{
+    return <<<'CSS'
+/* ---------- تک‌صفحه‌ای (۹٫۹۹٫۵۱) ---------- */
+html{scroll-behavior:smooth}
+.onepage-section{scroll-margin-top:84px;padding:56px 0}
+.onepage-gallery-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px}
+.onepage-gitem{display:block;border-radius:14px;overflow:hidden;aspect-ratio:1;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.onepage-gitem img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
+.onepage-gitem:hover img{transform:scale(1.06)}
+.onepage-more{text-align:center;margin-top:28px}
+@media(max-width:768px){
+  .onepage-gallery-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .onepage-section{padding:40px 0}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+CSS;
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۵۱: استایل تک‌صفحه‌ای */
+function migrate_onepage_v9951_if_needed(): void
+{
+    try {
+        if (get_setting('onepage_9951', '0') === '1') {
+            return;
+        }
+        $css = (string) get_setting('site_css', '');
+        if ($css !== '' && strpos($css, 'تک‌صفحه‌ای') === false) {
+            $css .= "\n" . onepage_css() . "\n";
+            set_setting('site_css', $css);
+        }
+        set_setting('onepage_9951', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
 function menu_items(): array
 {
     $items = [['title' => 'خانه', 'url' => pretty_url('index.php')]];
@@ -1764,11 +1854,19 @@ function menu_items(): array
     if (get_setting('catalog_public', '1') === '1') {
         $items[] = ['title' => get_setting('catalog_title', 'کاتالوگ محصولات'), 'url' => pretty_url('products.php')];
     }
+    $homeUrl = pretty_url('index.php');
     foreach (get_pages(true) as $p) {
         if ((int) ($p['show_in_menu'] ?? 0) === 1) {
+            $pslug = (string) $p['slug'];
+            // تک‌صفحه‌ای (۹٫۹۹٫۵۱): درباره و تماس اسکرول به سکشن صفحه اصلی
+            if ($pslug === 'about' || $pslug === 'contact') {
+                $purl = $homeUrl . '#' . $pslug;
+            } else {
+                $purl = pretty_url('page.php?slug=' . urlencode($pslug));
+            }
             $items[] = [
                 'title' => (string) $p['title'],
-                'url'   => pretty_url('page.php?slug=' . urlencode((string) $p['slug'])),
+                'url'   => $purl,
             ];
         }
     }

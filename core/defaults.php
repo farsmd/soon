@@ -1069,6 +1069,7 @@ CSS;
     $out = $css . "\n" . (function_exists('acc_gallery_css') ? acc_gallery_css() : '');
     $out .= "\n" . (function_exists('mobile_menu_css') ? mobile_menu_css() : '');
     $out .= "\n" . (function_exists('mobile_header_css') ? mobile_header_css() : '');
+    $out .= "\n" . (function_exists('onepage_css') ? onepage_css() : '');
     return $out;
 }
 

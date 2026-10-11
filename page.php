@@ -14,6 +14,11 @@ track_public_request();
 
 $settings = all_settings();
 $slug = trim((string) ($_GET['slug'] ?? ''));
+// تک‌صفحه‌ای (۹٫۹۹٫۵۱): درباره و تماس روی صفحه اصلی هستند
+if ($slug === 'about' || $slug === 'contact') {
+    header('Location: ' . pretty_url('index.php') . '#' . $slug, true, 301);
+    exit;
+}
 $page = ($slug !== '' && is_valid_slug($slug)) ? get_page_by_slug($slug, true) : null;
 
 $siteTitle = (string) ($settings['site_title'] ?? 'وب‌سایت من');

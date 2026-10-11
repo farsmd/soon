@@ -69,6 +69,8 @@ foreach ($sections as $section) {
             echo '</main>' . "\n";
             $mainOpen = false;
         }
+        // تک‌صفحه‌ای (۹٫۹۹٫۵۱): سکشن‌های درباره/گالری/تماس قبل از فوتر
+        echo onepage_sections_html($settings) . "\n";
         echo render_db_template('footer', $settings, $section) . "\n";
         continue;
     }
