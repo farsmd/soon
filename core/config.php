@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-define('APP_VERSION', '10.0');
+define('APP_VERSION', '10.1');
 // روت برنامه (یک سطح بالاتر از core/)
 define('APP_ROOT', dirname(__DIR__));
 define('DB_FILE', APP_ROOT . '/database.sqlite');
