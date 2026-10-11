@@ -1911,6 +1911,53 @@ foreach (all_templates() as $tplRow) {
     $templateTitles[(string) $tplRow['template_key']] = (string) $tplRow['title'];
 }
 
+// ---------- AJAX: پیش‌نمایش قالب با دیتای واقعی ----------
+if (isset($_GET['ts_preview']) && $_GET['ts_preview'] === '1') {
+    header('Content-Type: application/json; charset=utf-8');
+    $pkey = trim((string) ($_POST['key'] ?? ''));
+    $phtml = (string) ($_POST['html'] ?? '');
+    $result = '';
+    try {
+        $settings = get_all_settings();
+        $ctx = [];
+        $section = null;
+        $product = null;
+        // انتخاب دیتای واقعی بر اساس نوع قالب
+        if (in_array($pkey, ['hero','products','about','gallery','contact','slider','features','content'], true)) {
+            // پیدا کردن سکشن واقعی
+            foreach (get_sections(false) as $sec) {
+                if (section_template_key($sec) === $pkey) { $section = $sec; break; }
+            }
+            $ctx = template_context($pkey, $settings, $section);
+        } elseif (in_array($pkey, ['product_card','product'], true)) {
+            // اولین محصول واقعی
+            $prods = function_exists('get_all_products') ? get_all_products() : [];
+            if (!empty($prods)) { $product = $prods[0]; }
+            $ctx = template_context($pkey, $settings, null, null, ['product' => $product]);
+            // کانتکست کارت محصول
+            if ($product && $pkey === 'product_card') {
+                $pid = (int) $product['id'];
+                $ctx['product_id'] = (string) $pid;
+                $ctx['product_name'] = (string) ($product['name'] ?? '');
+                $ctx['product_image'] = uploaded_image_url($product['image'] ?? '');
+                $ctx['category_title'] = (string) ($product['category_title'] ?? '');
+                $ctx['short_desc'] = (string) ($product['short_desc'] ?? '');
+                $ctx['price'] = function_exists('format_price') ? format_price($product['price_per_meter'] ?? 0) : '';
+                $ctx['product_url'] = '/products?id=' . $pid;
+                $ctx['order_url'] = '/order?product=' . $pid;
+            }
+        } else {
+            // هدر، فوتر و بقیه — فقط تنظیمات سایت
+            $ctx = template_context($pkey, $settings, null);
+        }
+        $result = tpl_render($phtml, $ctx);
+    } catch (Throwable $e) {
+        $result = '<p style="color:red">خطا در رندر: ' . e($e->getMessage()) . '</p>';
+    }
+    echo json_encode(['html' => $result], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // ---------- صفحه «استودیو قالب» ----------
 // ذخیره ویرایش قالب
 $tsMsg = '';
@@ -4037,14 +4084,28 @@ if ($page === 'design') {
                     update();
                 }
                 var tsPreviewTimer = null;
+                var tsEditKey = document.querySelector('input[name="ts_key"]').value;
                 function tsUpdatePreview(){
                     clearTimeout(tsPreviewTimer);
                     tsPreviewTimer = setTimeout(function(){
                         var html = document.getElementById('tsHtmlTa').value;
                         var css = document.getElementById('tsCssTa').value;
-                        var doc = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + html + '</body></html>';
-                        document.getElementById('tsPreviewFrame').srcdoc = doc;
-                    }, 300);
+                        // رندر با دیتای واقعی از سرور
+                        var fd = new FormData();
+                        fd.append('key', tsEditKey);
+                        fd.append('html', html);
+                        fetch('admin.php?ts_preview=1', {method:'POST', body:fd})
+                            .then(function(r){ return r.json(); })
+                            .then(function(d){
+                                var doc = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + (d.html || '') + '</body></html>';
+                                document.getElementById('tsPreviewFrame').srcdoc = doc;
+                            })
+                            .catch(function(){
+                                // fallback: نمایش خام
+                                var doc2 = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + html + '</body></html>';
+                                document.getElementById('tsPreviewFrame').srcdoc = doc2;
+                            });
+                    }, 500);
                 }
                 function tsSwitchTab(which, btn){
                     document.querySelectorAll('.ts-tab').forEach(function(b){ b.classList.remove('active'); });
