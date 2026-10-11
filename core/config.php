@@ -3417,7 +3417,9 @@ function tpl_raw_keys(): array
         // نسخه ۹: ویترین محصولات صفحه اصلی
         'products_showcase',
         // نسخه ۹٫۹۹٫۶۴: توضیحات محصول (HTML از ادمین)
-        'product_description'];
+        'product_description',
+        // نسخه ۱۰٫۱۸: لینک‌های منوی فوتر (HTML داخلی، escape نشود)
+        'footer_menu_1', 'footer_menu_2'];
 }
 
 /** پارس بازگشتی توکن‌های قالب به درخت گره‌ها (متن / متغیر / شرط) */
