@@ -3945,10 +3945,26 @@ if ($page === 'design') {
                 .ts-tab{padding:8px 20px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-weight:600}
                 .ts-tab.active{background:#0f172a;color:#fff;border-color:#0f172a}
                 </style>
-                <div class="ts-tabs">
-                    <button type="button" class="ts-tab active" onclick="tsSwitchTab('html',this)">HTML</button>
-                    <button type="button" class="ts-tab" onclick="tsSwitchTab('css',this)">CSS</button>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+                    <div class="ts-tabs" style="margin:0">
+                        <button type="button" class="ts-tab active" onclick="tsSwitchTab('html',this)">HTML</button>
+                        <button type="button" class="ts-tab" onclick="tsSwitchTab('css',this)">CSS</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-right:auto">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="tsFontSize(-1)" title="کوچیک‌تر">A-</button>
+                        <span id="tsFontSizeLabel" style="font-size:13px;color:#64748b;min-width:40px;text-align:center">13px</span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="tsFontSize(1)" title="بزرگ‌تر">A+</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="tsToggleFullscreen()" title="تمام‌صفحه">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                            تمام‌صفحه
+                        </button>
+                    </div>
                 </div>
+                <style>
+                .ts-editor-fullscreen{position:fixed !important;top:0;left:0;right:0;bottom:0;z-index:9999;background:#fff;padding:20px;overflow:auto}
+                .ts-editor-fullscreen .ts-codebox textarea{height:70vh !important}
+                .ts-editor-fullscreen .ts-preview-body iframe{height:70vh !important}
+                </style>
                 <form method="post" id="tsEditForm">
                     <?= csrf_field() ?>
                     <input type="hidden" name="ts_save" value="1">
@@ -4058,6 +4074,31 @@ if ($page === 'design') {
                             });
                     }, 500);
                 }
+                var tsCurrentFontSize = 13;
+                function tsFontSize(delta){
+                    tsCurrentFontSize = Math.max(10, Math.min(24, tsCurrentFontSize + delta));
+                    document.getElementById('tsFontSizeLabel').textContent = tsCurrentFontSize + 'px';
+                    var boxes = document.querySelectorAll('.ts-codebox pre, .ts-codebox textarea, .ts-linenums');
+                    boxes.forEach(function(el){
+                        el.style.fontSize = tsCurrentFontSize + 'px';
+                    });
+                }
+                function tsToggleFullscreen(){
+                    var wrap = document.querySelector('.ts-editor-wrap').parentElement;
+                    // پیدا کردن section والد
+                    var section = wrap.closest('section.card');
+                    if (section) {
+                        section.classList.toggle('ts-editor-fullscreen');
+                    }
+                }
+                // خروج از تمام‌صفحه با Escape
+                document.addEventListener('keydown', function(e){
+                    if (e.key === 'Escape') {
+                        document.querySelectorAll('.ts-editor-fullscreen').forEach(function(el){
+                            el.classList.remove('ts-editor-fullscreen');
+                        });
+                    }
+                });
                 function tsSwitchTab(which, btn){
                     document.querySelectorAll('.ts-tab').forEach(function(b){ b.classList.remove('active'); });
                     btn.classList.add('active');
