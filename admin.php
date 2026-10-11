@@ -174,6 +174,7 @@ function nav_icon(string $name): string
         'layout'    => '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
         'mail'      => '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
         'droplet'   => '<path d="M12 2.7 17.66 8.36a8 8 0 1 1-11.31 0z"/>',
+        'palette'   => '<circle cx="12" cy="12" r="10"/><circle cx="8" cy="10" r="1.5" fill="currentColor"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="16" cy="10" r="1.5" fill="currentColor"/><path d="M12 22c-1 0-1.5-.5-1.5-1.5S12 19 12 19s3-2 3-5"/>',
         'users'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
         'templates' => '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
         'modules'   => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -634,10 +635,12 @@ $navGroups = [
         ['admin.php?page=pages', 'file', 'صفحه‌ها', 'pages'],
         ['admin.php?page=blog', 'file', 'مقالات', 'blog'],
         ['admin.php?page=gallery', 'image', 'مدیریت گالری', 'gallery'],
+    ]],
+    'design' => ['طراحی سایت', [
+        ['admin.php?page=appearance', 'palette', 'استودیو طراحی', 'appearance'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
-        ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
-        ['admin.php?page=appearance', 'palette', 'تنظیمات ظاهری', 'appearance'],
         ['admin.php?page=templates', 'templates', 'قالب‌های نمایشی', 'templates'],
+        ['admin.php?page=design', 'droplet', 'قالب و استایل (قدیمی)', 'design'],
     ]],
     'customers' => ['مشتریان', [
         ['admin.php?page=customers', 'users', 'مشتری‌ها', 'customers'],
