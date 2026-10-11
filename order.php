@@ -25,6 +25,7 @@ try {
 } catch (Throwable $e) {
     $products = [];
 }
+$preselectProduct = (int) ($_GET['product'] ?? 0);
 
 $siteName = get_setting('site_name', 'لاینر لایت');
 $lengthUnit = get_setting('length_unit', 'mm');
@@ -99,7 +100,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37
             <select id="productSelect" required>
                 <option value="">— انتخاب کنید —</option>
                 <?php foreach ($products as $p): ?>
-                    <option value="<?= (int)$p['id'] ?>"
+                    <option value="<?= (int)$p['id'] ?>"<?= ((int)$p['id'] === $preselectProduct) ? ' selected' : '' ?>
                             data-pricing="<?= e($p['pricing_model'] ?? 'per_meter') ?>"
                             data-price-watt="<?= (int)($p['price_per_watt'] ?? 0) ?>">
                         <?= e($p['name']) ?>

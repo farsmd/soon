@@ -97,6 +97,7 @@ if ($productId > 0) {
         'frame_options_line'     => $frameLine,
         'product_specs'      => product_specs_html($product),
         'product_gallery'    => product_gallery_html((int) $product['id']),
+        'product_id'         => (int) $product['id'],
         'attributes_options' => product_options_selects_html($product),
         'estimator'          => product_estimator_html($product),
     ];

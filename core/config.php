@@ -1339,6 +1339,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('restore kicker migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۶۲: دکمه سفارش محصول (یک بار) ---
+    try {
+        migrate_product_order_btn_v9962_if_needed();
+    } catch (Throwable $e) {
+        error_log('product order btn migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2114,6 +2120,28 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۶۲: دکمه سفارش در صفحه محصول */
+function migrate_product_order_btn_v9962_if_needed(): void
+{
+    try {
+        if (get_setting('product_order_btn_9962', '0') === '1') {
+            return;
+        }
+        $tpl = get_template_content('product');
+        if ($tpl !== '' && strpos($tpl, 'order?product=') === false) {
+            $tpl = str_replace(
+                '{{product_gallery}}',
+                '{{product_gallery}}' . "\n" . '                <p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>',
+                $tpl
+            );
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $tpl]);
+        }
+        set_setting('product_order_btn_9962', '1');
+    } catch (Throwable $e) {
+        error_log('product order btn failed: ' . $e->getMessage());
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۶۱: بازگرداندن kicker (کنترل از استودیو طراحی) */
@@ -6048,7 +6076,7 @@ function products_showcase_html(): string
         $img = uploaded_image_url($p['image'] ?? '');
         $price = product_base_price_per_meter($p, false);
         $partnerPrice = product_base_price_per_meter($p, true);
-        $out .= '<a class="ps-card rv" href="' . e(pretty_url('products.php#' . (int) $p['id'])) . '">';
+        $out .= '<a class="ps-card rv" href="' . e(pretty_url('products.php?id=' . (int) $p['id'])) . '">';
         if ($img !== '') {
             $out .= '<div class="ps-img"><img loading="lazy" src="' . e($img) . '" alt="' . e($name) . '"></div>';
         }

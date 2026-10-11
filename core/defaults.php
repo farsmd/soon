@@ -242,6 +242,7 @@ HTML,
                 {{#if is_per_watt}}<p class="product-price-line">{{#if base_price_formatted}}از <strong>{{base_price_formatted}}</strong> تومان{{/if}}{{#if price_per_watt_formatted}} <span class="muted">— هر وات {{price_per_watt_formatted}} تومان + قیمت قاب</span>{{/if}}{{#if frame_options_line}}<br><span class="muted">قاب‌ها: {{frame_options_line}}</span>{{/if}}</p>{{else}}<p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_price_per_meter_formatted}} <span class="muted">| تخفیف همکار: {{partner_price_per_meter_formatted}} تومان</span>{{/if}}</p>{{/if}}
                 {{product_specs}}
                 {{product_gallery}}
+                <p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>
             </div>
         </div>
         {{estimator}}
