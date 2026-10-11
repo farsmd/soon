@@ -3927,9 +3927,14 @@ if ($page === 'design') {
             <?php templates_render(); ?>
         <?php elseif ($page === 'template_studio'): ?>
             <h1>استودیو قالب</h1>
-            <!-- ترتیب سکشن‌های صفحه اصلی -->
-            <section class="card wide" style="margin-bottom:20px">
-                <h2>ترتیب سکشن‌های صفحه اصلی</h2>
+            <!-- ترتیب سکشن‌های صفحه اصلی (جمع‌شونده) -->
+            <div class="ts-accordion" style="margin-bottom:20px">
+                <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
+                    <h3>ترتیب سکشن‌های صفحه اصلی</h3>
+                    <span class="ts-acc-icon">▼</span>
+                </div>
+                <div class="ts-acc-body">
+            <section class="card wide" style="margin:0;border:none;padding:0;box-shadow:none">
                 <?php if ($tsOrderMsg): ?><div class="alert alert-ok"><?= e($tsOrderMsg) ?></div><?php endif; ?>
                 <form method="post" id="tsOrderForm">
                     <?= csrf_field() ?>
@@ -3984,6 +3989,8 @@ if ($page === 'design') {
                 }
                 </script>
             </section>
+                </div>
+            </div>
             <?php if ($tsMsg): ?><div class="alert <?= strpos($tsMsg,'خطا')!==false?'alert-error':'alert-ok' ?>"><?= e($tsMsg) ?></div><?php endif; ?>
             <?php if ($tsEditKey !== ''): ?>
             <!-- ویرایشگر حرفه‌ای -->
