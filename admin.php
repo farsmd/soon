@@ -1941,7 +1941,6 @@ if ($page === 'appearance') {
                 foreach ($defs as $k => $def) {
                     $raw = (string) ($_POST['appear_' . $k] ?? $def);
                     if (str_ends_with($k, '_bg') || $k === 'hamburger_icon') {
-                        // رنگ hex
                         $raw = trim($raw);
                         if (!preg_match('/^#[0-9a-fA-F]{6}$/', $raw) && !preg_match('/^#[0-9a-fA-F]{3}$/', $raw)) {
                             $raw = $def;
@@ -1950,6 +1949,18 @@ if ($page === 'appearance') {
                         $raw = (string) max(0, min(100, (int) $raw));
                     } elseif (str_ends_with($k, '_blur')) {
                         $raw = (string) max(0, min(30, (int) $raw));
+                    } elseif ($k === 'hero_kicker' || $k === 'hero_parallax' || $k === 'gallery_lightbox' || $k === 'header_show_title') {
+                        $raw = ($raw === '1') ? '1' : '0';
+                    } elseif ($k === 'hero_align') {
+                        $raw = in_array($raw, ['right','center','left'], true) ? $raw : 'center';
+                    } elseif ($k === 'hero_parallax_speed') {
+                        $raw = (string) max(0, min(100, (int) $raw));
+                    } elseif ($k === 'hero_padding_top') {
+                        $raw = (string) max(0, min(200, (int) $raw));
+                    } elseif ($k === 'gallery_columns') {
+                        $raw = in_array($raw, ['2','3','4'], true) ? $raw : '4';
+                    } elseif ($k === 'header_logo_pos') {
+                        $raw = in_array($raw, ['right','left'], true) ? $raw : 'right';
                     }
                     set_setting('appear_' . $k, $raw);
                 }
@@ -2924,41 +2935,116 @@ if ($page === 'design') {
             <?php /* admin_gallery_ui.php به modules/admin/UI/Gallery.php منتقل شد (۹٫۹۹٫۱۹) */ ?>
 
         <?php elseif ($page === 'appearance'): ?>
-            <h1>تنظیمات ظاهری</h1>
-            <p class="muted">رنگ، شفافیت و بلور هدر، منوی همبرگری، منوی شناور، منوی تمام‌صفحه و فوتر — بدون دست‌کاری کد. با ذخیره، استایل سایت خودکار به‌روز می‌شود.</p>
+            <h1>استودیو طراحی</h1>
+            <p class="muted">طراحی قدم‌به‌قدم ظاهر سایت — بدون دست‌کاری کد. با ذخیره، استایل سایت خودکار به‌روز می‌شود.</p>
+            <div class="appear-tabs">
+                <button type="button" class="appear-tab active" data-tab="header">هدر</button>
+                <button type="button" class="appear-tab" data-tab="hero">هیرو</button>
+                <button type="button" class="appear-tab" data-tab="menus">منوها</button>
+                <button type="button" class="appear-tab" data-tab="gallery">گالری</button>
+                <button type="button" class="appear-tab" data-tab="footer">فوتر</button>
+            </div>
             <?php if ($appearMsg !== ''): ?><div class="alert success"><?= e($appearMsg) ?></div><?php endif; ?>
             <?php if ($appearErr !== ''): ?><div class="alert error"><?= e($appearErr) ?></div><?php endif; ?>
-            <form method="post" action="admin.php?page=appearance" class="appear-form">
+            <form method="post" action="admin.php?page=appearance" class="appear-form" id="appearForm">
                 <?= csrf_field() ?>
-                <?php foreach ($appearSections as $secKey => $secTitle): ?>
-                <div class="card appear-card">
-                    <h3><?= e($secTitle) ?></h3>
-                    <div class="appear-grid">
-                        <label class="appear-field">
-                            <span>رنگ پس‌زمینه</span>
-                            <input type="color" name="appear_<?= $secKey ?>_bg" value="<?= e($appearVals[$secKey . '_bg']) ?>">
-                            <code><?= e($appearVals[$secKey . '_bg']) ?></code>
-                        </label>
-                        <label class="appear-field">
-                            <span>شفافیت <b class="appear-val" data-for="appear_<?= $secKey ?>_opacity"><?= e($appearVals[$secKey . '_opacity']) ?>٪</b></span>
-                            <input type="range" name="appear_<?= $secKey ?>_opacity" min="0" max="100" step="1" value="<?= e($appearVals[$secKey . '_opacity']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'٪'">
-                        </label>
-                        <label class="appear-field">
-                            <span>بلور <b class="appear-val" data-for="appear_<?= $secKey ?>_blur"><?= e($appearVals[$secKey . '_blur']) ?>px</b></span>
-                            <input type="range" name="appear_<?= $secKey ?>_blur" min="0" max="30" step="1" value="<?= e($appearVals[$secKey . '_blur']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'">
-                        </label>
-                        <?php if ($secKey === 'hamburger'): ?>
-                        <label class="appear-field">
-                            <span>رنگ آیکون</span>
-                            <input type="color" name="appear_hamburger_icon" value="<?= e($appearVals['hamburger_icon']) ?>">
-                            <code><?= e($appearVals['hamburger_icon']) ?></code>
-                        </label>
-                        <?php endif; ?>
+                <!-- تب هدر -->
+                <div class="appear-panel active" data-panel="header">
+                    <div class="card appear-card">
+                        <h3>هدر</h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>رنگ پس‌زمینه</span>
+                                <input type="color" name="appear_header_bg" value="<?= e($appearVals['header_bg']) ?>"><code><?= e($appearVals['header_bg']) ?></code></label>
+                            <label class="appear-field"><span>شفافیت <b class="appear-val"><?= e($appearVals['header_opacity']) ?>٪</b></span>
+                                <input type="range" name="appear_header_opacity" min="0" max="100" value="<?= e($appearVals['header_opacity']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'٪'"></label>
+                            <label class="appear-field"><span>بلور <b class="appear-val"><?= e($appearVals['header_blur']) ?>px</b></span>
+                                <input type="range" name="appear_header_blur" min="0" max="30" value="<?= e($appearVals['header_blur']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                        </div>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                <!-- تب هیرو -->
+                <div class="appear-panel" data-panel="hero">
+                    <div class="card appear-card">
+                        <h3>هیرو</h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>نمایش بج</span>
+                                <select name="appear_hero_kicker">
+                                    <option value="1" <?= $appearVals['hero_kicker']==='1'?'selected':'' ?>>نمایش</option>
+                                    <option value="0" <?= $appearVals['hero_kicker']!=='1'?'selected':'' ?>>عدم نمایش</option>
+                                </select></label>
+                            <label class="appear-field"><span>تراز متن</span>
+                                <select name="appear_hero_align">
+                                    <option value="center" <?= $appearVals['hero_align']==='center'?'selected':'' ?>>وسط</option>
+                                    <option value="right" <?= $appearVals['hero_align']==='right'?'selected':'' ?>>راست</option>
+                                    <option value="left" <?= $appearVals['hero_align']==='left'?'selected':'' ?>>چپ</option>
+                                </select></label>
+                            <label class="appear-field"><span>پارالاکس</span>
+                                <select name="appear_hero_parallax">
+                                    <option value="1" <?= $appearVals['hero_parallax']==='1'?'selected':'' ?>>روشن</option>
+                                    <option value="0" <?= $appearVals['hero_parallax']!=='1'?'selected':'' ?>>خاموش</option>
+                                </select></label>
+                            <label class="appear-field"><span>شدت پارالاکس <b class="appear-val"><?= e($appearVals['hero_parallax_speed']) ?>٪</b></span>
+                                <input type="range" name="appear_hero_parallax_speed" min="0" max="100" value="<?= e($appearVals['hero_parallax_speed']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'٪'"></label>
+                            <label class="appear-field"><span>فاصله از بالا <b class="appear-val"><?= e($appearVals['hero_padding_top']) ?>px</b></span>
+                                <input type="range" name="appear_hero_padding_top" min="0" max="200" value="<?= e($appearVals['hero_padding_top']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                        </div>
+                    </div>
+                </div>
+                <!-- تب منوها -->
+                <div class="appear-panel" data-panel="menus">
+                    <?php foreach (['hamburger'=>'منوی همبرگری','tabbar'=>'منوی شناور','mmenu'=>'منوی تمام‌صفحه'] as $secKey => $secTitle): ?>
+                    <div class="card appear-card">
+                        <h3><?= e($secTitle) ?></h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>رنگ پس‌زمینه</span>
+                                <input type="color" name="appear_<?= $secKey ?>_bg" value="<?= e($appearVals[$secKey . '_bg']) ?>"><code><?= e($appearVals[$secKey . '_bg']) ?></code></label>
+                            <label class="appear-field"><span>شفافیت <b class="appear-val"><?= e($appearVals[$secKey . '_opacity']) ?>٪</b></span>
+                                <input type="range" name="appear_<?= $secKey ?>_opacity" min="0" max="100" value="<?= e($appearVals[$secKey . '_opacity']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'٪'"></label>
+                            <label class="appear-field"><span>بلور <b class="appear-val"><?= e($appearVals[$secKey . '_blur']) ?>px</b></span>
+                                <input type="range" name="appear_<?= $secKey ?>_blur" min="0" max="30" value="<?= e($appearVals[$secKey . '_blur']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                            <?php if ($secKey === 'hamburger'): ?>
+                            <label class="appear-field"><span>رنگ آیکون</span>
+                                <input type="color" name="appear_hamburger_icon" value="<?= e($appearVals['hamburger_icon']) ?>"><code><?= e($appearVals['hamburger_icon']) ?></code></label>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <!-- تب گالری -->
+                <div class="appear-panel" data-panel="gallery">
+                    <div class="card appear-card">
+                        <h3>گالری</h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>تعداد ستون</span>
+                                <select name="appear_gallery_columns">
+                                    <option value="2" <?= $appearVals['gallery_columns']==='2'?'selected':'' ?>>۲ ستون</option>
+                                    <option value="3" <?= $appearVals['gallery_columns']==='3'?'selected':'' ?>>۳ ستون</option>
+                                    <option value="4" <?= $appearVals['gallery_columns']==='4'?'selected':'' ?>>۴ ستون</option>
+                                </select></label>
+                            <label class="appear-field"><span>لایت‌باکس</span>
+                                <select name="appear_gallery_lightbox">
+                                    <option value="1" <?= $appearVals['gallery_lightbox']==='1'?'selected':'' ?>>روشن</option>
+                                    <option value="0" <?= $appearVals['gallery_lightbox']!=='1'?'selected':'' ?>>خاموش</option>
+                                </select></label>
+                        </div>
+                    </div>
+                </div>
+                <!-- تب فوتر -->
+                <div class="appear-panel" data-panel="footer">
+                    <div class="card appear-card">
+                        <h3>فوتر</h3>
+                        <div class="appear-grid">
+                            <label class="appear-field"><span>رنگ پس‌زمینه</span>
+                                <input type="color" name="appear_footer_bg" value="<?= e($appearVals['footer_bg']) ?>"><code><?= e($appearVals['footer_bg']) ?></code></label>
+                            <label class="appear-field"><span>شفافیت <b class="appear-val"><?= e($appearVals['footer_opacity']) ?>٪</b></span>
+                                <input type="range" name="appear_footer_opacity" min="0" max="100" value="<?= e($appearVals['footer_opacity']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'٪'"></label>
+                            <label class="appear-field"><span>بلور <b class="appear-val"><?= e($appearVals['footer_blur']) ?>px</b></span>
+                                <input type="range" name="appear_footer_blur" min="0" max="30" value="<?= e($appearVals['footer_blur']) ?>" oninput="this.previousElementSibling.querySelector('.appear-val').textContent=this.value+'px'"></label>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">ذخیره تنظیمات ظاهری</button>
+                    <button type="submit" class="btn btn-primary">ذخیره تنظیمات</button>
                     <button type="submit" name="appear_reset" value="1" class="btn btn-ghost" onclick="return confirm('به پیش‌فرض برگردد؟')">بازنشانی به پیش‌فرض</button>
                 </div>
             </form>
@@ -2973,7 +3059,23 @@ if ($page === 'design') {
             .appear-field code{font-size:11px;color:#64748b;direction:ltr}
             .appear-val{color:#0ea5e9}
             .form-actions{display:flex;gap:12px;margin-top:8px}
+            .appear-tabs{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}
+            .appear-tab{padding:10px 22px;border:1px solid #cbd5e1;background:#fff;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:#475569}
+            .appear-tab.active{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+            .appear-panel{display:none}
+            .appear-panel.active{display:block}
+            .appear-field select{padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:#fff}
             </style>
+            <script>
+            document.querySelectorAll('.appear-tab').forEach(function(btn){
+                btn.addEventListener('click',function(){
+                    document.querySelectorAll('.appear-tab').forEach(function(b){b.classList.remove('active')});
+                    document.querySelectorAll('.appear-panel').forEach(function(p){p.classList.remove('active')});
+                    btn.classList.add('active');
+                    document.querySelector('.appear-panel[data-panel="'+btn.dataset.tab+'"]').classList.add('active');
+                });
+            });
+            </script>
         <?php elseif ($page === 'design'): ?>
             <h1>قالب و استایل</h1>
             <p class="muted">از نسخه ۵، متن قالب‌ها و CSS سایت داخل دیتابیس نگه داشته می‌شوند و فقط اسکلت صفحه (سربرگ سند، منوی موبایل و اسکریپت‌های سبک) در فایل‌هاست؛ پس قالب و CSS با آپدیت یک‌کلیکی گیت‌هاب پاک نمی‌شوند و همه‌چیز از همین‌جا قابل ویرایش و بازیابی است. داخل قالب‌ها کد PHP هرگز اجرا نمی‌شود؛ فقط پلیس‌هولدرهای امن پشتیبانی می‌شوند. قبل از هر ذخیره یا بازنشانی، نسخه قبلی به‌صورت خودکار در «تاریخچه نسخه‌ها» می‌ماند تا اشتباه‌ها برگشت‌پذیر باشند.</p>

@@ -1333,6 +1333,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('remove kicker migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۹٫۹۹٫۶۱: بازگردانی kicker (یک بار) ---
+    try {
+        migrate_restore_kicker_v9961_if_needed();
+    } catch (Throwable $e) {
+        error_log('restore kicker migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2011,10 +2017,13 @@ function appearance_defaults(): array
 {
     return [
         'header_bg' => '#0a0c12', 'header_opacity' => '14', 'header_blur' => '8',
+        'header_logo_pos' => 'right', 'header_show_title' => '1',
         'hamburger_bg' => '#ffffff', 'hamburger_opacity' => '0', 'hamburger_blur' => '0', 'hamburger_icon' => '#ffffff',
         'tabbar_bg' => '#ffffff', 'tabbar_opacity' => '72', 'tabbar_blur' => '20',
         'mmenu_bg' => '#080a0e', 'mmenu_opacity' => '93', 'mmenu_blur' => '24',
         'footer_bg' => '#0a0c12', 'footer_opacity' => '100', 'footer_blur' => '0',
+        'hero_kicker' => '0', 'hero_align' => 'center', 'hero_parallax' => '1', 'hero_parallax_speed' => '35', 'hero_padding_top' => '88',
+        'gallery_columns' => '4', 'gallery_lightbox' => '1',
     ];
 }
 
@@ -2061,6 +2070,11 @@ function appearance_css(): string
     $mBlur = max(0, min(30, (int) appearance_get('mmenu_blur')));
     $fBg = hex_to_rgba(appearance_get('footer_bg'), appearance_get('footer_opacity'));
     $fBlur = max(0, min(30, (int) appearance_get('footer_blur')));
+    // استودیو طراحی
+    $kickerDisplay = appearance_get('hero_kicker') === '1' ? 'inline-flex' : 'none';
+    $heroAlign = in_array(appearance_get('hero_align'), ['right','center','left'], true) ? appearance_get('hero_align') : 'center';
+    $heroPad = max(0, min(200, (int) appearance_get('hero_padding_top')));
+    $gCols = in_array(appearance_get('gallery_columns'), ['2','3','4'], true) ? appearance_get('gallery_columns') : '4';
 
     return <<<CSS
 /* === APPEARANCE-START === */
@@ -2074,6 +2088,13 @@ function appearance_css(): string
   .mmenu{background:$mBg;backdrop-filter:blur({$mBlur}px);-webkit-backdrop-filter:blur({$mBlur}px)}
 }
 .site-footer{background:$fBg;backdrop-filter:blur({$fBlur}px);-webkit-backdrop-filter:blur({$fBlur}px)}
+/* --- استودیو طراحی: هیرو/گالری/چیدمان هدر --- */
+.hero-kicker{display:$kickerDisplay}
+.hero-inner{text-align:$heroAlign}
+@media(max-width:768px){
+  .hero-inner{padding-top:{$heroPad}px!important}
+}
+.onepage-gallery-grid{grid-template-columns:repeat($gCols,1fr)}
 /* === APPEARANCE-END === */
 CSS;
 }
@@ -2093,6 +2114,28 @@ function appearance_apply(): void
         $css .= "\n" . $new . "\n";
     }
     set_setting('site_css', $css);
+}
+
+/** مایگریشن نسخه ۹٫۹۹٫۶۱: بازگرداندن kicker (کنترل از استودیو طراحی) */
+function migrate_restore_kicker_v9961_if_needed(): void
+{
+    try {
+        if (get_setting('restore_kicker_9961', '0') === '1') {
+            return;
+        }
+        $tpl = get_template_content('slider');
+        if ($tpl !== '' && strpos($tpl, 'hero-kicker') === false) {
+            $tpl = str_replace(
+                '<div class="container hero-inner">',
+                '<div class="container hero-inner">' . "\n" . '        <p class="hero-kicker">استودیو تخصصی نور خطی</p>',
+                $tpl
+            );
+            db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'slider'")->execute([':c' => $tpl]);
+        }
+        set_setting('restore_kicker_9961', '1');
+    } catch (Throwable $e) {
+        error_log('restore kicker failed: ' . $e->getMessage());
+    }
 }
 
 /** مایگریشن نسخه ۹٫۹۹٫۶۰: حذف بج hero-kicker از قالب اسلایدر */
@@ -2171,6 +2214,9 @@ function parallax_css(): string
     return <<<'CSS'
 /* ---------- پارالاکس هیرو (۹٫۹۹٫۵۵) ---------- */
 .cinematic-hero{position:relative}
+@media(max-width:768px){
+  .hero-inner{padding-top:88px!important}
+}
 .hero-media{will-change:transform}
 .hero-inner{will-change:transform;position:relative;z-index:2}
 .hero-scroll{transition:opacity .3s}
@@ -3525,7 +3571,13 @@ function skeleton_foot(): string
 {
     design_sync_9930();
     design_sync_9935();
-    $html = <<<'HTML'
+    // تنظیمات پارالاکس از استودیو طراحی (۹٫۹۹٫۶۱)
+    $pcfgOn = (appearance_get('hero_parallax') === '1') ? '1' : '0';
+    $pcfgSpeed = max(0, min(100, (int) appearance_get('hero_parallax_speed')));
+    $gLightbox = (appearance_get('gallery_lightbox') === '1') ? '1' : '0';
+    $html = '<script>window.__parallax={on:"' . $pcfgOn . '",speed:' . $pcfgSpeed . '};</script>' . "\n";
+    $html .= '<script>window.__gallery={lightbox:"' . $gLightbox . '"};</script>' . "\n";
+    $html .= <<<'HTML'
 <script>
 (function(){
     document.addEventListener('DOMContentLoaded',function(){
@@ -3541,10 +3593,12 @@ function skeleton_foot(): string
         document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&mmenu.classList.contains('open')){closeM();navToggle.focus();}});
     }
     });
-    // پارالاکس هیرو (۹٫۹۹٫۵۵) — افکت اصلی سایت
+    // پارالاکس هیرو (۹٫۹۹٫۵۵+) — افکت اصلی سایت (کنترل از استودیو طراحی)
     document.addEventListener('DOMContentLoaded',function(){
         var hero=document.querySelector('.cinematic-hero');
         if(!hero) return;
+        var pcfg=window.__parallax||{on:'1',speed:35};
+        if(pcfg.on!=='1') return;
         if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         var media=hero.querySelector('.hero-media');
         var inner=hero.querySelector('.hero-inner');
@@ -3555,7 +3609,7 @@ function skeleton_foot(): string
             var r=hero.getBoundingClientRect();
             if(r.bottom<0||r.top>window.innerHeight) return;
             var y=window.scrollY||window.pageYOffset;
-            if(media) media.style.transform='translate3d(0,'+(y*0.35)+'px,0) scale(1.06)';
+            if(media) media.style.transform='translate3d(0,'+(y*(pcfg.speed/100))+'px,0) scale(1.06)';
             if(inner) inner.style.transform='translate3d(0,'+(y*0.12)+'px,0)';
             if(hint) hint.style.opacity=Math.max(0,1-y/280);
         }
@@ -5510,7 +5564,7 @@ function gallery_build_html(array $figs): string
     cap.textContent=(fc?fc.textContent:'')+((ds&&ds.textContent)?' \u2014 '+ds.textContent:'');
     cnt.textContent=fa(idx+1)+' از '+fa(items.length);
   }
-  function openLb(i){show(i);lb.hidden=false;document.body.style.overflow='hidden';}
+  function openLb(i){if(window.__gallery&&window.__gallery.lightbox!=='1')return;show(i);lb.hidden=false;document.body.style.overflow='hidden';}
   function closeLb(){lb.hidden=true;document.body.style.overflow='';}
   lb.querySelector('.glb-prev').addEventListener('click',function(e){e.stopPropagation();show(idx-1);});
   lb.querySelector('.glb-next').addEventListener('click',function(e){e.stopPropagation();show(idx+1);});
