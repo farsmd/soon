@@ -2364,6 +2364,21 @@ function migrate_order_links_v9967_if_needed(): void
                 db()->prepare("INSERT INTO site_templates (template_key, content, updated_at) VALUES ('product_card', ?, datetime('now'))")->execute([product_card_default_template()]);
             }
         } catch (Throwable $e) {}
+        // نسخه ۱۰٫۱۰: اصلاح قالب catalog (رفع نمایش placeholder خام در /products)
+        try {
+            $correctCatalog = '<section class="content-section catalog-section">' . "\n" .
+                '    <div class="container">' . "\n" .
+                '        <h1>{{catalog_title}}</h1>' . "\n" .
+                '        {{categories_nav}}' . "\n" .
+                '        {{products_grid}}' . "\n" .
+                '    </div>' . "\n" .
+                '</section>';
+            $current = db()->query("SELECT content FROM site_templates WHERE template_key = 'catalog'")->fetchColumn();
+            // اگر قالب خراب است (حاوی section_heading یا نمونه است)، اصلاح کن
+            if ($current !== false && (strpos($current, 'section_heading') !== false || strpos($current, 'نمونه') !== false)) {
+                db()->prepare("UPDATE site_templates SET content = ?, updated_at = datetime('now') WHERE template_key = 'catalog'")->execute([$correctCatalog]);
+            }
+        } catch (Throwable $e) {}
         set_setting('order_links_9967', '1');
         // نسخه ۹٫۹۹٫۹۰: بررسی مجدد دکمه سفارش (مستقل از فلگ قبلی)
         try {
