@@ -64,9 +64,9 @@ function fm_is_blocked(string $rel): bool
     if ((bool) preg_match('/\.sqlite(-shm|-wal|-journal)?$/', $r)) {
         return true;
     }
-    // دایرکتوری‌های ممنوعه در هر عمقی
+    // دایرکتوری‌ها و فایل‌های حساس در هر عمقی (۱۰٫۲۸: ‎.htaccess و ‎.user.ini هم ساب‌فولدری بلاک‌اند)
     foreach (explode('/', $r) as $seg) {
-        if (in_array($seg, ['uploads', 'backups', '.git'], true)) {
+        if (in_array($seg, ['uploads', 'backups', '.git', '.htaccess', '.user.ini'], true)) {
             return true;
         }
     }
