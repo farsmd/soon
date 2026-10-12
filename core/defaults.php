@@ -4403,33 +4403,21 @@ function catalog_products_grid_html(array $products): string
     foreach ($products as $p) {
         $pid = (int) $p['id'];
         $img = uploaded_image_url($p['image'] ?? '');
-        $replacements = [
-            '{{product_id}}' => (string) $pid,
-            '{{product_name}}' => e((string) ($p['name'] ?? '')),
-            '{{product_image}}' => e($img),
-            '{{category_title}}' => e((string) ($p['category_title'] ?? '')),
-            '{{short_desc}}' => e((string) ($p['short_desc'] ?? '')),
-            '{{price}}' => e(format_price($p['price_per_meter'] ?? 0)),
-            '{{product_url}}' => '/products?id=' . $pid,
-            '{{order_url}}' => '/order?product=' . $pid,
+        // رندر با tpl_render (پارسر استاندارد قالب): بلوک‌های {{#if}} را اصولی با closer
+        // خودشان جفت می‌کند. مقادیر خام داده می‌شوند؛ tpl_render خودش escape می‌کند.
+        // (اصلاح ۱۰٫۲۴: منطق دستی قبلی اول همه‌ی {{/if}}ها را پاک می‌کرد و تگ خام
+        // {{#if short_desc}} در HTML نشت می‌کرد)
+        $ctx = [
+            'product_id' => (string) $pid,
+            'product_name' => (string) ($p['name'] ?? ''),
+            'product_image' => $img,
+            'category_title' => (string) ($p['category_title'] ?? ''),
+            'short_desc' => (string) ($p['short_desc'] ?? ''),
+            'price' => format_price($p['price_per_meter'] ?? 0),
+            'product_url' => '/products?id=' . $pid,
+            'order_url' => '/order?product=' . $pid,
         ];
-        $cardHtml = str_replace(array_keys($replacements), array_values($replacements), $cardTpl);
-        // حذف بلوک‌های شرطی خالی
-        if ($img === '') {
-            $cardHtml = preg_replace('/\{\{#if product_image\}\}.*?\{\{\/if\}\}/s', '', $cardHtml);
-        } else {
-            $cardHtml = str_replace(['{{#if product_image}}', '{{/if}}'], '', $cardHtml);
-        }
-        if (empty($p['category_title'])) {
-            $cardHtml = preg_replace('/\{\{#if category_title\}\}.*?\{\{\/if\}\}/s', '', $cardHtml);
-        } else {
-            $cardHtml = str_replace(['{{#if category_title}}', '{{/if}}'], '', $cardHtml);
-        }
-        if (empty($p['short_desc'])) {
-            $cardHtml = preg_replace('/\{\{#if short_desc\}\}.*?\{\{\/if\}\}/s', '', $cardHtml);
-        } else {
-            $cardHtml = str_replace(['{{#if short_desc}}', '{{/if}}'], '', $cardHtml);
-        }
+        $cardHtml = function_exists('tpl_render') ? tpl_render($cardTpl, $ctx) : $cardTpl;
         $html .= $cardHtml;
     }
     $html .= '</div>';
