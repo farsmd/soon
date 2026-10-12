@@ -23,6 +23,7 @@ function admin_page_catalog(): array
             'partners'  => 'درخواست‌های همکاری',
 
             'appearance' => 'استودیو طراحی',
+            'design' => 'قالب و استایل',
             'menus' => 'مدیریت منوها',
             'templates' => 'قالب‌های نمایشی',
             'template_studio' => 'استودیو قالب',

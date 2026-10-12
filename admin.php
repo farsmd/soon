@@ -649,6 +649,7 @@ $navGroups = [
     ]],
     'design' => ['طراحی سایت', [
         ['admin.php?page=appearance', 'palette', 'استودیو طراحی', 'appearance'],
+        ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
         ['admin.php?page=menus', 'list', 'مدیریت منوها', 'menus'],
         ['admin.php?page=template_studio', 'templates', 'استودیو قالب', 'template_studio'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
