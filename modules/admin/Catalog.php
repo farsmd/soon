@@ -1895,14 +1895,8 @@ function update_check(array $cfg): array
                 $result['error'] = 'فایل دانلودشده ZIP معتبر نیست.';
                 return $result;
             }
-            $code = zip_read_entry($zip, 'core/config.php');
-            if ($code === null) { $code = zip_read_entry($zip, 'config.php'); }
+            $latest = update_zip_version($zip);
             $zip->close();
-            if ($code === null) {
-                $result['error'] = 'فایل config.php داخل فایل آپدیت پیدا نشد.';
-                return $result;
-            }
-            $latest = parse_app_version($code);
             if ($latest === null) {
                 $result['error'] = 'نسخه برنامه داخل فایل آپدیت پیدا نشد.';
                 return $result;
@@ -1957,6 +1951,26 @@ function update_check(array $cfg): array
         }
     }
     return $result;
+}
+
+/**
+ * نسخه داخل فایل ZIP آپدیت (۱۰٫۳۱) — هر دو فایل نسخه خوانده و تازه‌ترین برمی‌گردد،
+ * تا اگر در یک انتشار فقط یکی به‌روز شده بود، آپدیتر بلاک نشود.
+ */
+function update_zip_version(ZipArchive $zip): ?string
+{
+    $best = null;
+    foreach (['core/config.php', 'config.php'] as $p) {
+        $code = zip_read_entry($zip, $p);
+        if ($code === null) {
+            continue;
+        }
+        $v = parse_app_version($code);
+        if ($v !== null && ($best === null || version_compare($v, $best, '>'))) {
+            $best = $v;
+        }
+    }
+    return $best;
 }
 
 /** ساخت یک فولدر موقت محافظت‌شده برای کارهای آپدیت */
@@ -2065,13 +2079,7 @@ function perform_update(array $cfg, bool $backupDb): array
         if ($zip->open($zipPath) !== true) {
             return ['ok' => false, 'error' => 'فایل دانلودشده ZIP معتبر نیست.', 'new_version' => null, 'backup_file' => $backupFile];
         }
-        $configCode = zip_read_entry($zip, 'core/config.php');
-        if ($configCode === null) { $configCode = zip_read_entry($zip, 'config.php'); }
-        if ($configCode === null) {
-            $zip->close();
-            return ['ok' => false, 'error' => 'فایل config.php داخل فایل آپدیت پیدا نشد؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
-        }
-        $newVersion = parse_app_version($configCode);
+        $newVersion = update_zip_version($zip);
         if ($newVersion === null) {
             $zip->close();
             return ['ok' => false, 'error' => 'نسخه برنامه داخل فایل آپدیت پیدا نشد؛ آپدیت متوقف شد.', 'new_version' => null, 'backup_file' => $backupFile];
