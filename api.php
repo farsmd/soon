@@ -433,14 +433,22 @@ if ($res === 'product_attributes') {
             $pid = (int) api_in('product_id', 0);
             $aid = (int) api_in('attribute_id', 0);
             $oid = (int) api_in('option_id', 0);
+            // (۱۰٫۳۰) پشتیبانی از ویژگی‌های متنی/عددی
+            $textVal = api_in('text_value', null) !== null ? mb_substr(trim((string) api_in('text_value', '')), 0, 500) : null;
+            $numVal = api_in('num_value', null) !== null && api_in('num_value', '') !== '' ? (float) api_in('num_value') : null;
             if ($pid <= 0 || $aid <= 0) {
                 api_fail('شناسه محصول و ویژگی الزامی است.');
             }
+            $attrRow = null;
             foreach (['products' => $pid, 'product_attributes' => $aid] as $tbl => $vid) {
-                $chk = db()->prepare("SELECT id FROM {$tbl} WHERE id = :v LIMIT 1");
+                $chk = db()->prepare("SELECT id" . ($tbl === 'product_attributes' ? ', input_type' : '') . " FROM {$tbl} WHERE id = :v LIMIT 1");
                 $chk->execute([':v' => $vid]);
-                if ($chk->fetchColumn() === false) {
+                $found = $chk->fetch(PDO::FETCH_ASSOC);
+                if ($found === false) {
                     api_fail('محصول یا ویژگی پیدا نشد.', 404);
+                }
+                if ($tbl === 'product_attributes') {
+                    $attrRow = $found;
                 }
             }
             if ($oid > 0) {
@@ -451,8 +459,8 @@ if ($res === 'product_attributes') {
                 }
             }
             db()->prepare('DELETE FROM product_attribute_values WHERE product_id = :p AND attribute_id = :a')->execute([':p' => $pid, ':a' => $aid]);
-            db()->prepare('INSERT INTO product_attribute_values (product_id, attribute_id, option_id) VALUES (:p, :a, :o)')->execute([
-                ':p' => $pid, ':a' => $aid, ':o' => $oid > 0 ? $oid : null,
+            db()->prepare('INSERT INTO product_attribute_values (product_id, attribute_id, option_id, num_value, text_value) VALUES (:p, :a, :o, :n, :t)')->execute([
+                ':p' => $pid, ':a' => $aid, ':o' => $oid > 0 ? $oid : null, ':n' => $numVal, ':t' => $textVal,
             ]);
             api_logged_write('product_attributes', "تخصیص ویژگی #{$aid} به محصول #{$pid} از IP " . $ip);
             api_out(['ok' => true, 'assigned' => true]);
