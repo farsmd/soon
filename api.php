@@ -298,8 +298,17 @@ if ($res === 'product') {
     }
     if ($isWrite) {
         api_need_write($auth);
+        // حذف محصول (۱۰٫۲۹) — همراه با مقادیر ویژگی‌ها و تصاویر گالری‌اش
+        if (api_in('delete', null) !== null && (int) api_in('delete', 0) === 1) {
+            $pid = (int) $row['id'];
+            db()->prepare('DELETE FROM product_attribute_values WHERE product_id = :p')->execute([':p' => $pid]);
+            db()->prepare('DELETE FROM product_images WHERE product_id = :p')->execute([':p' => $pid]);
+            db()->prepare('DELETE FROM products WHERE id = :p')->execute([':p' => $pid]);
+            api_logged_write('product', 'حذف محصول #' . $pid . ' از IP ' . $ip);
+            api_out(['ok' => true, 'id' => $pid, 'deleted' => true]);
+        }
         $fields = [];
-        foreach (['category_id' => 'i', 'name' => 's', 'sku' => 's', 'description' => 's', 'price_per_meter' => 'i', 'partner_price_per_meter' => 'i', 'is_active' => 'i', 'sort_order' => 'i', 'order_form_config' => 's', 'pricing_model' => 's', 'price_per_watt' => 'i', 'frame_options_json' => 's'] as $k => $t) {
+        foreach (['category_id' => 'i', 'name' => 's', 'sku' => 's', 'description' => 's', 'image' => 's', 'price_per_meter' => 'i', 'partner_price_per_meter' => 'i', 'is_active' => 'i', 'sort_order' => 'i', 'order_form_config' => 's', 'pricing_model' => 's', 'price_per_watt' => 'i', 'frame_options_json' => 's'] as $k => $t) {
             $v = api_in($k, null);
             if ($v !== null) {
                 if ($k === 'name' && trim((string) $v) === '') {
@@ -307,6 +316,14 @@ if ($res === 'product') {
                 }
                 if (in_array($k, ['price_per_meter', 'partner_price_per_meter'], true) && (int) $v < 0) {
                     api_fail('قیمت نمی‌تواند منفی باشد.');
+                }
+                if ($k === 'image') {
+                    // (۱۰٫۲۹) فقط مسیر داخل uploads مجاز است
+                    $iv = trim((string) $v);
+                    if ($iv !== '' && (!str_starts_with($iv, 'uploads/') || str_contains($iv, '..'))) {
+                        api_fail('مسیر عکس باید داخل uploads/ باشد.');
+                    }
+                    $v = mb_substr($iv, 0, 255);
                 }
                 $fields[$k] = $t === 'i' ? (int) $v : (string) $v;
             }
@@ -324,6 +341,127 @@ if ($res === 'product') {
         api_out(['ok' => true, 'id' => (int) $row['id'], 'updated' => array_keys($fields)]);
     }
     api_out(['ok' => true, 'product' => $row]);
+}
+
+// ---------------- دسته‌بندی‌های محصول (۱۰٫۲۹) ----------------
+if ($res === 'categories') {
+    if ($isWrite) {
+        api_need_write($auth);
+        $title = trim((string) api_in('title', ''));
+        if ($title === '') {
+            api_fail('عنوان دسته‌بندی الزامی است.');
+        }
+        $slug = trim((string) api_in('slug', ''));
+        if ($slug === '') {
+            $slug = 'cat-' . time();
+        }
+        $slug = mb_substr(preg_replace('/[^a-z0-9_-]+/i', '-', $slug) ?? '', 0, 80);
+        try {
+            $st = db()->prepare('INSERT INTO product_categories (title, slug, parent_id, description, sort_order, is_active) VALUES (:t, :s, :p, :d, :o, 1)');
+            $st->execute([
+                ':t' => mb_substr($title, 0, 120),
+                ':s' => $slug,
+                ':p' => (int) api_in('parent_id', 0) ?: null,
+                ':d' => mb_substr((string) api_in('description', ''), 0, 2000) ?: null,
+                ':o' => (int) api_in('sort_order', 0),
+            ]);
+        } catch (PDOException $e) {
+            api_fail('ساخت دسته‌بندی انجام نشد (احتمالاً نامک تکراری است).');
+        }
+        $nid = (int) db()->lastInsertId();
+        api_logged_write('categories', 'ساخت دسته‌بندی #' . $nid . ' از IP ' . $ip);
+        api_out(['ok' => true, 'id' => $nid, 'created' => true], 201);
+    }
+    $rows = db()->query('SELECT id, title, slug, parent_id, sort_order, is_active FROM product_categories ORDER BY sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
+    api_out(['ok' => true, 'categories' => $rows]);
+}
+
+// ---------------- ویژگی‌ها و آپشن‌های محصول (۱۰٫۲۹) ----------------
+if ($res === 'product_attributes') {
+    if ($isWrite) {
+        api_need_write($auth);
+        $action = trim((string) api_in('action', ''));
+        if ($action === 'create_attribute') {
+            $title = trim((string) api_in('title', ''));
+            $key = trim((string) api_in('attr_key', ''));
+            if ($title === '' || $key === '') {
+                api_fail('عنوان و کلید ویژگی الزامی است.');
+            }
+            if (!preg_match('/^[a-z0-9_]{1,60}$/', $key)) {
+                api_fail('کلید ویژگی باید انگلیسی و بدون فاصله باشد.');
+            }
+            $type = in_array(api_in('input_type', 'select'), ['select', 'number', 'text'], true) ? (string) api_in('input_type', 'select') : 'select';
+            try {
+                $st = db()->prepare("INSERT INTO product_attributes (title, attr_key, input_type, unit, sort_order, is_active) VALUES (:t, :k, :ty, :u, :o, 1)");
+                $st->execute([
+                    ':t' => mb_substr($title, 0, 120),
+                    ':k' => $key,
+                    ':ty' => $type,
+                    ':u' => mb_substr((string) api_in('unit', ''), 0, 20) ?: null,
+                    ':o' => (int) api_in('sort_order', 0),
+                ]);
+            } catch (PDOException $e) {
+                api_fail('ساخت ویژگی انجام نشد (احتمالاً کلید تکراری است).');
+            }
+            $nid = (int) db()->lastInsertId();
+            api_logged_write('product_attributes', 'ساخت ویژگی #' . $nid . ' از IP ' . $ip);
+            api_out(['ok' => true, 'id' => $nid, 'created' => true], 201);
+        }
+        if ($action === 'create_option') {
+            $aid = (int) api_in('attribute_id', 0);
+            $title = trim((string) api_in('title', ''));
+            if ($aid <= 0 || $title === '') {
+                api_fail('شناسه ویژگی و عنوان گزینه الزامی است.');
+            }
+            $chk = db()->prepare('SELECT id FROM product_attributes WHERE id = :a LIMIT 1');
+            $chk->execute([':a' => $aid]);
+            if ($chk->fetchColumn() === false) {
+                api_fail('ویژگی پیدا نشد.', 404);
+            }
+            $st = db()->prepare('INSERT INTO product_attribute_options (attribute_id, title, price_delta_per_meter, sort_order) VALUES (:a, :t, :p, :o)');
+            $st->execute([
+                ':a' => $aid,
+                ':t' => mb_substr($title, 0, 120),
+                ':p' => (int) api_in('price_delta_per_meter', 0),
+                ':o' => (int) api_in('sort_order', 0),
+            ]);
+            $nid = (int) db()->lastInsertId();
+            api_logged_write('product_attributes', 'ساخت گزینه #' . $nid . ' برای ویژگی #' . $aid . ' از IP ' . $ip);
+            api_out(['ok' => true, 'id' => $nid, 'created' => true], 201);
+        }
+        if ($action === 'assign') {
+            $pid = (int) api_in('product_id', 0);
+            $aid = (int) api_in('attribute_id', 0);
+            $oid = (int) api_in('option_id', 0);
+            if ($pid <= 0 || $aid <= 0) {
+                api_fail('شناسه محصول و ویژگی الزامی است.');
+            }
+            foreach (['products' => $pid, 'product_attributes' => $aid] as $tbl => $vid) {
+                $chk = db()->prepare("SELECT id FROM {$tbl} WHERE id = :v LIMIT 1");
+                $chk->execute([':v' => $vid]);
+                if ($chk->fetchColumn() === false) {
+                    api_fail('محصول یا ویژگی پیدا نشد.', 404);
+                }
+            }
+            if ($oid > 0) {
+                $chk = db()->prepare('SELECT id FROM product_attribute_options WHERE id = :o AND attribute_id = :a LIMIT 1');
+                $chk->execute([':o' => $oid, ':a' => $aid]);
+                if ($chk->fetchColumn() === false) {
+                    api_fail('گزینه متعلق به این ویژگی نیست.', 404);
+                }
+            }
+            db()->prepare('DELETE FROM product_attribute_values WHERE product_id = :p AND attribute_id = :a')->execute([':p' => $pid, ':a' => $aid]);
+            db()->prepare('INSERT INTO product_attribute_values (product_id, attribute_id, option_id) VALUES (:p, :a, :o)')->execute([
+                ':p' => $pid, ':a' => $aid, ':o' => $oid > 0 ? $oid : null,
+            ]);
+            api_logged_write('product_attributes', "تخصیص ویژگی #{$aid} به محصول #{$pid} از IP " . $ip);
+            api_out(['ok' => true, 'assigned' => true]);
+        }
+        api_fail('عمل نامشخص است (create_attribute/create_option/assign).');
+    }
+    $attrs = db()->query('SELECT id, title, attr_key, input_type, unit, sort_order, is_active FROM product_attributes ORDER BY sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $opts = db()->query('SELECT id, attribute_id, title, price_delta_per_meter, sort_order FROM product_attribute_options ORDER BY attribute_id ASC, sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
+    api_out(['ok' => true, 'attributes' => $attrs, 'options' => $opts]);
 }
 
 // ---------------- سفارش‌ها ----------------
