@@ -3980,8 +3980,8 @@ if ($page === 'design') {
                 <?= csrf_field() ?>
                 <input type="hidden" name="menus_save" value="1">
                 <input type="hidden" name="menus_reset" id="menusReset" value="">
-                <?php foreach (site_menu_locations() as $loc => $locTitle): ?>
-                <div class="ts-accordion" style="margin-bottom:16px">
+                <?php $menuAccIdx = 0; foreach (site_menu_locations() as $loc => $locTitle): $menuAccIdx++; ?>
+                <div class="ts-accordion<?= $menuAccIdx === 1 ? ' open' : '' ?>" style="margin-bottom:16px">
                     <div class="ts-acc-head" onclick="this.parentElement.classList.toggle('open')">
                         <h3><?= e($locTitle) ?> <span class="muted" style="font-weight:400;font-size:12px">(<?= count($siteMenus[$loc] ?? []) ?> آیتم)</span></h3>
                         <span class="ts-acc-icon">▼</span>
@@ -4343,14 +4343,6 @@ if ($page === 'design') {
             </div>
             <p class="muted">قالب HTML و CSS هر بخش سایت را اینجا ویرایش کنید.</p>
             <style>
-            .ts-accordion{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
-            .ts-acc-head{padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;user-select:none}
-            .ts-acc-head:hover{background:#f1f5f9}
-            .ts-acc-head h3{margin:0;font-size:15px}
-            .ts-acc-icon{transition:transform .2s;font-size:12px;color:#64748b}
-            .ts-accordion.open .ts-acc-icon{transform:rotate(180deg)}
-            .ts-acc-body{display:none;padding:16px 20px;border-top:1px solid #e2e8f0}
-            .ts-accordion.open .ts-acc-body{display:block}
             .ts-tpl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
             .ts-tpl-item{padding:14px;border:1px solid #e2e8f0;border-radius:10px;text-decoration:none;display:block;transition:border-color .2s}
             .ts-tpl-item:hover{border-color:#f59e0b}
@@ -5608,6 +5600,15 @@ html[data-admin-theme="glass-smoke"] .btn{background:rgba(72,72,74,.6);border:1p
 html[data-admin-theme="glass-smoke"] .btn.primary{background:#facc15;border-color:#facc15;color:#1c1c1e}
 html[data-admin-theme="glass-smoke"] .btn.add{background:#30d158;border-color:#30d158;color:#fff}
 html[data-admin-theme="glass-smoke"] .btn.edit{background:#facc15;border-color:#facc15;color:#1c1c1e}
+/* آکاردئون مشترک صفحات ادمین (منوها، استودیو قالب و...) — ۱۰٫۲۵ */
+.ts-accordion{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
+.ts-acc-head{padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;user-select:none}
+.ts-acc-head:hover{background:#f1f5f9}
+.ts-acc-head h3{margin:0;font-size:15px}
+.ts-acc-icon{transition:transform .2s;font-size:12px;color:#64748b}
+.ts-accordion.open .ts-acc-icon{transform:rotate(180deg)}
+.ts-acc-body{display:none;padding:16px 20px;border-top:1px solid #e2e8f0}
+.ts-accordion.open .ts-acc-body{display:block}
 
 CSS;
 }
