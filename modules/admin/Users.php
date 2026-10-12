@@ -91,6 +91,7 @@ function admin_page_catalog(): array
             'users'    => 'کاربران و نقش‌ها',
             'modules'  => 'مدیریت ماژول‌ها',
             'logs'     => 'لاگ‌ها',
+            'filemanager' => 'مدیریت فایل',
         ],
     ];
 }
@@ -318,6 +319,8 @@ function admin_action_page_map(): array
         'save_settings' => 'settings', 'change_password' => 'settings',
         'perform_update' => 'update', 'save_update_settings' => 'update',
         'switch_database_file' => 'database', 'upload_database_file' => 'database',
+        'fm_save' => 'filemanager', 'fm_create_file' => 'filemanager', 'fm_create_dir' => 'filemanager',
+        'fm_rename' => 'filemanager', 'fm_delete' => 'filemanager',
     ];
 }
 

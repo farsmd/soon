@@ -32,6 +32,8 @@ require_once __DIR__ . '/modules/admin/Notifications.php';
 require_once __DIR__ . '/modules/admin/Proposal.php';
 require_once __DIR__ . '/modules/admin/Modules.php';
 require_once __DIR__ . '/modules/admin/Templates.php';
+// مدیریت فایل حرفه‌ای (نسخه ۱۰٫۲۷)
+require_once __DIR__ . '/modules/admin/Filemanager.php';
 // seed ماژول‌های پیش‌فرض (فقط بار اول)
 if (function_exists('modules_seed')) { modules_seed(); }
 
@@ -631,6 +633,7 @@ $pageTitles = [
     'users'      => 'کاربران و نقش‌ها',
     'settings'   => 'تنظیمات سایت',
     'sitemap'    => 'نقشه سایت (Sitemap)',
+    'filemanager' => 'مدیریت فایل',
 ];
 $currentPageTitle = $pageTitles[$page] ?? 'پنل مدیریت';
 
@@ -710,6 +713,7 @@ $navGroups = [
         ['admin.php?page=logs', 'list', 'لاگ‌ها', 'logs'],
         ['admin.php?page=notifications', 'bell', 'اعلان‌ها', 'notifications'],
         ['admin.php?page=proposal', 'chart', 'پروپوزال سرمایه‌گذاری', 'proposal'],
+        ['admin.php?page=filemanager', 'folder', 'مدیریت فایل', 'filemanager'],
     ]],
 ];
 $activeNavGroup = 'main';
@@ -1143,6 +1147,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('ok', 'پیام حذف شد.');
                 redirect_admin('admin.php?page=messages');
                 // no break
+
+            // --- مدیریت فایل (۱۰٫۲۷) ---
+            case 'fm_save': {
+                $fmPath = (string) ($_POST['fm_path'] ?? '');
+                $fmDir = fm_sanitize_rel((string) ($_POST['fm_dir'] ?? '')) ?? '';
+                $content = (string) ($_POST['content'] ?? '');
+                if (fm_write($fmPath, $content)) {
+                    flash('ok', 'فایل ذخیره شد.');
+                } else {
+                    flash('error', 'ذخیره انجام نشد. مسیر نامعتبر یا غیرمجاز است.');
+                }
+                redirect_admin('admin.php?page=filemanager&dir=' . urlencode($fmDir) . '&edit=' . urlencode($fmPath));
+                // no break
+            }
+
+            case 'fm_create_file': {
+                $fmDir = fm_sanitize_rel((string) ($_POST['fm_dir'] ?? '')) ?? '';
+                $ok = fm_create_file($fmDir, (string) ($_POST['fm_name'] ?? ''));
+                flash($ok ? 'ok' : 'error', $ok ? 'فایل ساخته شد.' : 'ساخت فایل انجام نشد. نام یا مسیر نامعتبر است.');
+                redirect_admin('admin.php?page=filemanager&dir=' . urlencode($fmDir));
+                // no break
+            }
+
+            case 'fm_create_dir': {
+                $fmDir = fm_sanitize_rel((string) ($_POST['fm_dir'] ?? '')) ?? '';
+                $ok = fm_create_dir($fmDir, (string) ($_POST['fm_name'] ?? ''));
+                flash($ok ? 'ok' : 'error', $ok ? 'پوشه ساخته شد.' : 'ساخت پوشه انجام نشد. نام یا مسیر نامعتبر است.');
+                redirect_admin('admin.php?page=filemanager&dir=' . urlencode($fmDir));
+                // no break
+            }
+
+            case 'fm_rename': {
+                $fmDir = fm_sanitize_rel((string) ($_POST['fm_dir'] ?? '')) ?? '';
+                $ok = fm_rename((string) ($_POST['fm_path'] ?? ''), (string) ($_POST['fm_name'] ?? ''));
+                flash($ok ? 'ok' : 'error', $ok ? 'تغییرنام انجام شد.' : 'تغییرنام انجام نشد. نام یا مسیر نامعتبر است.');
+                redirect_admin('admin.php?page=filemanager&dir=' . urlencode($fmDir));
+                // no break
+            }
+
+            case 'fm_delete': {
+                $fmDir = fm_sanitize_rel((string) ($_POST['fm_dir'] ?? '')) ?? '';
+                $ok = fm_delete((string) ($_POST['fm_path'] ?? ''));
+                flash($ok ? 'ok' : 'error', $ok ? 'حذف شد.' : 'حذف انجام نشد. مسیر نامعتبر یا غیرمجاز است.');
+                redirect_admin('admin.php?page=filemanager&dir=' . urlencode($fmDir));
+                // no break
+            }
 
             case 'add_order_form_field':
                 $otype = (string) ($_POST['owner_type'] ?? 'global');
@@ -2251,7 +2301,7 @@ if ($page === 'design') {
 <title><?= e($currentPageTitle) ?> — پنل مدیریت</title>
 <link rel="stylesheet" href="assets/bootstrap.rtl.min.css">
 <script src="assets/chart.min.js"></script>
-<?php if (in_array(($page ?? ''), ['design', 'pages'], true)): ?>
+<?php if (in_array(($page ?? ''), ['design', 'pages', 'filemanager'], true)): ?>
 <link rel="stylesheet" href="assets/codemirror/lib/codemirror.min.css">
 <link rel="stylesheet" href="assets/codemirror/theme/dracula.min.css">
 <style>
@@ -4410,6 +4460,9 @@ if ($page === 'design') {
                 </form>
             </section>
 
+        <?php elseif ($page === 'filemanager'): ?>
+            <?php filemanager_render_admin(); ?>
+
         <?php elseif ($page === 'db_browse'): ?>
             <?php if ((string) (current_admin_user()['role_key'] ?? '') !== 'owner'): ?>
                 <div class="alert error">فقط مدیر کل به مرورگر دیتابیس دسترسی دارد.</div>
@@ -5116,7 +5169,7 @@ if(mq.addEventListener){mq.addEventListener('change',function(){if(!mq.matches){
 (function(){document.addEventListener('click',function(ev){var btn=ev.target;while(btn&&btn!==document&&!(btn.getAttribute&&btn.getAttribute('data-toggle-panel'))){btn=btn.parentNode}if(!btn||btn===document){return}var el=document.getElementById(btn.getAttribute('data-toggle-panel'));if(!el){return}var show=el.hasAttribute('hidden');if(show){el.removeAttribute('hidden');var f=el.querySelector('input,select,textarea');if(f){try{f.focus()}catch(e){}}}else{el.setAttribute('hidden','')}btn.setAttribute('aria-expanded',show?'true':'false')});
 var op=document.querySelector('.crud-panel[data-open],.help-panel[data-open]');if(op){try{op.scrollIntoView({block:'start'})}catch(e){}}})();
 </script>
-<?php if (in_array(($page ?? ''), ['design', 'pages'], true)): ?>
+<?php if (in_array(($page ?? ''), ['design', 'pages', 'filemanager'], true)): ?>
 <script src="assets/codemirror/lib/codemirror.min.js"></script>
 <script src="assets/codemirror/mode/xml.min.js"></script>
 <script src="assets/codemirror/mode/css.min.js"></script>

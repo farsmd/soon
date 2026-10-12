@@ -1365,6 +1365,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('rebuild appearance migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۱۰٫۲۷: دسترسی صفحه مدیریت فایل به همه نقش‌ها (یک بار) ---
+    try {
+        migrate_filemanager_access_v1027_if_needed();
+    } catch (Throwable $e) {
+        error_log('filemanager access migration failed: ' . $e->getMessage());
+    }
 }
 
 /**
@@ -2760,6 +2766,39 @@ function migrate_appearance_access_v9957_if_needed(): void
             }
         }
         set_setting('appearance_access_9957', '1');
+    } catch (Throwable $e) {
+        // سکوت
+    }
+}
+
+/** مایگریشن نسخه ۱۰٫۲۷: دسترسی پیش‌فرض صفحه مدیریت فایل به همه نقش‌ها */
+function migrate_filemanager_access_v1027_if_needed(): void
+{
+    try {
+        if (get_setting('filemanager_access_1027', '0') === '1') {
+            return;
+        }
+        $raw = trim((string) get_setting('user_roles', ''));
+        if ($raw !== '') {
+            $roles = json_decode($raw, true);
+            if (is_array($roles)) {
+                $changed = false;
+                foreach ($roles as &$r) {
+                    if (!isset($r['pages']) || !is_array($r['pages'])) {
+                        $r['pages'] = [];
+                    }
+                    if (!in_array('filemanager', $r['pages'], true)) {
+                        $r['pages'][] = 'filemanager';
+                        $changed = true;
+                    }
+                }
+                unset($r);
+                if ($changed) {
+                    set_setting('user_roles', json_encode($roles, JSON_UNESCAPED_UNICODE));
+                }
+            }
+        }
+        set_setting('filemanager_access_1027', '1');
     } catch (Throwable $e) {
         // سکوت
     }
