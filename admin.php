@@ -557,6 +557,11 @@ if (!is_logged_in()) {
 // ---------- از اینجا به بعد فقط ادمین واردشده ----------
 
 $page  = (string) ($_GET['page'] ?? 'dashboard');
+// نام قدیمی صفحه «قالب‌ها» به صفحه جدید «قالب و استایل» نگاشت می‌شود (قالب‌ها دیگر فایلی نیستند)
+if ($page === 'design') {
+    header('Location: admin.php?page=template_studio');
+    exit;
+}
 
 // ---------- گارد سطح دسترسی (نسخه ۸٫۷٫۰) ----------
 // نشست هست ولی کاربرش حذف/غیرفعال شده → خروج تمیز به صفحهٔ ورود
@@ -644,7 +649,6 @@ $navGroups = [
     ]],
     'design' => ['طراحی سایت', [
         ['admin.php?page=appearance', 'palette', 'استودیو طراحی', 'appearance'],
-        ['admin.php?page=design', 'droplet', 'قالب و استایل', 'design'],
         ['admin.php?page=menus', 'list', 'مدیریت منوها', 'menus'],
         ['admin.php?page=template_studio', 'templates', 'استودیو قالب', 'template_studio'],
         ['admin.php?page=sections', 'layout', 'بخش‌های صفحه اصلی', 'sections'],
@@ -1505,7 +1509,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_setting('border_radius', (string) max(0, min(32, (int) ($_POST['border_radius'] ?? 12))));
                 set_setting('default_theme', $theme);
                 $adminTheme = (string) ($_POST['admin_theme'] ?? 'light');
-                if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke', 'midnight'], true)) {
+                if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke'], true)) {
                     $adminTheme = 'light';
                 }
                 set_setting('admin_theme', $adminTheme);
@@ -2181,7 +2185,7 @@ $cleanupCandidates = [];
 $tplUsedIn = [];
 $visual = validated_visual_settings($settings);
 $adminTheme = (string) get_setting('admin_theme', 'light');
-if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke', 'midnight'], true)) {
+if (!in_array($adminTheme, ['light', 'architect', 'glass-white', 'glass-smoke'], true)) {
     $adminTheme = 'light';
 }
 if ($page === 'appearance') {
@@ -3684,7 +3688,6 @@ if ($page === 'design') {
                             <option value="architect" <?= ($adminTheme ?? 'light') === 'architect' ? 'selected' : '' ?>>معمارپسند</option>
                             <option value="glass-white" <?= ($adminTheme ?? 'light') === 'glass-white' ? 'selected' : '' ?>>شیشه‌ای روشن</option>
                             <option value="glass-smoke" <?= ($adminTheme ?? 'light') === 'glass-smoke' ? 'selected' : '' ?>>شیشه‌ای تیره</option>
-                            <option value="midnight" <?= ($adminTheme ?? 'light') === 'midnight' ? 'selected' : '' ?>>تیره</option>
                         </select>
                     </label>
                     <label class="check"><input type="checkbox" name="header_sticky" value="1" <?= $visual['header_sticky'] ? 'checked' : '' ?>> هدر چسبان باشد (هنگام اسکرول بالای صفحه بماند)</label>
@@ -5650,76 +5653,6 @@ html[data-admin-theme="glass-smoke"] .btn{background:rgba(72,72,74,.6);border:1p
 html[data-admin-theme="glass-smoke"] .btn.primary{background:#facc15;border-color:#facc15;color:#1c1c1e}
 html[data-admin-theme="glass-smoke"] .btn.add{background:#30d158;border-color:#30d158;color:#fff}
 html[data-admin-theme="glass-smoke"] .btn.edit{background:#facc15;border-color:#facc15;color:#1c1c1e}
-/* ===== تم تیره «نیمه‌شب» (۱۰٫۳۳) — الهام از رابط کاربری اپ ===== */
-html[data-admin-theme="midnight"]{--mid-bg:#000000;--mid-surface:#1c1c1e;--mid-elev:#2c2c2e;--mid-ink:#f5f5f7;--mid-muted:#98989f;--mid-line:rgba(255,255,255,.09);--mid-accent:#0a84ff}
-html[data-admin-theme="midnight"] body{background:var(--mid-bg);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] a{color:#5eb0ff}
-html[data-admin-theme="midnight"] .muted{color:var(--mid-muted)}
-html[data-admin-theme="midnight"] h1,html[data-admin-theme="midnight"] h2,html[data-admin-theme="midnight"] h3{color:var(--mid-ink)}
-/* تاپ‌بار */
-html[data-admin-theme="midnight"] .topbar{background:#0a0a0c!important;border-bottom:1px solid var(--mid-line)!important;color:var(--mid-ink)!important}
-html[data-admin-theme="midnight"] .topbar .topbar-title{color:var(--mid-ink)!important}
-html[data-admin-theme="midnight"] .topbar .btn{background:var(--mid-surface)!important;border-color:var(--mid-line)!important;color:var(--mid-ink)!important}
-/* سایدبار */
-html[data-admin-theme="midnight"] .sidebar{background:#0a0a0c!important;border-inline-end:1px solid var(--mid-line)}
-html[data-admin-theme="midnight"] .sidebar .nav-link{color:#c7c7cc!important;border-radius:12px;margin:2px 8px}
-html[data-admin-theme="midnight"] .sidebar .nav-link:hover{background:rgba(255,255,255,.07)!important;color:#fff!important}
-html[data-admin-theme="midnight"] .sidebar .nav-link.active{background:var(--mid-accent)!important;color:#fff!important;font-weight:700}
-html[data-admin-theme="midnight"] .sidebar .nav-group-title{color:var(--mid-muted)!important}
-html[data-admin-theme="midnight"] .sidebar-brand{border-bottom:1px solid var(--mid-line)!important}
-html[data-admin-theme="midnight"] .sidebar-brand span,html[data-admin-theme="midnight"] .sidebar-brand a{color:var(--mid-ink)!important}
-/* کارت‌ها */
-html[data-admin-theme="midnight"] .card{background:var(--mid-surface);border:1px solid var(--mid-line);border-radius:18px;box-shadow:none}
-html[data-admin-theme="midnight"] .crud-panel{background:rgba(10,132,255,.08);border:1px dashed rgba(10,132,255,.35)}
-html[data-admin-theme="midnight"] .help-panel{background:rgba(10,132,255,.08);border-color:rgba(10,132,255,.25)}
-/* جدول */
-html[data-admin-theme="midnight"] table{background:var(--mid-surface);border:1px solid var(--mid-line)}
-html[data-admin-theme="midnight"] th{background:var(--mid-elev);color:var(--mid-ink);border-bottom:1px solid var(--mid-line)}
-html[data-admin-theme="midnight"] td{border-bottom:1px solid var(--mid-line);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] table tbody tr:hover{background:rgba(255,255,255,.03)}
-/* دکمه‌ها */
-html[data-admin-theme="midnight"] .btn{background:var(--mid-elev);border-color:var(--mid-line);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] .btn:hover{border-color:rgba(255,255,255,.25);color:#fff}
-html[data-admin-theme="midnight"] .btn.primary{background:var(--mid-accent);border-color:var(--mid-accent);color:#fff}
-html[data-admin-theme="midnight"] .btn.add{background:#30d158;border-color:#30d158;color:#06280f}
-html[data-admin-theme="midnight"] .btn.edit{background:#ffd60a;border-color:#ffd60a;color:#3a2c00}
-html[data-admin-theme="midnight"] .btn.danger-btn{background:#ff453a;border-color:#ff453a;color:#fff}
-/* اینپوت‌ها */
-html[data-admin-theme="midnight"] input[type=text],html[data-admin-theme="midnight"] input[type=password],html[data-admin-theme="midnight"] input[type=number],html[data-admin-theme="midnight"] select,html[data-admin-theme="midnight"] textarea,html[data-admin-theme="midnight"] input[type=file]{background:var(--mid-elev);border:1px solid var(--mid-line);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] input:focus,html[data-admin-theme="midnight"] select:focus,html[data-admin-theme="midnight"] textarea:focus{border-color:var(--mid-accent)!important;box-shadow:0 0 0 3px rgba(10,132,255,.2)!important;outline:none}
-html[data-admin-theme="midnight"] select option{background:#1c1c1e;color:#f5f5f7}
-html[data-admin-theme="midnight"] label{color:var(--mid-ink)}
-html[data-admin-theme="midnight"] code{background:var(--mid-elev);color:#e5e5ea}
-/* هشدارها و نشان‌ها */
-html[data-admin-theme="midnight"] .alert.ok{background:rgba(48,209,88,.14);color:#30d158}
-html[data-admin-theme="midnight"] .alert.error{background:rgba(255,69,58,.14);color:#ff6961}
-html[data-admin-theme="midnight"] .status-pill.ok{background:rgba(48,209,88,.16);color:#30d158}
-html[data-admin-theme="midnight"] .status-pill.error{background:rgba(255,69,58,.16);color:#ff6961}
-html[data-admin-theme="midnight"] .badge.ok{background:rgba(48,209,88,.16);color:#30d158}
-html[data-admin-theme="midnight"] .badge.off{background:var(--mid-elev);color:var(--mid-muted)}
-/* تب‌ها و چیپ‌ها */
-html[data-admin-theme="midnight"] .tabs .tab{background:var(--mid-surface);border-color:var(--mid-line);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] .tabs .tab.active{background:var(--mid-accent);border-color:var(--mid-accent);color:#fff}
-html[data-admin-theme="midnight"] .chip{background:var(--mid-surface);border-color:var(--mid-line);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] .chip.active{background:var(--mid-accent);border-color:var(--mid-accent);color:#fff}
-html[data-admin-theme="midnight"] .design-tabs a{background:var(--mid-surface);border-color:var(--mid-line);color:var(--mid-ink)}
-html[data-admin-theme="midnight"] .design-tabs a.active{background:var(--mid-accent);border-color:var(--mid-accent);color:#fff}
-/* داشبورد */
-html[data-admin-theme="midnight"] .flagship-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);border-radius:24px;color:#fff}
-html[data-admin-theme="midnight"] .stat-card{background:var(--mid-surface);border:1px solid var(--mid-line);border-radius:18px}
-html[data-admin-theme="midnight"] .stat-card span{color:var(--mid-muted)}
-html[data-admin-theme="midnight"] .stat-card strong{color:var(--mid-ink)}
-html[data-admin-theme="midnight"] .dash-cards .stat-card{background:var(--mid-surface);border:1px solid var(--mid-line)}
-/* آکاردئون و متفرقه */
-html[data-admin-theme="midnight"] .ts-accordion{background:var(--mid-surface);border-color:var(--mid-line)}
-html[data-admin-theme="midnight"] .ts-acc-head{background:var(--mid-elev)}
-html[data-admin-theme="midnight"] .ts-acc-head:hover{background:#38383c}
-html[data-admin-theme="midnight"] .ts-acc-head h3{color:var(--mid-ink)}
-html[data-admin-theme="midnight"] .ts-acc-body{border-top-color:var(--mid-line)}
-html[data-admin-theme="midnight"] .auth-box{background:var(--mid-surface);border:1px solid var(--mid-line)}
-html[data-admin-theme="midnight"] hr{border-color:var(--mid-line)}
-html[data-admin-theme="midnight"] .theme-switcher button{background:var(--mid-surface)!important;border-color:var(--mid-line)!important;color:var(--mid-ink)!important}
-html[data-admin-theme="midnight"] .theme-switcher button.active{background:var(--mid-accent)!important;border-color:var(--mid-accent)!important;color:#fff!important}
 /* آکاردئون مشترک صفحات ادمین (منوها، استودیو قالب و...) — ۱۰٫۲۵ */
 .ts-accordion{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
 .ts-acc-head{padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;user-select:none}
