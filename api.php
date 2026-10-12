@@ -308,7 +308,7 @@ if ($res === 'product') {
             api_out(['ok' => true, 'id' => $pid, 'deleted' => true]);
         }
         $fields = [];
-        foreach (['category_id' => 'i', 'name' => 's', 'sku' => 's', 'description' => 's', 'image' => 's', 'price_per_meter' => 'i', 'partner_price_per_meter' => 'i', 'is_active' => 'i', 'sort_order' => 'i', 'order_form_config' => 's', 'pricing_model' => 's', 'price_per_watt' => 'i', 'frame_options_json' => 's'] as $k => $t) {
+        foreach (['category_id' => 'i', 'name' => 's', 'sku' => 's', 'description' => 's', 'image' => 's', 'price_per_meter' => 'i', 'partner_price_per_meter' => 'i', 'is_active' => 'i', 'sort_order' => 'i', 'order_form_config' => 's', 'pricing_model' => 's', 'price_per_watt' => 'i', 'frame_options_json' => 's', 'seo_title' => 's', 'seo_description' => 's', 'seo_keywords' => 's'] as $k => $t) {
             $v = api_in($k, null);
             if ($v !== null) {
                 if ($k === 'name' && trim((string) $v) === '') {

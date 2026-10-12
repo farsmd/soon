@@ -234,7 +234,7 @@ HTML,
                 {{#if is_per_watt}}<p class="product-price-line">{{#if base_price_formatted}}از <strong>{{base_price_formatted}}</strong> تومان{{/if}}{{#if price_per_watt_formatted}} <span class="muted">— هر وات {{price_per_watt_formatted}} تومان + قیمت قاب</span>{{/if}}{{#if frame_options_line}}<br><span class="muted">قاب‌ها: {{frame_options_line}}</span>{{/if}}</p>{{else}}<p class="product-price-line">قیمت متری: <strong>{{price_per_meter_formatted}}</strong> تومان{{#if partner_discount_percent}} <span class="muted">| تخفیف همکار: {{partner_discount_percent}}٪</span>{{/if}}</p>{{/if}}
                 {{product_specs}}
                 {{product_gallery}}
-                <p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>
+                <p class="product-order-cta"><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>
             </div>
         </div>
     </div>
@@ -4054,11 +4054,15 @@ textarea{min-height:120px;resize:vertical}
 
 
 /* ---------- جزئیات فنی — برای مشتری‌های حساس به عدد و رقم ---------- */
-.spec-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:18px;overflow:hidden;box-shadow:4px 4px 16px rgba(0,0,0,.05);margin:20px 0}
+.spec-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:18px;overflow:hidden;box-shadow:4px 4px 16px rgba(0,0,0,.05);margin:20px 0;table-layout:fixed}
 .spec-table th{background:#f7f8fb;font-size:12px;font-weight:700;color:var(--muted);padding:12px 16px;text-align:right;border-bottom:2px solid var(--surface-border)}
 .spec-table td{padding:12px 16px;font-size:14px;border-bottom:1px solid #f0f2f7}
 .spec-table tr:last-child td{border-bottom:none}
 .spec-table td.num{font-variant-numeric:tabular-nums;direction:ltr;text-align:left;font-weight:600}
+/* ۱۰٫۳۲: جلوگیری از بیرون‌زدگی جدول مشخصات در صفحه باریک موبایل */
+.spec-table th,.spec-table td{overflow-wrap:anywhere;word-break:break-word}
+/* ۱۰٫۳۲: دکمه ثبت سفارش محصول وسط‌چین */
+.product-order-cta{text-align:center;margin:24px 0}
 .spec-label{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
 .tech-badge{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border:1px solid #dbe4ff;color:#3b5bdb;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px}
 .measure{font-variant-numeric:tabular-nums;letter-spacing:.02em}

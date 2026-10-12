@@ -1345,6 +1345,12 @@ cleanup_legacy_flat_files_if_needed(); } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log('product order btn migration failed: ' . $e->getMessage());
     }
+    // --- نسخه ۱۰٫۳۲: وسط‌چین شدن دکمه ثبت سفارش محصول (یک بار) ---
+    try {
+        migrate_product_order_btn_center_v1032_if_needed();
+    } catch (Throwable $e) {
+        error_log('product order btn center migration failed: ' . $e->getMessage());
+    }
     // --- نسخه ۹٫۹۹٫۶۳: حذف برآورد (یک بار) ---
     try {
         migrate_remove_estimator_v9963_if_needed();
@@ -2561,7 +2567,7 @@ function migrate_order_links_v9967_if_needed(): void
         $tpl = get_template_content('product');
         if ($tpl !== '' && strpos($tpl, '/order?product={{product_id}}') === false) {
             // دکمه را قبل از بستن section اضافه کن
-            $btn = '<p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
+            $btn = '<p class="product-order-cta"><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
             $newTpl = str_replace('{{product_gallery}}', '{{product_gallery}}' . "\n" . '                ' . $btn, $tpl);
             if ($newTpl !== $tpl) {
                 db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
@@ -2636,7 +2642,7 @@ function migrate_order_links_v9967_if_needed(): void
         try {
             $tpl2 = get_template_content('product');
             if ($tpl2 !== '' && strpos($tpl2, '/order?product={{product_id}}') === false) {
-                $btn2 = '<p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
+                $btn2 = '<p class="product-order-cta"><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>';
                 // بعد از گالری اضافه کن
                 if (strpos($tpl2, '{{product_gallery}}') !== false) {
                     $newTpl2 = str_replace('{{product_gallery}}', '{{product_gallery}}' . "\n" . '                ' . $btn2, $tpl2);
@@ -2686,7 +2692,7 @@ function migrate_product_order_btn_v9962_if_needed(): void
         if ($tpl !== '' && strpos($tpl, 'order?product=') === false) {
             $tpl = str_replace(
                 '{{product_gallery}}',
-                '{{product_gallery}}' . "\n" . '                <p><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>',
+                '{{product_gallery}}' . "\n" . '                <p class="product-order-cta"><a class="btn btn-primary" href="/order?product={{product_id}}">ثبت سفارش این محصول</a></p>',
                 $tpl
             );
             db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $tpl]);
@@ -2694,6 +2700,30 @@ function migrate_product_order_btn_v9962_if_needed(): void
         set_setting('product_order_btn_9962', '1');
     } catch (Throwable $e) {
         error_log('product order btn failed: ' . $e->getMessage());
+    }
+}
+
+/** مایگریشن نسخه ۱۰٫۳۲: وسط‌چین شدن دکمه «ثبت سفارش این محصول» در قالب محصول */
+function migrate_product_order_btn_center_v1032_if_needed(): void
+{
+    try {
+        if (get_setting('product_order_btn_center_1032', '0') === '1') {
+            return;
+        }
+        $tpl = get_template_content('product');
+        if ($tpl !== '') {
+            $newTpl = str_replace(
+                '<p><a class="btn btn-primary" href="/order?product={{product_id}}">',
+                '<p class="product-order-cta"><a class="btn btn-primary" href="/order?product={{product_id}}">',
+                $tpl
+            );
+            if ($newTpl !== $tpl) {
+                db()->prepare("UPDATE site_templates SET content = :c, updated_at = datetime('now') WHERE template_key = 'product'")->execute([':c' => $newTpl]);
+            }
+        }
+        set_setting('product_order_btn_center_1032', '1');
+    } catch (Throwable $e) {
+        error_log('product order btn center failed: ' . $e->getMessage());
     }
 }
 
