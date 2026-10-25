@@ -2,7 +2,7 @@
 // price.php — صفحه لیست قیمت و قوانین قیمت‌گذاری لاینرلایت
 declare(strict_types=1);
 
-require __DIR__ . '/core/config.php';
+require_once __DIR__ . '/core/config.php';
 cms_session_start();
 track_public_request();
 

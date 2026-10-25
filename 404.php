@@ -7,6 +7,14 @@ declare(strict_types=1);
 
 require __DIR__ . '/core/config.php';
 
+// ریدایرکت دائمی آدرس قدیمی price.html به صفحه قیمت (۱۰٫۳۷).
+// این فایل هندلر ۴۰۴ سرور است، پس قبل از هر خروجی و سشن، مسیر درخواست چک می‌شود.
+$reqPath = strtolower(trim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH), '/'));
+if ($reqPath === 'price.html') {
+    header('Location: /price', true, 301);
+    exit;
+}
+
 cms_session_start();
 process_contact_form();
 process_partner_form();

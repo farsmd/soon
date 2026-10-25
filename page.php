@@ -6,6 +6,15 @@ declare(strict_types=1);
 
 require __DIR__ . '/core/config.php';
 
+// لیست قیمت (۱۰٫۳۷): آدرس تمیز /price فایل price.php را نشان می‌دهد.
+// در htaccess قانونی برای price نیست، پس این استثنا بدون دست‌زدن به htaccess همان کار را می‌کند.
+// (price.php خودش config را با require_once می‌خواند تا لود دوباره خطا ندهد.)
+$slug = trim((string) ($_GET['slug'] ?? ''));
+if ($slug === 'price') {
+    require __DIR__ . '/price.php';
+    exit;
+}
+
 // لاگ بازدید و کلیک‌های سایت (نسخه ۸٫۲)
 cms_session_start();
 process_contact_form();
@@ -13,7 +22,6 @@ process_partner_form();
 track_public_request();
 
 $settings = all_settings();
-$slug = trim((string) ($_GET['slug'] ?? ''));
 // تک‌صفحه‌ای (۹٫۹۹٫۵۱): درباره و تماس روی صفحه اصلی هستند
 if ($slug === 'about' || $slug === 'contact') {
     header('Location: ' . pretty_url('index.php') . '#' . $slug, true, 301);
