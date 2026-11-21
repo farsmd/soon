@@ -53,6 +53,10 @@ if ($page !== null && $canonBase !== '') {
         ['name' => 'خانه', 'url' => $canonBase . '/'],
         ['name' => (string) $page['title'], 'url' => $canonBase . '/' . $slug],
     ];
+    // آفر ویژه (۱۰٫۳۸): تصویر پیش‌نمایش لینک — صفحه‌ها فیلد تصویر ندارند، پس فقط برای همین اسلاگ
+    if ($slug === 'special-offer') {
+        $pageSeo['image'] = 'uploads/gallery/special-offer.jpg';
+    }
 }
 echo skeleton_head($settings, $title, $desc, $pageSeo);
 echo render_db_template('header', $settings) . "\n";
